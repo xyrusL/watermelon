@@ -580,19 +580,40 @@ export default function ImageFramePage() {
 
         setIsDeleting(true);
 
-        // Try to delete from host if deleteUrl exists
-        if (selectedGalleryImage.deleteUrl) {
-            try {
-                const host = selectedGalleryImage.host || "imgbb";
+        try {
+            const host = selectedGalleryImage.host || "supabase";
+            
+            // Delete from storage
+            if (selectedGalleryImage.deleteUrl) {
                 const deleteEndpoint = HOSTS[host].deleteEndpoint;
-                await fetch(deleteEndpoint, {
+                const response = await fetch(deleteEndpoint, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ deleteUrl: selectedGalleryImage.deleteUrl }),
                 });
-            } catch (err) {
-                console.error("Failed to delete from host:", err);
+                
+                if (!response.ok) {
+                    console.error("Failed to delete from storage");
+                }
             }
+
+            // Delete from database if it's a supabase image
+            if (host === "supabase") {
+                try {
+                    await fetch('/api/supabase/delete-record', {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                            url: selectedGalleryImage.directUrl,
+                            file_path: selectedGalleryImage.deleteUrl 
+                        }),
+                    });
+                } catch (dbErr) {
+                    console.error("Failed to delete from database:", dbErr);
+                }
+            }
+        } catch (err) {
+            console.error("Failed to delete:", err);
         }
 
         // Remove from local gallery
