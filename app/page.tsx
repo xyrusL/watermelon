@@ -98,6 +98,13 @@ export default function Home() {
                   <span className="sm:hidden">ℹ️</span>
                 </Link>
                 <Link
+                  href="/converter"
+                  className="px-4 py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all hover:scale-105"
+                >
+                  <span className="hidden sm:inline">🎬 Converter</span>
+                  <span className="sm:hidden">🎬</span>
+                </Link>
+                <Link
                   href="/mods"
                   className="px-4 py-2.5 glass border border-white/10 hover:border-[#ffa502]/50 rounded-full text-sm font-medium transition-all hover:scale-105"
                 >
