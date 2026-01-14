@@ -236,26 +236,45 @@ export default function ImageFramePage() {
         fetchRecentImages();
     }, []);
 
-    // Load/generate username from user email
+    // Load/generate username from Clerk metadata or email
     useEffect(() => {
         if (user?.primaryEmailAddress?.emailAddress) {
-            const savedUsername = localStorage.getItem(`username-${user.id}`);
-            if (savedUsername) {
-                setUsername(savedUsername);
+            // Check Clerk metadata first
+            const clerkUsername = user.unsafeMetadata?.displayName as string;
+            if (clerkUsername) {
+                setUsername(clerkUsername);
             } else {
-                // Generate username from email
-                const emailUsername = user.primaryEmailAddress.emailAddress.split('@')[0];
-                setUsername(emailUsername);
-                localStorage.setItem(`username-${user.id}`, emailUsername);
+                // Fallback to localStorage
+                const savedUsername = localStorage.getItem(`username-${user.id}`);
+                if (savedUsername) {
+                    setUsername(savedUsername);
+                } else {
+                    // Generate username from email
+                    const emailUsername = user.primaryEmailAddress.emailAddress.split('@')[0];
+                    setUsername(emailUsername);
+                }
             }
         }
     }, [user]);
 
     // Save username when changed
-    const handleSaveUsername = () => {
+    const handleSaveUsername = async () => {
         if (user?.id && username.trim()) {
-            localStorage.setItem(`username-${user.id}`, username.trim());
             setIsEditingUsername(false);
+            
+            // Save to localStorage as backup
+            localStorage.setItem(`username-${user.id}`, username.trim());
+            
+            // Save to Clerk metadata for persistence across sessions
+            try {
+                await fetch('/api/user/update-display-name', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ displayName: username.trim() }),
+                });
+            } catch (err) {
+                console.warn('Failed to save display name to server:', err);
+            }
         }
     };
 
