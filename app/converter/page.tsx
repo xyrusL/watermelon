@@ -44,13 +44,22 @@ export default function ConverterPage() {
     // Error modal
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     
-    const ffmpegRef = useRef(new FFmpeg());
+    const ffmpegRef = useRef<FFmpeg | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
+
+    // Initialize FFmpeg only in browser
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            ffmpegRef.current = new FFmpeg();
+        }
+    }, []);
 
     // Load FFmpeg
     useEffect(() => {
+        if (typeof window === 'undefined' || !ffmpegRef.current) return;
+        
         const loadFFmpeg = async () => {
-            const ffmpeg = ffmpegRef.current;
+            const ffmpeg = ffmpegRef.current!;
             
             ffmpeg.on("log", ({ message }) => {
                 console.log(message);
@@ -113,7 +122,7 @@ export default function ConverterPage() {
     };
 
     const convertToGif = async () => {
-        if (!videoFile || !ffmpegLoaded) return;
+        if (!videoFile || !ffmpegLoaded || !ffmpegRef.current) return;
 
         setIsLoading(true);
         setProgress(0);
