@@ -74,6 +74,18 @@ export default function ImageFramePage() {
     // Check if user is admin (via Clerk's publicMetadata)
     const isAdmin = user?.publicMetadata?.role === "admin";
 
+    // Helper function to ensure URL is absolute
+    const ensureAbsoluteUrl = (url: string): string => {
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            return url; // Already absolute
+        }
+        // Get current origin (works in both browser and SSR)
+        if (typeof window !== 'undefined') {
+            return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
+        }
+        return url; // Fallback
+    };
+
     const [isDragging, setIsDragging] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
@@ -1213,7 +1225,7 @@ export default function ImageFramePage() {
                         {!showDeleteConfirm ? (
                             <div className="space-y-3">
                                 <button
-                                    onClick={() => copyUrl(selectedGalleryImage.directUrl)}
+                                    onClick={() => copyUrl(ensureAbsoluteUrl(selectedGalleryImage.directUrl))}
                                     className="w-full py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all cursor-pointer"
                                 >
                                     {copied ? "✓ Copied!" : "📋 Copy URL"}
@@ -1731,11 +1743,11 @@ export default function ImageFramePage() {
                                     <div className="space-y-2">
                                         <p className="text-sm text-gray-400">Direct URL (paste in Minecraft)</p>
                                         <div
-                                            onClick={() => copyUrl(uploadedImage.directUrl)}
+                                            onClick={() => copyUrl(ensureAbsoluteUrl(uploadedImage.directUrl))}
                                             className="glass p-4 rounded-xl cursor-pointer hover:border-[#ff4757]/50 transition-all group"
                                         >
                                             <code className="text-[#ff4757] text-sm break-all">
-                                                {uploadedImage.directUrl}
+                                                {ensureAbsoluteUrl(uploadedImage.directUrl)}
                                             </code>
                                             <p className="text-xs text-gray-500 mt-2">
                                                 {copied ? "✓ Copied!" : "Click to copy"}
