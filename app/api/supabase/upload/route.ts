@@ -92,13 +92,12 @@ export async function POST(request: NextRequest) {
             }, { status: 500 });
         }
 
-        // Get the origin from request headers to create absolute URLs
-        const origin = request.headers.get('origin') || 
-                      request.headers.get('referer')?.split('/').slice(0, 3).join('/') ||
-                      'http://localhost:3000';
+        // Get public URL directly from Supabase (no proxy needed)
+        const { data: publicUrlData } = supabase.storage
+            .from('watermelon-images')
+            .getPublicUrl(filePath);
         
-        // Create absolute URL
-        const absoluteUrl = `${origin}/images/${filePath}`;
+        const directPublicUrl = publicUrlData.publicUrl;
 
         // Get uploader info from request headers (sent by frontend)
         const uploaderName = request.headers.get('x-uploader-name') || 'Anonymous';
@@ -111,7 +110,7 @@ export async function POST(request: NextRequest) {
                 .insert({
                     file_path: filePath,
                     filename: file.name,
-                    url: absoluteUrl,
+                    url: directPublicUrl,
                     file_size: buffer.length,
                     uploader_name: uploaderName,
                     uploader_email: uploaderEmail,
@@ -129,10 +128,10 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            url: absoluteUrl,
-            directUrl: absoluteUrl,
+            url: directPublicUrl,
+            directUrl: directPublicUrl,
             deleteUrl: filePath, // Store the path for deletion
-            thumbnail: absoluteUrl,
+            thumbnail: directPublicUrl,
             filename: file.name,
             message: "Image uploaded successfully to Watermelon Storage"
         });
