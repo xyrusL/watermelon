@@ -64,7 +64,49 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ...
 ```
 
-### 7. Test It!
+### 7. Create Database Table for Image Tracking
+1. In Supabase dashboard, click "SQL Editor" in left menu
+2. Click "New Query"
+3. Paste this SQL:
+
+```sql
+CREATE TABLE images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  file_path TEXT NOT NULL,
+  filename TEXT NOT NULL,
+  url TEXT NOT NULL,
+  file_size INTEGER,
+  uploader_name TEXT,
+  uploader_email TEXT,
+  host TEXT DEFAULT 'supabase',
+  uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable Row Level Security
+ALTER TABLE images ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow public read
+CREATE POLICY "Allow public read access"
+ON images FOR SELECT
+TO public
+USING (true);
+
+-- Create policy to allow authenticated inserts
+CREATE POLICY "Allow authenticated inserts"
+ON images FOR INSERT
+TO public
+WITH CHECK (true);
+
+-- Create policy to allow deletes
+CREATE POLICY "Allow deletes"
+ON images FOR DELETE
+TO public
+USING (true);
+```
+
+4. Click "Run" to create the table
+
+### 8. Test It!
 1. Restart your dev server: `npm run dev`
 2. Go to ImageFrame page
 3. Select "Watermelon Storage" (recommended badge)

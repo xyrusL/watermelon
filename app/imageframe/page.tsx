@@ -190,12 +190,38 @@ export default function ImageFramePage() {
         checkApi();
     }, [selectedHost]);
 
-    // Load gallery from localStorage on mount
+    // Load gallery from Supabase database on mount
     useEffect(() => {
-        const saved = localStorage.getItem("watermelon-gallery");
-        if (saved) {
-            setGallery(JSON.parse(saved));
-        }
+        const fetchRecentImages = async () => {
+            try {
+                const response = await fetch('/api/supabase/recent');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.images) {
+                        const images: UploadedImage[] = data.images.map((img: any) => ({
+                            url: img.url,
+                            directUrl: img.url,
+                            deleteUrl: img.file_path,
+                            filename: img.filename,
+                            uploadedAt: new Date(img.uploaded_at).getTime(),
+                            fileSize: img.file_size,
+                            host: 'supabase',
+                            uploaderName: img.uploader_name,
+                            uploaderEmail: img.uploader_email,
+                        }));
+                        setGallery(images);
+                    }
+                }
+            } catch (err) {
+                console.warn('Failed to fetch recent images:', err);
+                // Fallback to localStorage
+                const saved = localStorage.getItem("watermelon-gallery");
+                if (saved) {
+                    setGallery(JSON.parse(saved));
+                }
+            }
+        };
+        fetchRecentImages();
     }, []);
 
     // Load/generate username from user email

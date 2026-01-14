@@ -92,8 +92,13 @@ export async function POST(request: NextRequest) {
             }, { status: 500 });
         }
 
-        // Create clean URL using rewrite path
-        const cleanUrl = `/images/${filePath}`;
+        // Get the origin from request headers to create absolute URLs
+        const origin = request.headers.get('origin') || 
+                      request.headers.get('referer')?.split('/').slice(0, 3).join('/') ||
+                      'http://localhost:3000';
+        
+        // Create absolute URL
+        const absoluteUrl = `${origin}/images/${filePath}`;
 
         // Get uploader info from request headers (sent by frontend)
         const uploaderName = request.headers.get('x-uploader-name') || 'Anonymous';
@@ -106,7 +111,7 @@ export async function POST(request: NextRequest) {
                 .insert({
                     file_path: filePath,
                     filename: file.name,
-                    url: cleanUrl,
+                    url: absoluteUrl,
                     file_size: buffer.length,
                     uploader_name: uploaderName,
                     uploader_email: uploaderEmail,
@@ -124,10 +129,10 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            url: cleanUrl,
-            directUrl: cleanUrl,
+            url: absoluteUrl,
+            directUrl: absoluteUrl,
             deleteUrl: filePath, // Store the path for deletion
-            thumbnail: cleanUrl,
+            thumbnail: absoluteUrl,
             filename: file.name,
             message: "Image uploaded successfully to Watermelon Storage"
         });
