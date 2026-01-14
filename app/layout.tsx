@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "Watermelon SMP | Minecraft Server",
     description: "A cozy Minecraft server with custom plugins and endless adventures",
     type: "website",
-    url: "https://watermelon-crquwe21-xyrus-projects-4b088ee2.vercel.app",
+    url: "https://watermelon.deze.me",
     siteName: "Watermelon SMP",
     images: [
       {
