@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Watermelon Color Palette */
+  --watermelon-red: #ff4757;
+  --watermelon-pink: #ff6b81;
+  --watermelon-green: #2ed573;
+  --watermelon-dark-green: #1e8449;
+  --watermelon-seed: #2f3542;
+
+  /* Dark Theme */
+  --background: #0d0d0d;
+  --background-secondary: #1a1a1a;
+  --foreground: #ededed;
+  --foreground-muted: #a0a0a0;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', sans-serif;
+}
+
+/* Pixel Font Class */
+.font-pixel {
+  font-family: 'Press Start 2P', cursive;
+}
+
+/* Reusable Link Styles */
+.link-primary {
+  @apply text-[#2ed573] hover:text-[#26de81] transition-colors no-underline;
+}
+
+.link-secondary {
+  @apply text-[#ff6b81] hover:text-[#ff4757] transition-colors no-underline;
+}
+
+.link-external {
+  @apply text-[#ff6b81] hover:text-[#ff4757] no-underline hover:no-underline transition-colors;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--watermelon-red);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--watermelon-pink);
+}
+
+/* Animations */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(255, 71, 87, 0.6);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--watermelon-red), var(--watermelon-green));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass Effect */
+.glass {
+  background: rgba(26, 26, 26, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
