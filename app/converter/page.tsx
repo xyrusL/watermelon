@@ -7,6 +7,9 @@ import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/n
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
+// Force dynamic rendering - FFmpeg only works in browser
+export const dynamic = 'force-dynamic';
+
 export default function ConverterPage() {
     const { isSignedIn } = useUser();
     const [converterType, setConverterType] = useState<"video" | "image">("video");
