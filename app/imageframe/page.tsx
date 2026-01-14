@@ -259,22 +259,24 @@ export default function ImageFramePage() {
 
     // Save username when changed
     const handleSaveUsername = async () => {
-        if (user?.id && username.trim()) {
-            setIsEditingUsername(false);
-            
-            // Save to localStorage as backup
-            localStorage.setItem(`username-${user.id}`, username.trim());
-            
-            // Save to Clerk metadata for persistence across sessions
-            try {
-                await fetch('/api/user/update-display-name', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ displayName: username.trim() }),
-                });
-            } catch (err) {
-                console.warn('Failed to save display name to server:', err);
-            }
+        if (!user?.id || !username.trim()) return;
+        
+        setIsEditingUsername(false);
+        
+        // Save to localStorage as backup
+        localStorage.setItem(`username-${user.id}`, username.trim());
+        
+        // Update Clerk user metadata directly using client-side method
+        try {
+            await user.update({
+                unsafeMetadata: {
+                    ...user.unsafeMetadata,
+                    displayName: username.trim()
+                }
+            });
+            console.log('Display name saved to Clerk!');
+        } catch (err) {
+            console.error('Failed to save display name:', err);
         }
     };
 
