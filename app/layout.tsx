@@ -4,12 +4,34 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Watermelon SMP | Minecraft Server",
-  description: "Join Watermelon SMP - A fun Minecraft Java server with custom plugins and an amazing community. IP: watermelon.deze.me",
+  description: "A cozy Minecraft server with custom plugins and endless adventures",
   keywords: ["minecraft", "server", "smp", "java", "watermelon", "gaming"],
   openGraph: {
     title: "Watermelon SMP | Minecraft Server",
-    description: "Join Watermelon SMP - A fun Minecraft Java server with custom plugins and an amazing community.",
+    description: "A cozy Minecraft server with custom plugins and endless adventures",
     type: "website",
+    url: "https://watermelon-crquwe21-xyrus-projects-4b088ee2.vercel.app",
+    siteName: "Watermelon SMP",
+    images: [
+      {
+        url: "/watermelon.svg",
+        width: 512,
+        height: 512,
+        alt: "Watermelon SMP Logo",
+      },
+      {
+        url: "/minecraft-bg.jpg",
+        width: 1920,
+        height: 1080,
+        alt: "Watermelon SMP Background",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Watermelon SMP | Minecraft Server",
+    description: "A cozy Minecraft server with custom plugins and endless adventures",
+    images: ["/minecraft-bg.jpg"],
   },
 };
 

@@ -21,6 +21,27 @@ const commands = [
         icon: "✅",
     },
     {
+        command: "/tpdeny",
+        description: "Deny a teleport request",
+        example: "/tpdeny",
+        category: "teleport",
+        icon: "❌",
+    },
+    {
+        command: "/tpacancel",
+        description: "Cancel your outgoing teleport request",
+        example: "/tpacancel",
+        category: "teleport",
+        icon: "🚫",
+    },
+    {
+        command: "/tpahere <player>",
+        description: "Request a player to teleport to you",
+        example: "/tpahere Yuii",
+        category: "teleport",
+        icon: "📍",
+    },
+    {
         command: "/back",
         description: "Teleport back to your previous location",
         example: "/back",
@@ -40,6 +61,20 @@ const commands = [
         example: "/nick &cCool&fPlayer",
         category: "social",
         icon: "✏️",
+    },
+    {
+        command: "/afk",
+        description: "Toggle AFK status",
+        example: "/afk",
+        category: "social",
+        icon: "💤",
+    },
+    {
+        command: "/mail",
+        description: "Send or read mail from other players",
+        example: "/mail send Yuii Hello!",
+        category: "social",
+        icon: "📧",
     },
     {
         command: "/skin <url>",

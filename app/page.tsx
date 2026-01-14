@@ -157,26 +157,26 @@ export default function Home() {
           </div>
 
           {/* Title */}
-          <h1 className="font-pixel text-3xl md:text-5xl text-center mb-4 gradient-text">
+          <h1 className="font-pixel text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl text-center mb-4 gradient-text px-4">
             WATERMELON
           </h1>
-          <p className="font-pixel text-xs md:text-sm text-[#2ed573] mb-8">
+          <p className="font-pixel text-[10px] sm:text-xs md:text-sm text-[#2ed573] mb-8">
             SMP SERVER
           </p>
 
           {/* Tagline */}
-          <p className="text-lg md:text-xl text-gray-300 text-center max-w-md mb-8">
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 text-center max-w-xs sm:max-w-md lg:max-w-2xl mb-8 px-4">
             A cozy Minecraft server with custom plugins and endless adventures
           </p>
 
           {/* Server IP */}
-          <div className="flex flex-col items-center gap-4 mb-8">
+          <div className="flex flex-col items-center gap-4 mb-8 px-4">
             <button
               onClick={copyIP}
-              className="glass px-8 py-4 rounded-xl animate-pulse-glow hover:scale-105 transition-transform cursor-pointer group"
+              className="glass px-6 sm:px-8 py-4 rounded-xl animate-pulse-glow hover:scale-105 transition-transform cursor-pointer group w-full sm:w-auto max-w-md"
             >
-              <p className="text-sm text-gray-400 mb-1">Server IP</p>
-              <p className="font-pixel text-lg md:text-xl text-[#ff4757] group-hover:text-[#ff6b81] transition-colors">
+              <p className="text-xs sm:text-sm text-gray-400 mb-1">Server IP</p>
+              <p className="font-pixel text-base sm:text-lg md:text-xl lg:text-2xl text-[#ff4757] group-hover:text-[#ff6b81] transition-colors break-all">
                 {SERVER_IP}
               </p>
               <p className="text-xs text-gray-500 mt-2">
@@ -222,10 +222,10 @@ export default function Home() {
             <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#2ed573]/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
           </div>
 
-          <div className="max-w-4xl mx-auto relative z-10">
+          <div className="max-w-4xl 2xl:max-w-6xl mx-auto relative z-10 px-4">
             {/* Glowing animated title */}
             <div className="mb-4 text-center">
-              <h2 className="font-pixel text-xl md:text-2xl inline-block animate-[glow_2s_ease-in-out_infinite]" style={{
+              <h2 className="font-pixel text-lg sm:text-xl md:text-2xl lg:text-3xl inline-block animate-[glow_2s_ease-in-out_infinite]" style={{
                 color: '#ff4757',
                 textShadow: '0 0 10px rgba(255, 71, 87, 0.8), 0 0 20px rgba(255, 71, 87, 0.6), 0 0 30px rgba(255, 71, 87, 0.4)',
               }}>
@@ -517,7 +517,7 @@ export default function Home() {
               Everything you need for an amazing Minecraft experience
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6">
               {features.map((feature, index) => (
                 <div
                   key={feature.title}
@@ -537,7 +537,7 @@ export default function Home() {
 
         {/* Footer */}
         <footer className="py-12 px-4 border-t border-white/5">
-          <div className="max-w-4xl mx-auto text-center">
+          <div className="max-w-4xl 2xl:max-w-6xl mx-auto text-center">
             <div className="flex items-center justify-center gap-3 mb-4">
               <img
                 src="/watermelon.svg"

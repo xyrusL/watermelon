@@ -429,7 +429,9 @@ export default function ImageFramePage() {
                 setCroppedPreview(croppedUrl);
 
                 // Create new file from blob
-                const croppedFile = new File([blob], selectedFile?.name || "cropped.png", {
+                const originalName = selectedFile?.name || "image.png";
+                const extension = originalName.split('.').pop() || 'png';
+                const croppedFile = new File([blob], `watermelon-${Date.now()}.${extension}`, {
                     type: "image/png",
                 });
                 setSelectedFile(croppedFile);

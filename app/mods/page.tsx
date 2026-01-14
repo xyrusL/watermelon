@@ -66,6 +66,13 @@ const visualMods = [
         url: "https://modrinth.com/mod/bobby",
     },
     {
+        name: "Sounds",
+        description: "Adds ambient sounds and enhanced audio features",
+        benefit: "More immersive environment with natural soundscapes",
+        icon: "🎵",
+        url: "https://modrinth.com/mod/sounds",
+    },
+    {
         name: "Sound Physics Remastered",
         description: "Adds realistic sound physics and reverb",
         benefit: "Immersive audio experience in caves and buildings",

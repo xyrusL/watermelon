@@ -9,6 +9,9 @@ import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
 export default function ConverterPage() {
     const { isSignedIn } = useUser();
+    const [converterType, setConverterType] = useState<"video" | "image">("video");
+    
+    // Video converter states
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [videoPreview, setVideoPreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +19,8 @@ export default function ConverterPage() {
     const [progress, setProgress] = useState(0);
     const [gifUrl, setGifUrl] = useState<string | null>(null);
     const [gifSize, setGifSize] = useState<number>(0);
+    const [gifBlob, setGifBlob] = useState<Blob | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
     const [quality, setQuality] = useState(10); // 1-31, lower is better
     const [fps, setFps] = useState(15);
     const [scale, setScale] = useState(480); // Width in pixels
@@ -23,6 +28,18 @@ export default function ConverterPage() {
     const [duration, setDuration] = useState(0);
     const [maxDuration, setMaxDuration] = useState(10);
     const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+    
+    // Image converter states
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [convertedImageUrl, setConvertedImageUrl] = useState<string | null>(null);
+    const [convertedImageBlob, setConvertedImageBlob] = useState<Blob | null>(null);
+    const [outputFormat, setOutputFormat] = useState<"png" | "jpeg" | "webp">("png");
+    const [imageQuality, setImageQuality] = useState(0.9);
+    const [isConvertingImage, setIsConvertingImage] = useState(false);
+    
+    // Error modal
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     
     const ffmpegRef = useRef(new FFmpeg());
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -51,7 +68,8 @@ export default function ConverterPage() {
                 setLoadingMessage("");
             } catch (error) {
                 console.error("FFmpeg load error:", error);
-                setLoadingMessage("Failed to load converter. Please refresh the page.");
+                setErrorMessage("Failed to load converter engine. Please check your internet connection and refresh the page.");
+                setLoadingMessage("");
             }
         };
 
@@ -60,7 +78,14 @@ export default function ConverterPage() {
 
     const handleVideoSelect = (file: File) => {
         if (!file.type.startsWith("video/")) {
-            alert("Please select a valid video file");
+            setErrorMessage("Please select a valid video file");
+            return;
+        }
+
+        // Check file size (max 100MB for performance)
+        const maxSize = 100 * 1024 * 1024; // 100MB
+        if (file.size > maxSize) {
+            setErrorMessage(`Video file is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 100MB. Please use a smaller video.`);
             return;
         }
 
@@ -115,11 +140,14 @@ export default function ConverterPage() {
 
             // Read the output GIF
             const data = await ffmpeg.readFile("output.gif");
-            const blob = new Blob([data], { type: "image/gif" });
+            // Create a new Uint8Array to ensure proper typing for Blob
+            const uint8 = new Uint8Array(data as Uint8Array);
+            const blob = new Blob([uint8], { type: "image/gif" });
             const url = URL.createObjectURL(blob);
             
             setGifUrl(url);
             setGifSize(blob.size);
+            setGifBlob(blob);
             setLoadingMessage("");
             setProgress(100);
 
@@ -129,7 +157,8 @@ export default function ConverterPage() {
 
         } catch (error) {
             console.error("Conversion error:", error);
-            alert("Failed to convert video. Please try again.");
+            const errorMsg = error instanceof Error ? error.message : "Unknown error";
+            setErrorMessage(`Failed to convert video: ${errorMsg}. Please try with a smaller video or different format.`);
         } finally {
             setIsLoading(false);
         }
@@ -139,23 +168,194 @@ export default function ConverterPage() {
         if (!gifUrl) return;
         const a = document.createElement("a");
         a.href = gifUrl;
-        a.download = `converted-${Date.now()}.gif`;
+        a.download = `watermelon-gif-${Date.now()}.gif`;
         a.click();
+        
+        // Reset after download
+        setTimeout(() => {
+            reset();
+        }, 500);
+    };
+
+    const uploadToSupabase = async () => {
+        if (!gifBlob) return;
+
+        setIsUploading(true);
+        setLoadingMessage("Uploading to storage...");
+
+        try {
+            const formData = new FormData();
+            const file = new File([gifBlob], `watermelon-gif-${Date.now()}.gif`, { type: "image/gif" });
+            formData.append("image", file);
+
+            const response = await fetch("/api/supabase/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || "Upload failed");
+            }
+
+            // Show success and reset
+            setLoadingMessage("Upload successful!");
+            setTimeout(() => {
+                reset();
+            }, 1500);
+
+        } catch (error) {
+            console.error("Upload error:", error);
+            setErrorMessage("Failed to upload. Please try downloading instead.");
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const reset = () => {
         setVideoFile(null);
         setVideoPreview(null);
         setGifUrl(null);
+        setGifBlob(null);
         setProgress(0);
         setStartTime(0);
         setDuration(5);
+        setLoadingMessage("");
     };
 
     const formatFileSize = (bytes: number) => {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
         return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    };
+
+    // Image conversion functions
+    const handleImageSelect = (file: File) => {
+        if (!file.type.startsWith("image/")) {
+            setErrorMessage("Please select a valid image file");
+            return;
+        }
+
+        // Check file size (max 50MB)
+        const maxSize = 50 * 1024 * 1024; // 50MB
+        if (file.size > maxSize) {
+            setErrorMessage(`Image file is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 50MB.`);
+            return;
+        }
+
+        setImageFile(file);
+        const url = URL.createObjectURL(file);
+        setImagePreview(url);
+        setConvertedImageUrl(null);
+    };
+
+    const convertImage = async () => {
+        if (!imageFile) return;
+
+        setIsConvertingImage(true);
+        setLoadingMessage("Converting image...");
+
+        try {
+            const img = new window.Image();
+            img.src = URL.createObjectURL(imageFile);
+
+            await new Promise((resolve) => {
+                img.onload = resolve;
+            });
+
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            
+            if (!ctx) throw new Error("Failed to get canvas context");
+            
+            ctx.drawImage(img, 0, 0);
+
+            canvas.toBlob(
+                (blob) => {
+                    if (!blob) {
+                        setErrorMessage("Conversion failed");
+                        setIsConvertingImage(false);
+                        setLoadingMessage("");
+                        return;
+                    }
+
+                    const url = URL.createObjectURL(blob);
+                    setConvertedImageUrl(url);
+                    setConvertedImageBlob(blob);
+                    setGifSize(blob.size);
+                    setLoadingMessage("");
+                    setIsConvertingImage(false);
+                },
+                `image/${outputFormat}`,
+                imageQuality
+            );
+        } catch (error) {
+            console.error("Image conversion error:", error);
+            const errorMsg = error instanceof Error ? error.message : "Unknown error";
+            setErrorMessage(`Failed to convert image: ${errorMsg}. Please try again with a different image.`);
+            setIsConvertingImage(false);
+            setLoadingMessage("");
+        }
+    };
+
+    const downloadImage = () => {
+        if (!convertedImageUrl) return;
+        const a = document.createElement("a");
+        a.href = convertedImageUrl;
+        a.download = `watermelon-image-${Date.now()}.${outputFormat}`;
+        a.click();
+        
+        setTimeout(() => {
+            resetImage();
+        }, 500);
+    };
+
+    const uploadImage = async () => {
+        if (!convertedImageBlob) return;
+
+        setIsUploading(true);
+        setLoadingMessage("Uploading to storage...");
+
+        try {
+            const formData = new FormData();
+            const file = new File([convertedImageBlob], `watermelon-image-${Date.now()}.${outputFormat}`, { 
+                type: `image/${outputFormat}` 
+            });
+            formData.append("image", file);
+
+            const response = await fetch("/api/supabase/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || "Upload failed");
+            }
+
+            setLoadingMessage("Upload successful!");
+            setTimeout(() => {
+                resetImage();
+            }, 1500);
+
+        } catch (error) {
+            console.error("Upload error:", error);
+            setErrorMessage("Failed to upload. Please try downloading instead.");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const resetImage = () => {
+        setImageFile(null);
+        setImagePreview(null);
+        setConvertedImageUrl(null);
+        setConvertedImageBlob(null);
+        setLoadingMessage("");
     };
 
     return (
@@ -178,15 +378,11 @@ export default function ConverterPage() {
                 <header className="fixed top-0 left-0 right-0 z-50 py-3 px-4">
                     <div className="max-w-6xl mx-auto">
                         <div className="glass rounded-2xl px-4 py-3 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
+                            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
                                 <img src="/watermelon.svg" alt="Watermelon" width={28} height={28} />
                                 <span className="font-pixel text-xs text-[#ff4757] hidden sm:block">WATERMELON</span>
-                            </div>
+                            </Link>
                             <nav className="flex items-center gap-3">
-                                <Link href="/" className="px-4 py-2.5 glass border border-white/10 hover:border-[#5f27cd]/50 rounded-full text-sm font-medium transition-all">
-                                    <span className="hidden sm:inline">🏠 Home</span>
-                                    <span className="sm:hidden">🏠</span>
-                                </Link>
                                 <Link href="/imageframe" className="px-4 py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all">
                                     <span className="hidden sm:inline">🖼️ ImageFrame</span>
                                     <span className="sm:hidden">🖼️</span>
@@ -212,13 +408,46 @@ export default function ConverterPage() {
 
                 {/* Main */}
                 <main className="pt-24 pb-12 px-4 min-h-screen">
-                    <div className="max-w-4xl mx-auto">
+                    <div className="max-w-4xl 2xl:max-w-5xl mx-auto">
                         {/* Title */}
                         <div className="text-center mb-8">
-                            <h1 className="font-pixel text-3xl text-[#ff4757] mb-2">CONVERTER</h1>
-                            <p className="text-gray-400">Convert videos to GIF - 100% client-side processing</p>
-                            {!ffmpegLoaded && (
-                                <p className="text-yellow-400 text-sm mt-2">⚡ Loading converter engine (~30MB, one-time)...</p>
+                            <h1 className="font-pixel text-2xl sm:text-3xl lg:text-4xl text-[#ff4757] mb-2 px-4">CONVERTER</h1>
+                            <p className="text-sm sm:text-base text-gray-400 px-4">Transform your videos into GIFs instantly</p>
+                            
+                            {/* Converter Type Selector */}
+                            <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6 px-4">
+                                <button
+                                    onClick={() => {
+                                        setConverterType("video");
+                                        resetImage();
+                                        reset();
+                                    }}
+                                    className={`px-4 sm:px-6 py-3 rounded-xl font-medium transition-all text-sm sm:text-base w-full sm:w-auto ${
+                                        converterType === "video"
+                                            ? "bg-[#2ed573] text-white"
+                                            : "glass border border-white/10 hover:border-[#2ed573]/50"
+                                    }`}
+                                >
+                                    🎬 Video to GIF
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setConverterType("image");
+                                        reset();
+                                        resetImage();
+                                    }}
+                                    className={`px-4 sm:px-6 py-3 rounded-xl font-medium transition-all text-sm sm:text-base w-full sm:w-auto ${
+                                        converterType === "image"
+                                            ? "bg-[#2ed573] text-white"
+                                            : "glass border border-white/10 hover:border-[#2ed573]/50"
+                                    }`}
+                                >
+                                    🖼️ Image Format
+                                </button>
+                            </div>
+                            
+                            {!ffmpegLoaded && converterType === "video" && (
+                                <p className="text-yellow-400 text-sm mt-2">⚡ Loading converter engine...</p>
                             )}
                         </div>
 
@@ -233,7 +462,9 @@ export default function ConverterPage() {
                                     </button>
                                 </SignInButton>
                             </div>
-                        ) : !videoFile ? (
+                        ) : converterType === "video" ? (
+                            // VIDEO TO GIF CONVERTER
+                            !videoFile ? (
                             <div
                                 onDrop={handleDrop}
                                 onDragOver={(e) => e.preventDefault()}
@@ -358,16 +589,18 @@ export default function ConverterPage() {
                                     ) : (
                                         <>
                                             <button
-                                                onClick={downloadGif}
-                                                className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all"
+                                                onClick={uploadToSupabase}
+                                                disabled={isUploading}
+                                                className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50"
                                             >
-                                                📥 Download GIF
+                                                {isUploading ? "Uploading..." : "📤 Upload to Storage"}
                                             </button>
                                             <button
-                                                onClick={reset}
-                                                className="px-6 py-4 rounded-xl glass border border-white/10 hover:border-[#ffa502]/50 transition-all"
+                                                onClick={downloadGif}
+                                                disabled={isUploading}
+                                                className="flex-1 py-4 rounded-xl bg-[#ff4757] hover:bg-[#ff6b81] font-medium transition-all disabled:opacity-50"
                                             >
-                                                Convert Another
+                                                📥 Download
                                             </button>
                                         </>
                                     )}
@@ -379,10 +612,170 @@ export default function ConverterPage() {
                                     </div>
                                 )}
                             </div>
+                        )) : (
+                            // IMAGE FORMAT CONVERTER
+                            !imageFile ? (
+                                <div
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        const file = e.dataTransfer.files[0];
+                                        if (file) handleImageSelect(file);
+                                    }}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    className="glass rounded-2xl p-12 border-2 border-dashed border-white/20 hover:border-[#2ed573]/50 transition-all text-center cursor-pointer"
+                                    onClick={() => document.getElementById("image-input")?.click()}
+                                >
+                                    <div className="text-6xl mb-4">🖼️</div>
+                                    <h3 className="font-pixel text-lg text-[#2ed573] mb-2">UPLOAD IMAGE</h3>
+                                    <p className="text-gray-400 mb-4">Drag & drop or click to select</p>
+                                    <p className="text-xs text-gray-500">Supports PNG, JPG, JPEG, WebP</p>
+                                    <input
+                                        id="image-input"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => e.target.files?.[0] && handleImageSelect(e.target.files[0])}
+                                        className="hidden"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Preview */}
+                                    <div className="glass rounded-2xl p-6">
+                                        <h3 className="font-pixel text-sm text-[#2ed573] mb-4">
+                                            {convertedImageUrl ? "CONVERTED IMAGE" : "ORIGINAL IMAGE"}
+                                        </h3>
+                                        <img 
+                                            src={convertedImageUrl || imagePreview || ""} 
+                                            alt="Preview" 
+                                            className="mx-auto rounded-xl max-h-96" 
+                                        />
+                                        {convertedImageUrl && (
+                                            <p className="text-sm text-gray-400 mt-4 text-center">
+                                                Size: {formatFileSize(gifSize)}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {!convertedImageUrl && (
+                                        <div className="glass rounded-2xl p-6">
+                                            <h3 className="font-pixel text-sm text-[#2ed573] mb-4">CONVERT TO</h3>
+                                            <div className="flex gap-3 mb-4">
+                                                <button
+                                                    onClick={() => setOutputFormat("png")}
+                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                                                        outputFormat === "png"
+                                                            ? "bg-[#2ed573] text-white"
+                                                            : "glass border border-white/10"
+                                                    }`}
+                                                >
+                                                    PNG
+                                                </button>
+                                                <button
+                                                    onClick={() => setOutputFormat("jpeg")}
+                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                                                        outputFormat === "jpeg"
+                                                            ? "bg-[#2ed573] text-white"
+                                                            : "glass border border-white/10"
+                                                    }`}
+                                                >
+                                                    JPEG
+                                                </button>
+                                                <button
+                                                    onClick={() => setOutputFormat("webp")}
+                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                                                        outputFormat === "webp"
+                                                            ? "bg-[#2ed573] text-white"
+                                                            : "glass border border-white/10"
+                                                    }`}
+                                                >
+                                                    WebP
+                                                </button>
+                                            </div>
+                                            {outputFormat !== "png" && (
+                                                <div>
+                                                    <label className="text-sm text-gray-400 block mb-2">
+                                                        Quality: {Math.round(imageQuality * 100)}%
+                                                    </label>
+                                                    <input
+                                                        type="range"
+                                                        min="0.1"
+                                                        max="1"
+                                                        step="0.1"
+                                                        value={imageQuality}
+                                                        onChange={(e) => setImageQuality(Number(e.target.value))}
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Actions */}
+                                    <div className="flex gap-3">
+                                        {!convertedImageUrl ? (
+                                            <>
+                                                <button
+                                                    onClick={convertImage}
+                                                    disabled={isConvertingImage}
+                                                    className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50"
+                                                >
+                                                    {isConvertingImage ? "Converting..." : "Convert Image"}
+                                                </button>
+                                                <button
+                                                    onClick={resetImage}
+                                                    className="px-6 py-4 rounded-xl glass border border-white/10 hover:border-red-500/50 transition-all"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={uploadImage}
+                                                    disabled={isUploading}
+                                                    className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50"
+                                                >
+                                                    {isUploading ? "Uploading..." : "📤 Upload to Storage"}
+                                                </button>
+                                                <button
+                                                    onClick={downloadImage}
+                                                    disabled={isUploading}
+                                                    className="flex-1 py-4 rounded-xl bg-[#ff4757] hover:bg-[#ff6b81] font-medium transition-all disabled:opacity-50"
+                                                >
+                                                    📥 Download
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {loadingMessage && (
+                                        <div className="text-center text-gray-400 text-sm">
+                                            {loadingMessage}
+                                        </div>
+                                    )}
+                                </div>
+                            )
                         )}
                     </div>
                 </main>
             </div>
+
+            {/* Error Modal */}
+            {errorMessage && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+                    <div className="glass rounded-2xl p-8 border-2 border-red-500/50 max-w-md mx-4">
+                        <div className="text-5xl mb-4 text-center">⚠️</div>
+                        <h3 className="font-pixel text-lg text-red-400 mb-4 text-center">ERROR</h3>
+                        <p className="text-gray-300 text-center mb-6">{errorMessage}</p>
+                        <button 
+                            onClick={() => setErrorMessage(null)} 
+                            className="w-full py-3 bg-[#ff4757] hover:bg-[#ff6b81] rounded-xl font-medium transition-all"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
