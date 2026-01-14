@@ -96,12 +96,14 @@ export async function POST(request: NextRequest) {
         const { data: publicUrlData } = supabase.storage
             .from('watermelon-images')
             .getPublicUrl(filePath);
-        
+
         const directPublicUrl = publicUrlData.publicUrl;
 
         // Get uploader info from request headers (sent by frontend)
         const uploaderName = request.headers.get('x-uploader-name') || 'Anonymous';
         const uploaderEmail = request.headers.get('x-uploader-email') || '';
+        const isPrivate = request.headers.get('x-is-private') === 'true'; // Default false
+        const isNsfw = request.headers.get('x-is-nsfw') === 'true'; // Default false
 
         // Save image metadata to database for admin tracking
         try {
@@ -115,7 +117,9 @@ export async function POST(request: NextRequest) {
                     uploader_name: uploaderName,
                     uploader_email: uploaderEmail,
                     host: 'supabase',
-                    uploaded_at: new Date().toISOString()
+                    uploaded_at: new Date().toISOString(),
+                    is_private: isPrivate,
+                    is_nsfw: isNsfw
                 });
 
             if (dbError) {

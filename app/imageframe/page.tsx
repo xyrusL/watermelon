@@ -3,10 +3,35 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useCallback, useEffect } from "react";
-import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
+import ReactCrop, { Crop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import AdminPanel, { AdminButton } from "./components/AdminPanel";
+import UserPanel, { UserPanelButton } from "./components/UserPanel";
+import {
+    PixelLoader,
+    PixelLock,
+    PixelUnlock,
+    PixelUser,
+    PixelImage,
+    PixelCheck,
+    PixelClose,
+    PixelCopy,
+    PixelRefresh,
+    PixelSearch,
+    PixelKey,
+    PixelUpload,
+    PixelTrash,
+    PixelInfo,
+    PixelWarning,
+    PixelEye,
+    PixelGlobe,
+    PixelSettings,
+    PixelCrop as PixelCropIcon,
+    PixelExternalLink,
+    PixelShield,
+} from "./components/PixelIcons";
+import { Edit3, Save, X, ChevronDown, ImageIcon, Scissors, Square, RectangleHorizontal, RectangleVertical } from "lucide-react";
 
 interface UploadedImage {
     url: string;
@@ -19,6 +44,9 @@ interface UploadedImage {
     host?: HostType;
     uploaderName?: string;
     uploaderEmail?: string;
+    id?: string;
+    is_private?: boolean;
+    is_nsfw?: boolean;
 }
 
 type HostType = "imgbb" | "supabase";
@@ -107,6 +135,9 @@ export default function ImageFramePage() {
 
     // Admin panel states
     const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+    // User panel states
+    const [showUserPanel, setShowUserPanel] = useState(false);
     const [adminImages, setAdminImages] = useState<UploadedImage[]>([]);
     const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
     const [isLoadingAdmin, setIsLoadingAdmin] = useState(false);
@@ -135,9 +166,28 @@ export default function ImageFramePage() {
     // Image editor states
     const [showEditor, setShowEditor] = useState(false);
     const [crop, setCrop] = useState<Crop>();
-    const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+    const [completedCrop, setCompletedCrop] = useState<Crop>();
     const [selectedFrameSize, setSelectedFrameSize] = useState(FRAME_SIZES[1]); // Default 2×2
     const [croppedPreview, setCroppedPreview] = useState<string | null>(null);
+
+    // Visibility state
+    const [isPrivate, setIsPrivate] = useState(false); // Default is public
+    const [isNsfw, setIsNsfw] = useState(false); // Default is not NSFW
+    const [revealedNsfwImages, setRevealedNsfwImages] = useState<Set<number>>(new Set()); // Track temporarily revealed NSFW images
+
+    // Toggle NSFW reveal for gallery
+    const toggleNsfwReveal = (imageTimestamp: number, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent opening image details
+        setRevealedNsfwImages(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(imageTimestamp)) {
+                newSet.delete(imageTimestamp);
+            } else {
+                newSet.add(imageTimestamp);
+            }
+            return newSet;
+        });
+    };
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
@@ -202,9 +252,43 @@ export default function ImageFramePage() {
         checkApi();
     }, [selectedHost]);
 
+    // Function to fetch recent images
+    const fetchRecentImages = async () => {
+        try {
+            const response = await fetch('/api/supabase/recent');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.images) {
+                    const images: UploadedImage[] = data.images.map((img: any) => ({
+                        url: img.url,
+                        directUrl: img.url,
+                        deleteUrl: img.file_path,
+                        filename: img.filename,
+                        uploadedAt: new Date(img.uploaded_at).getTime(),
+                        fileSize: img.file_size,
+                        host: 'supabase',
+                        uploaderName: img.uploader_name,
+                        uploaderEmail: img.uploader_email,
+                        id: img.id,
+                        is_private: img.is_private || false,
+                        is_nsfw: img.is_nsfw || false,
+                    }));
+                    setGallery(images);
+                }
+            }
+        } catch (err) {
+            console.warn('Failed to fetch recent images:', err);
+            // Fallback to localStorage
+            const saved = localStorage.getItem("watermelon-gallery");
+            if (saved) {
+                setGallery(JSON.parse(saved));
+            }
+        }
+    };
+
     // Load gallery from Supabase database on mount
     useEffect(() => {
-        const fetchRecentImages = async () => {
+        const loadGallery = async () => {
             try {
                 const response = await fetch('/api/supabase/recent');
                 if (response.ok) {
@@ -220,6 +304,9 @@ export default function ImageFramePage() {
                             host: 'supabase',
                             uploaderName: img.uploader_name,
                             uploaderEmail: img.uploader_email,
+                            id: img.id,
+                            is_private: img.is_private || false,
+                            is_nsfw: img.is_nsfw || false,
                         }));
                         setGallery(images);
                     }
@@ -233,7 +320,7 @@ export default function ImageFramePage() {
                 }
             }
         };
-        fetchRecentImages();
+        loadGallery();
     }, []);
 
     // Load/generate username from Clerk metadata or email
@@ -260,12 +347,12 @@ export default function ImageFramePage() {
     // Save username when changed
     const handleSaveUsername = async () => {
         if (!user?.id || !username.trim()) return;
-        
+
         setIsEditingUsername(false);
-        
+
         // Save to localStorage as backup
         localStorage.setItem(`username-${user.id}`, username.trim());
-        
+
         // Update Clerk user metadata directly using client-side method
         try {
             await user.update({
@@ -470,6 +557,8 @@ export default function ImageFramePage() {
                 headers: {
                     'x-uploader-name': username || 'Anonymous',
                     'x-uploader-email': user?.primaryEmailAddress?.emailAddress || '',
+                    'x-is-private': isPrivate.toString(),
+                    'x-is-nsfw': isNsfw.toString(),
                 },
             });
 
@@ -568,6 +657,8 @@ export default function ImageFramePage() {
         setError(null);
         setCroppedPreview(null);
         setShowEditor(false);
+        setIsPrivate(false); // Reset to public
+        setIsNsfw(false); // Reset to not NSFW
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -605,7 +696,7 @@ export default function ImageFramePage() {
 
         try {
             const host = selectedGalleryImage.host || "supabase";
-            
+
             // Delete from storage
             if (selectedGalleryImage.deleteUrl) {
                 const deleteEndpoint = HOSTS[host].deleteEndpoint;
@@ -614,7 +705,7 @@ export default function ImageFramePage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ deleteUrl: selectedGalleryImage.deleteUrl }),
                 });
-                
+
                 if (!response.ok) {
                     console.error("Failed to delete from storage");
                 }
@@ -626,9 +717,9 @@ export default function ImageFramePage() {
                     await fetch('/api/supabase/delete-record', {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ 
+                        body: JSON.stringify({
                             url: selectedGalleryImage.directUrl,
-                            file_path: selectedGalleryImage.deleteUrl 
+                            file_path: selectedGalleryImage.deleteUrl
                         }),
                     });
                 } catch (dbErr) {
@@ -805,6 +896,11 @@ export default function ImageFramePage() {
         fetchAdminImages();
     };
 
+    // Open user panel
+    const openUserPanel = () => {
+        setShowUserPanel(true);
+    };
+
     return (
         <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
             {/* Hidden canvas for crop processing */}
@@ -867,7 +963,7 @@ export default function ImageFramePage() {
                         {/* Header */}
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
-                                <span className="text-3xl">🛡️</span>
+                                <PixelShield size={28} color="#ff4757" />
                                 <h2 className="font-pixel text-xl text-[#ff4757]">ADMIN PANEL</h2>
                                 <span className="bg-[#ff4757]/20 text-[#ff4757] text-xs px-2 py-1 rounded-full font-pixel">ADMIN</span>
                             </div>
@@ -875,7 +971,7 @@ export default function ImageFramePage() {
                                 onClick={() => { setShowAdminPanel(false); setAdminSelectedImage(null); }}
                                 className="w-10 h-10 rounded-full glass hover:bg-red-500/20 transition-all flex items-center justify-center"
                             >
-                                ✕
+                                <PixelClose size={16} color="#ff4757" />
                             </button>
                         </div>
 
@@ -883,15 +979,15 @@ export default function ImageFramePage() {
                         <div className="flex gap-2 mb-4">
                             <button
                                 onClick={() => setAdminTab("images")}
-                                className={`px-4 py-2 rounded-xl font-medium transition-all ${adminTab === "images" ? "bg-[#ff4757] text-white" : "glass border border-white/10 hover:border-[#ff4757]/50"}`}
+                                className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${adminTab === "images" ? "bg-[#ff4757] text-white" : "glass border border-white/10 hover:border-[#ff4757]/50"}`}
                             >
-                                🖼️ Images ({adminStats?.totalImages || 0})
+                                <PixelImage size={14} color="currentColor" /> Images ({adminStats?.totalImages || 0})
                             </button>
                             <button
                                 onClick={() => setAdminTab("members")}
-                                className={`px-4 py-2 rounded-xl font-medium transition-all ${adminTab === "members" ? "bg-[#2ed573] text-white" : "glass border border-white/10 hover:border-[#2ed573]/50"}`}
+                                className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${adminTab === "members" ? "bg-[#2ed573] text-white" : "glass border border-white/10 hover:border-[#2ed573]/50"}`}
                             >
-                                👥 Members ({membersList.length})
+                                <PixelUser size={14} color="currentColor" /> Members ({membersList.length})
                             </button>
                         </div>
 
@@ -923,34 +1019,38 @@ export default function ImageFramePage() {
                                 {/* Member Filter Banner */}
                                 {selectedMember && (
                                     <div className="flex items-center gap-3 mb-3 p-3 bg-[#2ed573]/10 border border-[#2ed573]/30 rounded-xl">
-                                        <span className="text-[#2ed573]">👤 Viewing uploads from: <strong>{selectedMember.name}</strong></span>
+                                        <span className="text-[#2ed573] flex items-center gap-1"><PixelUser size={12} color="#2ed573" /> Viewing uploads from: <strong>{selectedMember.name}</strong></span>
                                         <button
                                             onClick={() => setSelectedMember(null)}
-                                            className="ml-auto px-3 py-1.5 glass hover:bg-red-500/20 rounded-xl text-sm border border-white/10"
+                                            className="ml-auto px-3 py-1.5 glass hover:bg-red-500/20 rounded-xl text-sm border border-white/10 flex items-center gap-1"
                                         >
-                                            ✕ Clear Filter
+                                            <PixelClose size={12} color="currentColor" /> Clear Filter
                                         </button>
                                     </div>
                                 )}
 
                                 {/* Controls */}
                                 <div className="flex flex-wrap gap-2 mb-3">
-                                    <input type="text" placeholder="🔍 Search..." value={filterText} onChange={(e) => setFilterText(e.target.value)} className="flex-1 min-w-[150px] px-3 py-2 glass-dark rounded-xl border border-white/10 focus:border-[#ff4757]/50 outline-none text-sm" />
+                                    <input type="text" placeholder="Search..." value={filterText} onChange={(e) => setFilterText(e.target.value)} className="flex-1 min-w-[150px] px-3 py-2 glass-dark rounded-xl border border-white/10 focus:border-[#ff4757]/50 outline-none text-sm" />
                                     <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "date" | "size" | "uploader")} className="px-3 py-2 glass-dark rounded-xl border border-white/10 text-sm">
-                                        <option value="date">📅 Date</option>
-                                        <option value="size">📦 Size</option>
-                                        <option value="uploader">👤 Uploader</option>
+                                        <option value="date">Date</option>
+                                        <option value="size">Size</option>
+                                        <option value="uploader">Uploader</option>
                                     </select>
-                                    <button onClick={selectAllImages} className="px-3 py-2 glass rounded-xl border border-white/10 hover:border-[#2ed573]/50 text-sm">{selectedImages.size === filteredAdminImages.length && filteredAdminImages.length > 0 ? "✓ Deselect" : "☐ Select All"}</button>
-                                    <button onClick={fetchAdminImages} className="px-3 py-2 glass rounded-xl border border-white/10 hover:border-[#ffa502]/50 text-sm">🔄</button>
+                                    <button onClick={selectAllImages} className="px-3 py-2 glass rounded-xl border border-white/10 hover:border-[#2ed573]/50 text-sm flex items-center gap-1">
+                                        {selectedImages.size === filteredAdminImages.length && filteredAdminImages.length > 0 ? <><PixelCheck size={12} /> Deselect</> : "Select All"}
+                                    </button>
+                                    <button onClick={fetchAdminImages} className="px-3 py-2 glass rounded-xl border border-white/10 hover:border-[#ffa502]/50 text-sm flex items-center justify-center">
+                                        <PixelRefresh size={16} color="currentColor" />
+                                    </button>
                                 </div>
 
                                 {/* Bulk delete */}
                                 {selectedImages.size > 0 && (
                                     <div className="flex items-center gap-3 mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded-xl text-sm">
-                                        <span className="text-red-400">⚠️ {selectedImages.size} selected</span>
-                                        <button onClick={bulkDeleteImages} disabled={isDeleting} className="ml-auto px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-xl font-medium text-sm disabled:opacity-50">
-                                            {isDeleting ? "..." : "🗑️ Delete"}
+                                        <span className="text-red-400 flex items-center gap-1"><PixelWarning size={14} color="#f87171" /> {selectedImages.size} selected</span>
+                                        <button onClick={bulkDeleteImages} disabled={isDeleting} className="ml-auto px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-xl font-medium text-sm disabled:opacity-50 flex items-center gap-1">
+                                            {isDeleting ? "..." : <><PixelTrash size={14} color="#fff" /> Delete</>}
                                         </button>
                                     </div>
                                 )}
@@ -958,9 +1058,9 @@ export default function ImageFramePage() {
                                 {/* Image grid */}
                                 <div className="flex-1 overflow-y-auto">
                                     {isLoadingAdmin ? (
-                                        <div className="flex items-center justify-center py-12"><div className="animate-spin text-4xl">🔄</div></div>
+                                        <div className="flex items-center justify-center py-12"><PixelLoader size={48} color="#ff4757" /></div>
                                     ) : filteredAdminImages.length === 0 ? (
-                                        <div className="text-center py-12"><p className="text-4xl mb-4">📭</p><p className="text-gray-400">No images found</p></div>
+                                        <div className="text-center py-12"><div className="mb-4 flex justify-center"><PixelImage size={48} color="#6b7280" /></div><p className="text-gray-400">No images found</p></div>
                                     ) : (
                                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
                                             {filteredAdminImages.map((img: UploadedImage & { id?: string }) => {
@@ -970,13 +1070,15 @@ export default function ImageFramePage() {
                                                     <div key={imgId} className={`relative rounded-xl overflow-hidden transition-all group ${isSelected ? "ring-2 ring-[#ff4757] scale-95" : ""}`}>
                                                         {/* Selection checkbox */}
                                                         <div onClick={() => toggleImageSelection(imgId)} className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all ${isSelected ? "bg-[#ff4757]" : "bg-black/50 hover:bg-black/70"}`}>
-                                                            {isSelected ? "✓" : ""}
+                                                            {isSelected ? <PixelCheck size={12} color="#fff" /> : ""}
                                                         </div>
                                                         {/* Info button */}
-                                                        <div onClick={() => setAdminSelectedImage(img)} className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/50 hover:bg-[#2ed573] flex items-center justify-center cursor-pointer transition-all text-xs">ℹ</div>
+                                                        <div onClick={() => setAdminSelectedImage(img)} className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/50 hover:bg-[#2ed573] flex items-center justify-center cursor-pointer transition-all">
+                                                            <PixelInfo size={12} color="currentColor" />
+                                                        </div>
                                                         <img src={img.directUrl} alt={img.filename} className="w-full h-24 object-cover" />
-                                                        <div className="p-1.5 bg-black/40">
-                                                            <p className="text-xs text-[#2ed573] truncate">👤 {img.uploaderName || "Anon"}</p>
+                                                        <div className="p-1.5 bg-black/40 flex items-center gap-1">
+                                                            <PixelUser size={10} color="#2ed573" /><p className="text-xs text-[#2ed573] truncate">{img.uploaderName || "Anon"}</p>
                                                         </div>
                                                     </div>
                                                 );
@@ -991,12 +1093,14 @@ export default function ImageFramePage() {
                         {adminTab === "members" && (
                             <div className="flex-1 overflow-y-auto">
                                 {membersList.length === 0 ? (
-                                    <div className="text-center py-12"><p className="text-4xl mb-4">👥</p><p className="text-gray-400">No members yet</p></div>
+                                    <div className="text-center py-12"><div className="mb-4 flex justify-center"><PixelUser size={48} color="#6b7280" /></div><p className="text-gray-400">No members yet</p></div>
                                 ) : (
                                     <div className="space-y-3">
                                         {membersList.map((member, idx) => (
                                             <div key={idx} className="glass-dark p-4 rounded-xl flex items-center gap-4 hover:border-[#2ed573]/30 border border-transparent transition-all">
-                                                <div className="w-12 h-12 rounded-full bg-[#2ed573]/20 flex items-center justify-center text-2xl">👤</div>
+                                                <div className="w-12 h-12 rounded-full bg-[#2ed573]/20 flex items-center justify-center">
+                                                    <PixelUser size={24} color="#2ed573" />
+                                                </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-medium text-white truncate">{member.name}</p>
                                                     <p className="text-xs text-gray-400 truncate">{member.email || "No email"}</p>
@@ -1011,9 +1115,9 @@ export default function ImageFramePage() {
                                                 </div>
                                                 <button
                                                     onClick={() => { setSelectedMember({ name: member.name, email: member.email }); setAdminTab("images"); }}
-                                                    className="px-3 py-2 bg-[#ff4757] hover:bg-[#ff6b81] rounded-xl text-sm font-medium transition-all"
+                                                    className="px-3 py-2 bg-[#ff4757] hover:bg-[#ff6b81] rounded-xl text-sm font-medium transition-all flex items-center gap-1"
                                                 >
-                                                    🖼️ View
+                                                    <PixelImage size={14} color="#fff" /> View
                                                 </button>
                                             </div>
                                         ))}
@@ -1076,8 +1180,8 @@ export default function ImageFramePage() {
                 <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[70] p-4" onClick={() => setAdminSelectedImage(null)}>
                     <div className="glass rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto relative" onClick={(e) => e.stopPropagation()}>
                         {/* Close Button */}
-                        <button 
-                            onClick={() => setAdminSelectedImage(null)} 
+                        <button
+                            onClick={() => setAdminSelectedImage(null)}
                             className="absolute top-4 right-4 w-10 h-10 rounded-full glass hover:bg-red-500/20 flex items-center justify-center text-gray-400 hover:text-white transition-all z-10"
                         >
                             ✕
@@ -1085,9 +1189,9 @@ export default function ImageFramePage() {
 
                         {/* Image Preview */}
                         <div className="bg-black/30 rounded-xl overflow-hidden flex items-center justify-center mb-6" style={{ minHeight: '200px', maxHeight: '300px' }}>
-                            <img 
-                                src={adminSelectedImage.directUrl} 
-                                alt={adminSelectedImage.filename} 
+                            <img
+                                src={adminSelectedImage.directUrl}
+                                alt={adminSelectedImage.filename}
                                 className="max-w-full max-h-[300px] object-contain"
                             />
                         </div>
@@ -1134,8 +1238,8 @@ export default function ImageFramePage() {
                         </div>
 
                         {/* Copy URL Button */}
-                        <button 
-                            onClick={() => copyUrl(adminSelectedImage.directUrl)} 
+                        <button
+                            onClick={() => copyUrl(adminSelectedImage.directUrl)}
                             className="w-full py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all hover:scale-105 flex items-center justify-center gap-2"
                         >
                             <span>{copied ? "✓" : "📋"}</span>
@@ -1230,12 +1334,26 @@ export default function ImageFramePage() {
                         >
                             <span className="text-gray-400 group-hover:text-red-400 transition-colors">✕</span>
                         </button>
+                        {/* NSFW Badge in modal */}
+                        {selectedGalleryImage.is_nsfw && (
+                            <div className="absolute top-4 left-4 z-10 bg-gradient-to-r from-[#ff4757] to-[#ff6b81] text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-bold shadow-lg">
+                                <PixelWarning size={12} color="#fff" /> NSFW Content
+                            </div>
+                        )}
 
                         <img
                             src={selectedGalleryImage.directUrl}
                             alt={selectedGalleryImage.filename}
                             className="w-full max-h-48 object-contain rounded-xl mb-4"
                         />
+
+                        {/* NSFW Warning text */}
+                        {selectedGalleryImage.is_nsfw && (
+                            <p className="text-center text-[#ff4757] text-xs mb-2 font-medium">
+                                ⚠️ This content has been marked as NSFW by the uploader
+                            </p>
+                        )}
+
                         <h3 className="font-pixel text-sm text-[#ff4757] mb-4 text-center">IMAGE DETAILS</h3>
 
                         <div className="space-y-3 mb-6">
@@ -1411,14 +1529,15 @@ export default function ImageFramePage() {
                             </Link>
                             <SignedOut>
                                 <SignInButton mode="modal">
-                                    <button className="px-4 py-2.5 bg-[#2ed573] hover:bg-[#26de81] rounded-full text-sm font-medium transition-all hover:scale-105 cursor-pointer">
-                                        <span className="hidden sm:inline">🔑 Sign In</span>
-                                        <span className="sm:hidden">🔑</span>
+                                    <button className="px-4 py-2.5 bg-[#2ed573] hover:bg-[#26de81] rounded-full text-sm font-medium transition-all hover:scale-105 cursor-pointer flex items-center gap-2">
+                                        <PixelKey size={14} color="currentColor" />
+                                        <span className="hidden sm:inline">Sign In</span>
                                     </button>
                                 </SignInButton>
                             </SignedOut>
                             <SignedIn>
                                 <AdminButton isAdmin={isAdmin} onClick={openAdminPanel} />
+                                <UserPanelButton isSignedIn={isSignedIn ?? false} onClick={openUserPanel} />
                                 <UserButton
                                     afterSignOutUrl="/"
                                     appearance={{
@@ -1443,16 +1562,16 @@ export default function ImageFramePage() {
                                     {!isEditingUsername ? (
                                         <button
                                             onClick={() => setIsEditingUsername(true)}
-                                            className="text-xs text-[#2ed573] hover:text-[#26de81] transition-colors"
+                                            className="text-xs text-[#2ed573] hover:text-[#26de81] transition-colors flex items-center gap-1"
                                         >
-                                            ✏️ Edit
+                                            <Edit3 size={12} /> Edit
                                         </button>
                                     ) : (
                                         <button
                                             onClick={handleSaveUsername}
-                                            className="text-xs text-[#2ed573] hover:text-[#26de81] transition-colors"
+                                            className="text-xs text-[#2ed573] hover:text-[#26de81] transition-colors flex items-center gap-1"
                                         >
-                                            ✅ Save
+                                            <Save size={12} /> Save
                                         </button>
                                     )}
                                 </div>
@@ -1575,8 +1694,8 @@ export default function ImageFramePage() {
                                             </h3>
 
                                             {/* Subtitle */}
-                                            <div className="flex items-center justify-center gap-2 mb-8">
-                                                <span className="text-[#2ed573] text-base">🔒</span>
+                                            <div className="flex items-center justify-center gap-2 mb-6">
+                                                <PixelLock size={18} color="#2ed573" />
                                                 <p className="text-sm text-[#2ed573] font-semibold uppercase tracking-wide">Our Private Storage</p>
                                             </div>
 
@@ -1584,7 +1703,7 @@ export default function ImageFramePage() {
                                             <ul className="space-y-4 text-sm mt-auto">
                                                 <li className="flex items-center gap-3">
                                                     <div className="w-6 h-6 rounded-full bg-[#2ed573]/20 flex items-center justify-center flex-shrink-0">
-                                                        <span className="text-[#2ed573] text-sm">✓</span>
+                                                        <PixelCheck size={12} color="#2ed573" />
                                                     </div>
                                                     <span className="text-gray-300"><span className="text-white font-bold">{HOSTS.supabase.maxSizeLabel}</span> Max Size</span>
                                                 </li>
@@ -1613,16 +1732,15 @@ export default function ImageFramePage() {
                                         <div className="absolute -inset-0.5 bg-gradient-to-r from-[#ff4757] to-[#ff6b81] rounded-2xl opacity-0 group-hover:opacity-50 blur transition-all duration-300"></div>
 
                                         <div className="relative glass rounded-2xl p-8 h-[400px] flex flex-col border border-white/10 group-hover:border-[#ff4757]/50 transition-all duration-300">
-                                            {/* Warning Badge */}
                                             <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                                                <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs font-bold px-5 py-2 rounded-full shadow-lg border-2 border-black/20 whitespace-nowrap">
-                                                    ⚠️ NOT RECOMMENDED
+                                                <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs font-bold px-5 py-2 rounded-full shadow-lg border-2 border-black/20 whitespace-nowrap flex items-center gap-1">
+                                                    <PixelWarning size={14} color="#000" /> NOT RECOMMENDED
                                                 </div>
                                             </div>
 
                                             {/* Icon */}
-                                            <div className="text-6xl mb-6 mt-4 text-center group-hover:scale-110 transition-transform duration-300">
-                                                📸
+                                            <div className="mb-6 mt-4 text-center group-hover:scale-110 transition-transform duration-300 flex justify-center">
+                                                <PixelImage size={64} color="#ff4757" />
                                             </div>
 
                                             {/* Title */}
@@ -1700,23 +1818,26 @@ export default function ImageFramePage() {
                                                     e.stopPropagation();
                                                     setShowEditor(true);
                                                 }}
-                                                className="px-6 py-2 rounded-full bg-[#ff4757]/20 border border-[#ff4757]/50 text-[#ff4757] hover:bg-[#ff4757]/30 transition-all"
+                                                className="px-6 py-2 rounded-full bg-[#ff4757]/20 border border-[#ff4757]/50 text-[#ff4757] hover:bg-[#ff4757]/30 transition-all flex items-center gap-2 mx-auto"
                                             >
-                                                ✏️ Edit & Crop
+                                                <PixelCropIcon size={14} color="#ff4757" /> Edit & Crop
                                             </button>
                                         </div>
                                     ) : (
                                         <div className="py-8">
-                                            <div className="text-5xl mb-4">🖼️</div>
+                                            <div className="mb-4 flex justify-center">
+                                                <PixelImage size={48} color="#ff4757" />
+                                            </div>
                                             <p className="text-lg text-gray-300 mb-2">
                                                 Drop your image here
                                             </p>
                                             <p className="text-sm text-gray-500 mb-3">
                                                 or click to browse
                                             </p>
-                                            <div className="inline-block glass px-4 py-2 rounded-full">
+                                            <div className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full">
+                                                <PixelUpload size={14} color="#9ca3af" />
                                                 <p className="text-xs text-gray-400">
-                                                    📁 PNG, JPG, GIF • Max {selectedHost && HOSTS[selectedHost].maxSizeLabel}
+                                                    PNG, JPG, GIF • Max {selectedHost && HOSTS[selectedHost].maxSizeLabel}
                                                 </p>
                                             </div>
                                         </div>
@@ -1727,6 +1848,86 @@ export default function ImageFramePage() {
                                 {error && (
                                     <div className="glass p-4 rounded-xl border border-red-500/50 text-red-400 text-center">
                                         {error}
+                                    </div>
+                                )}
+
+                                {/* Visibility Toggle */}
+                                {selectedFile && (
+                                    <div className="glass p-4 rounded-xl border border-white/10">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                {isPrivate ? (
+                                                    <PixelLock size={16} color="#ff4757" />
+                                                ) : (
+                                                    <PixelGlobe size={16} color="#2ed573" />
+                                                )}
+                                                <span className="text-sm text-gray-300">
+                                                    Visibility:
+                                                </span>
+                                                <span className={`text-sm font-medium ${isPrivate ? 'text-[#ff4757]' : 'text-[#2ed573]'}`}>
+                                                    {isPrivate ? 'Private' : 'Public'}
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={() => setIsPrivate(!isPrivate)}
+                                                className={`
+                                                    relative w-14 h-7 rounded-full transition-all duration-300
+                                                    ${isPrivate ? 'bg-[#ff4757]/20 border-[#ff4757]/50' : 'bg-[#2ed573]/20 border-[#2ed573]/50'}
+                                                    border
+                                                `}
+                                            >
+                                                <div
+                                                    className={`
+                                                        absolute top-0.5 left-0.5 w-6 h-6 rounded-full transition-all duration-300
+                                                        ${isPrivate ? 'translate-x-7 bg-[#ff4757]' : 'translate-x-0 bg-[#2ed573]'}
+                                                    `}
+                                                />
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            {isPrivate
+                                                ? '🔒 Only you can see this image'
+                                                : '🌍 Visible to everyone in public gallery'
+                                            }
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* NSFW Toggle */}
+                                {selectedFile && (
+                                    <div className="glass p-4 rounded-xl border border-white/10">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                {isNsfw ? <PixelWarning size={18} color="#ff4757" /> : <PixelCheck size={18} color="#2ed573" />}
+                                                <span className="text-sm text-gray-300">
+                                                    Content:
+                                                </span>
+                                                <span className={`text-sm font-medium ${isNsfw ? 'text-[#ff4757]' : 'text-[#2ed573]'}`}>
+                                                    {isNsfw ? 'NSFW' : 'Safe'}
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={() => setIsNsfw(!isNsfw)}
+                                                className={`
+                                                    relative w-14 h-7 rounded-full transition-all duration-300
+                                                    ${isNsfw ? 'bg-[#ff4757]/20 border-[#ff4757]/50' : 'bg-[#2ed573]/20 border-[#2ed573]/50'}
+                                                    border
+                                                `}
+                                            >
+                                                <div
+                                                    className={`
+                                                        absolute top-0.5 left-0.5 w-6 h-6 rounded-full transition-all duration-300
+                                                        ${isNsfw ? 'translate-x-7 bg-[#ff4757]' : 'translate-x-0 bg-[#2ed573]'}
+                                                    `}
+                                                />
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            {isNsfw
+                                                ? <><PixelWarning size={12} color="#ff4757" /> Image will appear blurred in gallery</>
+                                                : <><PixelCheck size={12} color="#2ed573" /> Image will appear normally</>
+                                            }
+                                        </p>
                                     </div>
                                 )}
 
@@ -1817,34 +2018,88 @@ export default function ImageFramePage() {
                                 </h2>
                                 <p className="text-gray-500 text-sm text-center mb-6">Click an image to view details</p>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {gallery.map((img) => (
-                                        <div
-                                            key={img.uploadedAt}
-                                            onClick={() => openImageDetails(img)}
-                                            className="glass rounded-xl overflow-hidden cursor-pointer hover:scale-105 transition-transform group"
-                                        >
-                                            <img
-                                                src={img.thumbnail || img.directUrl}
-                                                alt={img.filename}
-                                                className="w-full h-24 object-cover"
-                                            />
-                                            <div className="p-2">
-                                                {img.uploaderName && (
-                                                    <p className="text-xs text-[#2ed573] font-medium truncate mb-1">
-                                                        👤 {img.uploaderName}
-                                                    </p>
+                                    {gallery.map((img) => {
+                                        const isOwnPrivate = img.is_private && img.uploaderEmail === user?.primaryEmailAddress?.emailAddress;
+                                        const isNsfwImage = img.is_nsfw === true;
+                                        return (
+                                            <div
+                                                key={img.uploadedAt}
+                                                onClick={() => openImageDetails(img)}
+                                                className={`glass rounded-xl overflow-hidden cursor-pointer hover:scale-105 transition-all group relative ${isOwnPrivate
+                                                    ? 'ring-2 ring-[#ffa502] ring-offset-2 ring-offset-black/50 shadow-lg shadow-[#ffa502]/20'
+                                                    : ''
+                                                    }`}
+                                            >
+                                                {/* NSFW badge */}
+                                                {isNsfwImage && (
+                                                    <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-[#ff4757] to-[#ff6b81] text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-bold shadow-lg shadow-[#ff4757]/30 border border-white/20">
+                                                        <PixelWarning size={12} color="#fff" /> NSFW
+                                                    </div>
                                                 )}
-                                                <p className="text-xs text-gray-500 group-hover:text-[#ff4757] transition-colors text-center">
-                                                    View details
-                                                </p>
+                                                {/* Private badge for owner - enhanced visibility */}
+                                                {isOwnPrivate && (
+                                                    <div className={`absolute top-2 ${isNsfwImage ? 'right-2' : 'right-2'} z-10 bg-gradient-to-r from-[#ffa502] to-[#ff6b35] text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-bold shadow-lg shadow-[#ffa502]/30 border border-white/20`}>
+                                                        <PixelLock size={12} color="#fff" /> Private
+                                                    </div>
+                                                )}
+                                                {/* Private overlay effect */}
+                                                {isOwnPrivate && (
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-[#ffa502]/10 to-transparent pointer-events-none z-[5]"></div>
+                                                )}
+                                                {/* NSFW blur overlay */}
+                                                {isNsfwImage && !revealedNsfwImages.has(img.uploadedAt) && (
+                                                    <div className="absolute inset-0 bg-[#ff4757]/10 pointer-events-none z-[5]"></div>
+                                                )}
+                                                {/* Eye toggle button to reveal/hide NSFW */}
+                                                {isNsfwImage && (
+                                                    <button
+                                                        onClick={(e) => toggleNsfwReveal(img.uploadedAt, e)}
+                                                        className="absolute bottom-12 right-2 z-20 w-8 h-8 rounded-full bg-black/70 hover:bg-[#ff4757] flex items-center justify-center transition-all border border-white/20"
+                                                        title={revealedNsfwImages.has(img.uploadedAt) ? "Hide NSFW content" : "Reveal NSFW content"}
+                                                    >
+                                                        {revealedNsfwImages.has(img.uploadedAt) ? (
+                                                            <PixelEye size={14} color="#fff" />
+                                                        ) : (
+                                                            <PixelEye size={14} color="#888" />
+                                                        )}
+                                                    </button>
+                                                )}
+                                                <img
+                                                    src={img.thumbnail || img.directUrl}
+                                                    alt={img.filename}
+                                                    className={`w-full h-24 object-cover ${isNsfwImage && !revealedNsfwImages.has(img.uploadedAt) ? 'blur-lg' : ''}`}
+                                                />
+                                                <div className="p-2">
+                                                    {img.uploaderName && (
+                                                        <p className={`text-xs font-medium truncate mb-1 flex items-center gap-1 ${isOwnPrivate ? 'text-[#ffa502]' : 'text-[#2ed573]'}`}>
+                                                            <PixelUser size={12} color={isOwnPrivate ? '#ffa502' : '#2ed573'} /> {img.uploaderName}
+                                                        </p>
+                                                    )}
+                                                    <p className={`text-xs transition-colors text-center ${isOwnPrivate ? 'text-[#ffa502]/70 group-hover:text-[#ffa502]' : 'text-gray-500 group-hover:text-[#ff4757]'}`}>
+                                                        {isOwnPrivate ? '🔒 Only you can see' : 'View details'}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
                     </div>
                 </main>
+
+                {/* User Panel */}
+                <UserPanel
+                    isSignedIn={isSignedIn ?? false}
+                    showUserPanel={showUserPanel}
+                    setShowUserPanel={setShowUserPanel}
+                    formatDate={formatDate}
+                    formatFileSize={formatFileSize}
+                    copyUrl={copyUrl}
+                    copied={copied}
+                    showNotification={showNotification}
+                    onClose={() => fetchRecentImages()}
+                />
             </div>
         </div>
     );
