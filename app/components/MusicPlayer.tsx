@@ -1,0 +1,271 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+
+export default function MusicPlayer() {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [hasInteracted, setHasInteracted] = useState(false);
+    const [volume, setVolume] = useState(0.5);
+    const [isMuted, setIsMuted] = useState(false);
+    const [showPrompt, setShowPrompt] = useState(true);
+    const [isLargeScreen, setIsLargeScreen] = useState(false);
+    const audioRef = useRef<HTMLAudioElement>(null);
+
+    // Check screen size - only show on tablets, PCs, and smart TVs (768px+)
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsLargeScreen(window.innerWidth >= 768);
+        };
+
+        // Check on mount
+        checkScreenSize();
+
+        // Listen for resize
+        window.addEventListener("resize", checkScreenSize);
+        return () => window.removeEventListener("resize", checkScreenSize);
+    }, []);
+
+    // Check if user has previously enabled music
+    useEffect(() => {
+        const musicEnabled = localStorage.getItem("watermelon-music-enabled");
+        if (musicEnabled === "true") {
+            setShowPrompt(false);
+        }
+    }, []);
+
+    // Handle volume changes
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.volume = isMuted ? 0 : volume;
+        }
+    }, [volume, isMuted]);
+
+    // Don't render anything on small screens
+    if (!isLargeScreen) {
+        return null;
+    }
+
+    const enableMusic = () => {
+        setHasInteracted(true);
+        setShowPrompt(false);
+        localStorage.setItem("watermelon-music-enabled", "true");
+
+        if (audioRef.current) {
+            audioRef.current.play().then(() => {
+                setIsPlaying(true);
+            }).catch((err) => {
+                console.error("Failed to play audio:", err);
+            });
+        }
+    };
+
+    const togglePlay = () => {
+        if (!audioRef.current) return;
+
+        if (isPlaying) {
+            audioRef.current.pause();
+            setIsPlaying(false);
+        } else {
+            audioRef.current.play().then(() => {
+                setIsPlaying(true);
+            }).catch((err) => {
+                console.error("Failed to play audio:", err);
+            });
+        }
+    };
+
+    const toggleMute = () => {
+        setIsMuted(!isMuted);
+    };
+
+    const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newVolume = parseFloat(e.target.value);
+        setVolume(newVolume);
+        if (newVolume > 0 && isMuted) {
+            setIsMuted(false);
+        }
+    };
+
+    return (
+        <>
+            {/* Hidden Audio Element */}
+            <audio
+                ref={audioRef}
+                src="/music/background-music.mp3"
+                loop
+                preload="auto"
+            />
+
+            {/* First-time Music Prompt Modal - Chromium autoplay policy compliance */}
+            {showPrompt && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+                    <div className="glass rounded-2xl p-8 max-w-md w-full text-center border-2 border-[#2ed573]/50 animate-[float_3s_ease-in-out_infinite]">
+                        {/* Pixel Jukebox Icon */}
+                        <div className="mb-6">
+                            <svg className="w-24 h-24 mx-auto" viewBox="0 0 64 64" fill="none">
+                                {/* Jukebox body */}
+                                <rect x="12" y="20" width="40" height="36" fill="#5d4e37" />
+                                <rect x="14" y="22" width="36" height="32" fill="#8b7355" />
+                                {/* Speaker grille */}
+                                <rect x="18" y="38" width="28" height="12" fill="#2c2c2c" />
+                                <rect x="20" y="40" width="4" height="2" fill="#444" />
+                                <rect x="26" y="40" width="4" height="2" fill="#444" />
+                                <rect x="32" y="40" width="4" height="2" fill="#444" />
+                                <rect x="38" y="40" width="4" height="2" fill="#444" />
+                                <rect x="20" y="44" width="4" height="2" fill="#444" />
+                                <rect x="26" y="44" width="4" height="2" fill="#444" />
+                                <rect x="32" y="44" width="4" height="2" fill="#444" />
+                                <rect x="38" y="44" width="4" height="2" fill="#444" />
+                                {/* Disc slot */}
+                                <rect x="22" y="26" width="20" height="10" fill="#1a1a1a" />
+                                {/* Music disc */}
+                                <circle cx="32" cy="31" r="4" fill="#2ed573" />
+                                <circle cx="32" cy="31" r="1" fill="#1a1a1a" />
+                                {/* Decorative elements */}
+                                <rect x="16" y="24" width="4" height="4" fill="#ff4757" />
+                                <rect x="44" y="24" width="4" height="4" fill="#ff4757" />
+                                {/* Legs */}
+                                <rect x="16" y="56" width="6" height="4" fill="#5d4e37" />
+                                <rect x="42" y="56" width="6" height="4" fill="#5d4e37" />
+                            </svg>
+                        </div>
+
+                        <h2 className="font-pixel text-lg text-[#2ed573] mb-4">
+                            🎵 JUKEBOX 🎵
+                        </h2>
+
+                        <p className="text-gray-300 mb-6">
+                            Want some background music while you explore?
+                        </p>
+
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={enableMusic}
+                                className="w-full py-4 px-6 bg-[#2ed573] hover:bg-[#26de81] rounded-xl font-pixel text-xs text-black transition-all hover:scale-105 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                                <span>▶</span> ENABLE MUSIC
+                            </button>
+                            <button
+                                onClick={() => setShowPrompt(false)}
+                                className="w-full py-3 px-6 glass border border-white/20 hover:border-white/40 rounded-xl text-sm text-gray-400 hover:text-white transition-all cursor-pointer"
+                            >
+                                No thanks, maybe later
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-gray-600 mt-4">
+                            🎶 Now Playing: ILLIT - Not Cute Anymore
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Floating Jukebox Button */}
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-xl glass border-2 transition-all hover:scale-110 cursor-pointer flex items-center justify-center ${isPlaying
+                    ? "border-[#2ed573] shadow-[0_0_20px_rgba(46,213,115,0.5)]"
+                    : "border-white/20 hover:border-[#ff4757]"
+                    }`}
+                title="Music Player"
+            >
+                <svg className={`w-8 h-8 ${isPlaying ? "animate-spin" : ""}`} style={{ animationDuration: "3s" }} viewBox="0 0 32 32" fill="none">
+                    {/* Music disc */}
+                    <circle cx="16" cy="16" r="12" fill="#1a1a1a" />
+                    <circle cx="16" cy="16" r="10" fill={isPlaying ? "#2ed573" : "#ff4757"} />
+                    <circle cx="16" cy="16" r="8" fill="#1a1a1a" />
+                    <circle cx="16" cy="16" r="3" fill={isPlaying ? "#2ed573" : "#ff4757"} />
+                    <circle cx="16" cy="16" r="1" fill="#1a1a1a" />
+                    {/* Shine effect */}
+                    <circle cx="12" cy="12" r="2" fill="rgba(255,255,255,0.3)" />
+                </svg>
+            </button>
+
+            {/* Music Player Modal */}
+            {isOpen && (
+                <div className="fixed bottom-24 right-6 z-50 w-72">
+                    <div className="glass rounded-2xl p-5 border-2 border-[#2ed573]/30">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-pixel text-xs text-[#2ed573]">JUKEBOX</h3>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition-colors cursor-pointer"
+                            >
+                                <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M6 6l12 12M18 6l-12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Now Playing */}
+                        <div className="glass rounded-xl p-4 mb-4 border border-white/10">
+                            <div className="flex items-center gap-3">
+                                {/* Spinning disc */}
+                                <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-[#2ed573] to-[#ff4757] flex items-center justify-center ${isPlaying ? "animate-spin" : ""}`} style={{ animationDuration: "3s" }}>
+                                    <div className="w-4 h-4 rounded-full bg-[#1a1a1a]" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-white font-medium truncate">Not Cute Anymore</p>
+                                    <p className="text-xs text-gray-400 truncate">ILLIT (아일릿)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="flex items-center justify-center gap-4 mb-4">
+                            <button
+                                onClick={togglePlay}
+                                className="w-12 h-12 rounded-xl bg-[#2ed573] hover:bg-[#26de81] flex items-center justify-center transition-all hover:scale-105 cursor-pointer"
+                            >
+                                {isPlaying ? (
+                                    <svg className="w-6 h-6 text-black" viewBox="0 0 24 24" fill="currentColor">
+                                        <rect x="6" y="5" width="4" height="14" />
+                                        <rect x="14" y="5" width="4" height="14" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-6 h-6 text-black ml-1" viewBox="0 0 24 24" fill="currentColor">
+                                        <polygon points="6,4 20,12 6,20" />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Volume Control */}
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={toggleMute}
+                                className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors cursor-pointer"
+                            >
+                                {isMuted || volume === 0 ? (
+                                    <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-5 h-5 text-[#2ed573]" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                                    </svg>
+                                )}
+                            </button>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.01"
+                                value={isMuted ? 0 : volume}
+                                onChange={handleVolumeChange}
+                                className="flex-1 h-2 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#2ed573] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:bg-[#26de81]"
+                            />
+                        </div>
+
+                        {/* Footer */}
+                        <p className="text-xs text-gray-600 text-center mt-4">
+                            🎵 Minecraft Jukebox Vibes 🎵
+                        </p>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}

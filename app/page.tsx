@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import MusicPlayer from "./components/MusicPlayer";
 
 const SERVER_IP = "watermelon.deze.me";
 
@@ -17,7 +18,7 @@ const teamMembers = [
   {
     name: "Peach",
     role: "Adventurer",
-    description: "Explorer of endless worlds",
+    description: "Curious explorer who loves to learn",
     emoji: "🌍",
   },
   {
@@ -29,7 +30,7 @@ const teamMembers = [
   {
     name: "unknown0607",
     role: "Ideas Guy",
-    description: "The creative mind behind the scenes",
+    description: "Casual player, rarely online but always in spirit",
     emoji: "💡",
   },
 ];
@@ -67,6 +68,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
+      {/* Music Player */}
+      <MusicPlayer />
       {/* Background */}
       <div className="fixed inset-0 z-0">
         <Image
