@@ -75,9 +75,9 @@ export default function UserPanel({
     const [filterVisibility, setFilterVisibility] = useState<"all" | "public" | "private">("all");
 
     // Fetch user's images
-    const fetchUserImages = async () => {
+    const fetchUserImages = async (isPolling = false) => {
         if (!isSignedIn) return;
-        setIsLoading(true);
+        if (!isPolling) setIsLoading(true);
         try {
             const response = await fetch('/api/user/images');
             const data = await response.json();
@@ -168,10 +168,10 @@ export default function UserPanel({
     // Fetch when panel opens and poll for updates
     useEffect(() => {
         if (showUserPanel && isSignedIn) {
-            fetchUserImages();
+            fetchUserImages(); // Initial load (shows loader)
 
-            // Poll for updates every 3 seconds
-            const interval = setInterval(fetchUserImages, 3000);
+            // Poll for updates every 3 seconds (silent)
+            const interval = setInterval(() => fetchUserImages(true), 3000);
             return () => clearInterval(interval);
         }
     }, [showUserPanel, isSignedIn]);
@@ -237,7 +237,7 @@ export default function UserPanel({
                             <option value="private">Private</option>
                         </select>
                         <button
-                            onClick={fetchUserImages}
+                            onClick={() => fetchUserImages(false)}
                             className="px-3 py-2 glass rounded-xl border border-white/10 hover:border-[#2ed573]/50 text-sm flex items-center justify-center"
                         >
                             <PixelRefresh size={16} color="currentColor" />
