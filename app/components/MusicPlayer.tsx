@@ -5,11 +5,11 @@ import { useState, useRef, useEffect } from "react";
 export default function MusicPlayer() {
     const [isOpen, setIsOpen] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [hasInteracted, setHasInteracted] = useState(false);
     const [volume, setVolume] = useState(0.5);
     const [isMuted, setIsMuted] = useState(false);
     const [showPrompt, setShowPrompt] = useState(true);
     const [isLargeScreen, setIsLargeScreen] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
     const audioRef = useRef<HTMLAudioElement>(null);
 
     // Check screen size - only show on tablets, PCs, and smart TVs (768px+)
@@ -17,41 +17,82 @@ export default function MusicPlayer() {
         const checkScreenSize = () => {
             setIsLargeScreen(window.innerWidth >= 768);
         };
-
-        // Check on mount
         checkScreenSize();
-
-        // Listen for resize
         window.addEventListener("resize", checkScreenSize);
         return () => window.removeEventListener("resize", checkScreenSize);
     }, []);
 
-    // Check if user has previously enabled music
+    // Load saved preferences on mount
     useEffect(() => {
         const musicEnabled = localStorage.getItem("watermelon-music-enabled");
+        const savedVolume = localStorage.getItem("watermelon-music-volume");
+        const savedTime = localStorage.getItem("watermelon-music-time");
+        const wasPlaying = localStorage.getItem("watermelon-music-playing");
+
         if (musicEnabled === "true") {
             setShowPrompt(false);
         }
+        if (savedVolume) {
+            setVolume(parseFloat(savedVolume));
+        }
+        if (savedTime && audioRef.current) {
+            audioRef.current.currentTime = parseFloat(savedTime);
+        }
+        // If was playing before refresh, show a "resume" indicator but don't auto-play (browser policy)
+        if (wasPlaying === "true") {
+            setCurrentTime(parseFloat(savedTime || "0"));
+        }
     }, []);
 
-    // Handle volume changes
+    // Save playback position periodically
     useEffect(() => {
+        const interval = setInterval(() => {
+            if (audioRef.current && isPlaying) {
+                localStorage.setItem("watermelon-music-time", audioRef.current.currentTime.toString());
+                localStorage.setItem("watermelon-music-playing", "true");
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [isPlaying]);
+
+    // Save volume changes
+    useEffect(() => {
+        localStorage.setItem("watermelon-music-volume", volume.toString());
         if (audioRef.current) {
             audioRef.current.volume = isMuted ? 0 : volume;
         }
     }, [volume, isMuted]);
 
-    // Don't render anything on small screens
+    // Restore position when audio is ready
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const handleLoadedMetadata = () => {
+            const savedTime = localStorage.getItem("watermelon-music-time");
+            if (savedTime) {
+                audio.currentTime = parseFloat(savedTime);
+            }
+        };
+
+        audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+        return () => audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+    }, []);
+
+    // Don't render on small screens
     if (!isLargeScreen) {
         return null;
     }
 
     const enableMusic = () => {
-        setHasInteracted(true);
         setShowPrompt(false);
         localStorage.setItem("watermelon-music-enabled", "true");
 
         if (audioRef.current) {
+            const savedTime = localStorage.getItem("watermelon-music-time");
+            if (savedTime) {
+                audioRef.current.currentTime = parseFloat(savedTime);
+            }
             audioRef.current.play().then(() => {
                 setIsPlaying(true);
             }).catch((err) => {
@@ -66,9 +107,11 @@ export default function MusicPlayer() {
         if (isPlaying) {
             audioRef.current.pause();
             setIsPlaying(false);
+            localStorage.setItem("watermelon-music-playing", "false");
         } else {
             audioRef.current.play().then(() => {
                 setIsPlaying(true);
+                localStorage.setItem("watermelon-music-playing", "true");
             }).catch((err) => {
                 console.error("Failed to play audio:", err);
             });
@@ -97,17 +140,15 @@ export default function MusicPlayer() {
                 preload="auto"
             />
 
-            {/* First-time Music Prompt Modal - Chromium autoplay policy compliance */}
+            {/* First-time Music Prompt Modal */}
             {showPrompt && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
                     <div className="glass rounded-2xl p-8 max-w-md w-full text-center border-2 border-[#2ed573]/50 animate-[float_3s_ease-in-out_infinite]">
                         {/* Pixel Jukebox Icon */}
                         <div className="mb-6">
                             <svg className="w-24 h-24 mx-auto" viewBox="0 0 64 64" fill="none">
-                                {/* Jukebox body */}
                                 <rect x="12" y="20" width="40" height="36" fill="#5d4e37" />
                                 <rect x="14" y="22" width="36" height="32" fill="#8b7355" />
-                                {/* Speaker grille */}
                                 <rect x="18" y="38" width="28" height="12" fill="#2c2c2c" />
                                 <rect x="20" y="40" width="4" height="2" fill="#444" />
                                 <rect x="26" y="40" width="4" height="2" fill="#444" />
@@ -117,15 +158,11 @@ export default function MusicPlayer() {
                                 <rect x="26" y="44" width="4" height="2" fill="#444" />
                                 <rect x="32" y="44" width="4" height="2" fill="#444" />
                                 <rect x="38" y="44" width="4" height="2" fill="#444" />
-                                {/* Disc slot */}
                                 <rect x="22" y="26" width="20" height="10" fill="#1a1a1a" />
-                                {/* Music disc */}
                                 <circle cx="32" cy="31" r="4" fill="#2ed573" />
                                 <circle cx="32" cy="31" r="1" fill="#1a1a1a" />
-                                {/* Decorative elements */}
                                 <rect x="16" y="24" width="4" height="4" fill="#ff4757" />
                                 <rect x="44" y="24" width="4" height="4" fill="#ff4757" />
-                                {/* Legs */}
                                 <rect x="16" y="56" width="6" height="4" fill="#5d4e37" />
                                 <rect x="42" y="56" width="6" height="4" fill="#5d4e37" />
                             </svg>
@@ -171,13 +208,11 @@ export default function MusicPlayer() {
                 title="Music Player"
             >
                 <svg className={`w-8 h-8 ${isPlaying ? "animate-spin" : ""}`} style={{ animationDuration: "3s" }} viewBox="0 0 32 32" fill="none">
-                    {/* Music disc */}
                     <circle cx="16" cy="16" r="12" fill="#1a1a1a" />
                     <circle cx="16" cy="16" r="10" fill={isPlaying ? "#2ed573" : "#ff4757"} />
                     <circle cx="16" cy="16" r="8" fill="#1a1a1a" />
                     <circle cx="16" cy="16" r="3" fill={isPlaying ? "#2ed573" : "#ff4757"} />
                     <circle cx="16" cy="16" r="1" fill="#1a1a1a" />
-                    {/* Shine effect */}
                     <circle cx="12" cy="12" r="2" fill="rgba(255,255,255,0.3)" />
                 </svg>
             </button>
@@ -202,7 +237,6 @@ export default function MusicPlayer() {
                         {/* Now Playing */}
                         <div className="glass rounded-xl p-4 mb-4 border border-white/10">
                             <div className="flex items-center gap-3">
-                                {/* Spinning disc */}
                                 <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-[#2ed573] to-[#ff4757] flex items-center justify-center ${isPlaying ? "animate-spin" : ""}`} style={{ animationDuration: "3s" }}>
                                     <div className="w-4 h-4 rounded-full bg-[#1a1a1a]" />
                                 </div>

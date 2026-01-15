@@ -28,9 +28,9 @@ const teamMembers = [
   },
   {
     name: "unknown0607",
-    role: "Ideas Guy",
-    description: "Casual player, rarely online but always in spirit",
-    emoji: "💡",
+    role: "Gamer",
+    description: "Casual player, rarely online",
+    emoji: "🎮",
   },
 ];
 
