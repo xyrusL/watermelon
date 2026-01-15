@@ -52,6 +52,7 @@ interface UserPanelProps {
     copied: boolean;
     showNotification: (type: "error" | "warning" | "success" | "info", title: string, message: string, details?: string) => void;
     onClose?: () => void;
+    onImageUpdate?: () => void;
 }
 
 export default function UserPanel({
@@ -64,6 +65,7 @@ export default function UserPanel({
     copied,
     showNotification,
     onClose,
+    onImageUpdate,
 }: UserPanelProps) {
     const [userImages, setUserImages] = useState<UserImage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -120,6 +122,7 @@ export default function UserPanel({
             if (data.success) {
                 showNotification("success", "Updated", data.message);
                 fetchUserImages(); // Refresh
+                onImageUpdate?.(); // Notify parent
             } else {
                 showNotification("error", "Update Failed", data.error || "Failed to update visibility");
             }
@@ -142,6 +145,7 @@ export default function UserPanel({
             if (data.success) {
                 showNotification("success", "Updated", data.message);
                 fetchUserImages(); // Refresh
+                onImageUpdate?.(); // Notify parent
             } else {
                 showNotification("error", "Update Failed", data.error || "Failed to update NSFW status");
             }

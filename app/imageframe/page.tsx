@@ -440,6 +440,7 @@ export default function ImageFramePage() {
 
             selectFile(file);
             setUrlInput(""); // Clear input after successful selection
+            setIsUrlMode(false); // Switch to preview mode
         } catch (err) {
             console.error("URL upload error:", err);
             showNotification(
@@ -630,6 +631,7 @@ export default function ImageFramePage() {
         setShowEditor(false);
         setIsPrivate(false); // Reset to public
         setIsNsfw(false); // Reset to not NSFW
+        setUrlInput("");
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -655,6 +657,7 @@ export default function ImageFramePage() {
         setError(null);
         setCroppedPreview(null);
         setShowEditor(false);
+        setUrlInput("");
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -1975,6 +1978,7 @@ export default function ImageFramePage() {
                     copyUrl={copyUrl}
                     copied={copied}
                     showNotification={showNotification}
+                    onImageUpdate={fetchRecentImages}
                 />
             </div>
         </div>
