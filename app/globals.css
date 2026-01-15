@@ -29,6 +29,10 @@ body {
   overflow-wrap: break-word;
 }
 
+button {
+  cursor: pointer;
+}
+
 /* Pixel Font Class */
 .font-pixel {
   font-family: 'Press Start 2P', cursive;
@@ -37,15 +41,34 @@ body {
 
 /* Reusable Link Styles */
 .link-primary {
-  @apply text-[#2ed573] hover:text-[#26de81] transition-colors no-underline;
+  color: #2ed573;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.link-primary:hover {
+  color: #26de81;
 }
 
 .link-secondary {
-  @apply text-[#ff6b81] hover:text-[#ff4757] transition-colors no-underline;
+  color: #ff6b81;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.link-secondary:hover {
+  color: #ff4757;
 }
 
 .link-external {
-  @apply text-[#ff6b81] hover:text-[#ff4757] no-underline hover:no-underline transition-colors;
+  color: #ff6b81;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.link-external:hover {
+  color: #ff4757;
+  text-decoration: none;
 }
 
 /* Custom Scrollbar */

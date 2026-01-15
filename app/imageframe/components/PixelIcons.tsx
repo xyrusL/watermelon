@@ -393,9 +393,47 @@ export function PixelShield({ className = "", size = 16, color = "#ffa502" }: Ic
             <rect x="10" y="11" width="2" height="2" fill="currentColor" />
             <rect x="6" y="13" width="4" height="2" fill="currentColor" />
             {/* Star inside */}
-            <rect x="7" y="4" width="2" height="2" fill="#1a1a2e" />
-            <rect x="5" y="6" width="6" height="2" fill="#1a1a2e" />
             <rect x="6" y="8" width="4" height="2" fill="#1a1a2e" />
+        </svg>
+    );
+}
+
+// Pixel-art frame icon (1x1)
+export function PixelFrame({ className = "", size = 16, color = "currentColor" }: IconProps) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 16 16" className={className} style={{ color }}>
+            <rect x="1" y="1" width="14" height="14" fill="currentColor" opacity="0.2" />
+            <rect x="2" y="2" width="12" height="12" fill="currentColor" stroke="currentColor" strokeWidth="2" fillOpacity="0" />
+            <rect x="4" y="4" width="8" height="8" fill="currentColor" opacity="0.5" />
+        </svg>
+    );
+}
+
+// Pixel-art square icon (2x2)
+export function PixelSquare({ className = "", size = 16, color = "currentColor" }: IconProps) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 16 16" className={className} style={{ color }}>
+            <rect x="2" y="2" width="12" height="12" fill="currentColor" />
+            <rect x="8" y="2" width="1" height="12" fill="#1a1a2e" opacity="0.5" />
+            <rect x="2" y="8" width="12" height="1" fill="#1a1a2e" opacity="0.5" />
+        </svg>
+    );
+}
+
+// Pixel-art horizontal rectangle (3x2, 4x2)
+export function PixelRectangleH({ className = "", size = 16, color = "currentColor" }: IconProps) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 16 16" className={className} style={{ color }}>
+            <rect x="1" y="4" width="14" height="8" fill="currentColor" />
+        </svg>
+    );
+}
+
+// Pixel-art vertical rectangle (2x3, 2x4)
+export function PixelRectangleV({ className = "", size = 16, color = "currentColor" }: IconProps) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 16 16" className={className} style={{ color }}>
+            <rect x="4" y="1" width="8" height="14" fill="currentColor" />
         </svg>
     );
 }

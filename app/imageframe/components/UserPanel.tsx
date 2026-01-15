@@ -18,22 +18,12 @@ import {
     PixelWarning,
 } from "./PixelIcons";
 
-// Types
-interface UserImage {
-    url: string;
-    directUrl: string;
-    deleteUrl?: string;
-    thumbnail?: string;
-    filename: string;
-    uploadedAt: number;
-    fileSize?: number;
-    host?: "imgbb" | "supabase";
-    uploaderName?: string;
-    uploaderEmail?: string;
-    id?: string;
-    is_private?: boolean;
-    is_nsfw?: boolean;
-}
+import { UploadedImage } from "../types";
+import ImageDetailsModal from "./ImageDetailsModal";
+import { mapDbImagesToUploadedImages } from "../lib/image-mapper";
+
+// Types - Use existing UploadedImage from types.ts
+// interface UserImage removed in favor of UploadedImage
 
 interface UserStats {
     totalImages: number;
@@ -67,14 +57,14 @@ export default function UserPanel({
     onClose,
     onImageUpdate,
 }: UserPanelProps) {
-    const [userImages, setUserImages] = useState<UserImage[]>([]);
+    const [userImages, setUserImages] = useState<UploadedImage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [stats, setStats] = useState<UserStats | null>(null);
-    const [selectedImage, setSelectedImage] = useState<UserImage | null>(null);
+    const [selectedImage, setSelectedImage] = useState<UploadedImage | null>(null);
     const [filterText, setFilterText] = useState("");
     const [filterVisibility, setFilterVisibility] = useState<"all" | "public" | "private">("all");
 
-    // Fetch user's images
+    // Fetch user's images (uses centralized mapper)
     const fetchUserImages = async (isPolling = false) => {
         if (!isSignedIn) return;
         if (!isPolling) setIsLoading(true);
@@ -82,20 +72,7 @@ export default function UserPanel({
             const response = await fetch('/api/user/images');
             const data = await response.json();
             if (data.success) {
-                const images: UserImage[] = data.images.map((img: any) => ({
-                    url: img.url,
-                    directUrl: img.url,
-                    deleteUrl: img.file_path,
-                    filename: img.filename,
-                    uploadedAt: new Date(img.uploaded_at).getTime(),
-                    fileSize: img.file_size,
-                    host: img.host as "imgbb" | "supabase",
-                    uploaderName: img.uploader_name,
-                    uploaderEmail: img.uploader_email,
-                    id: img.id,
-                    is_private: img.is_private || false,
-                    is_nsfw: img.is_nsfw || false,
-                }));
+                const images = mapDbImagesToUploadedImages(data.images);
                 setUserImages(images);
                 setStats(data.stats);
             } else {
@@ -320,76 +297,17 @@ export default function UserPanel({
                 </div>
             </div>
 
-            {/* Image Detail Modal */}
-            {selectedImage && (
-                <div
-                    className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4"
-                    onClick={() => setSelectedImage(null)}
-                >
-                    <div
-                        className="glass rounded-2xl p-6 max-w-md w-full relative flex flex-col max-h-[90vh] my-auto"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button
-                            onClick={() => setSelectedImage(null)}
-                            className="absolute top-3 right-3 w-8 h-8 rounded-full glass hover:bg-red-500/20 flex items-center justify-center text-gray-400 hover:text-white transition-all z-10"
-                        >
-                            ✕
-                        </button>
-
-                        <div className="flex-shrink-0 mb-4 bg-black/30 rounded-xl overflow-hidden flex items-center justify-center h-52">
-                            <img
-                                src={selectedImage.directUrl}
-                                alt={selectedImage.filename}
-                                className="max-w-full max-h-full object-contain"
-                            />
-                        </div>
-
-                        <h3 className="font-pixel text-sm text-[#2ed573] mb-4 text-center flex-shrink-0">IMAGE DETAILS</h3>
-
-                        <div className="space-y-3 text-sm glass-dark rounded-xl p-4 overflow-y-auto custom-scrollbar">
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-400">Filename</span>
-                                <span className="text-white truncate ml-4 max-w-[180px] text-right">{selectedImage.filename}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-400">Visibility</span>
-                                <span className={`flex items-center gap-1 ${selectedImage.is_private ? "text-[#ffa502]" : "text-[#2ed573]"}`}>
-                                    {selectedImage.is_private ? <><PixelLock size={12} color="#ffa502" /> Private</> : <><PixelEye size={12} color="#2ed573" /> Public</>}
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-400">Uploaded</span>
-                                <span className="text-white">{formatDate(selectedImage.uploadedAt)}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-400">Size</span>
-                                <span className="text-white">{formatFileSize(selectedImage.fileSize)}</span>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2 mt-4 flex-shrink-0">
-                            <button
-                                onClick={() => copyUrl(selectedImage.directUrl)}
-                                className="flex-1 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all flex items-center justify-center gap-2"
-                            >
-                                {copied ? <><PixelCheck size={14} color="#fff" /> Copied!</> : <><PixelCopy size={14} color="#fff" /> Copy URL</>}
-                            </button>
-                            <button
-                                onClick={() => toggleVisibility(selectedImage.id || selectedImage.uploadedAt.toString(), selectedImage.is_private || false)}
-                                className={`flex-1 py-3 rounded-xl font-medium transition-all ${selectedImage.is_private
-                                    ? "bg-[#2ed573] hover:bg-[#26b85f]"
-                                    : "bg-[#ffa502] hover:bg-[#ff8c00]"
-                                    }`}
-                            >
-                                <span className="flex items-center justify-center gap-2">
-                                    {selectedImage.is_private ? <><PixelEye size={14} color="#fff" /> Make Public</> : <><PixelLock size={14} color="#fff" /> Make Private</>}
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Unified Image Detail Modal */}
+            <ImageDetailsModal
+                image={selectedImage}
+                isAdmin={false}
+                isOwner={true}
+                copied={copied}
+                onClose={() => setSelectedImage(null)}
+                onCopyUrl={copyUrl}
+                onToggleVisibility={toggleVisibility}
+                onToggleNsfw={toggleNsfw}
+            />
         </>
     );
 }

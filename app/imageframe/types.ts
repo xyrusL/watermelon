@@ -21,7 +21,7 @@ export interface HostConfig {
     name: string;
     maxSize: number;
     maxSizeLabel: string;
-    deleteSupport: string;
+    deleteSupport: React.ReactNode | string;
     uploadEndpoint: string;
     deleteEndpoint: string;
     healthEndpoint: string;
@@ -40,5 +40,5 @@ export interface FrameSize {
     name: string;
     ratio: number | undefined;
     frames: number;
-    icon: string;
+    icon: React.ReactNode | string;
 }

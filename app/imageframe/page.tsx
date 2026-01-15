@@ -40,6 +40,7 @@ import { Edit3, Save, X, ChevronDown, ImageIcon, Scissors, Square, RectangleHori
 import type { UploadedImage, HostType, HostConfig, NotificationState, FrameSize } from "./types";
 import { HOSTS, FRAME_SIZES } from "./constants";
 import { ensureAbsoluteUrl, formatDate, formatFileSize } from "./utils";
+import { mapDbImagesToUploadedImages } from "./lib/image-mapper";
 
 // Types, constants, and utilities are now imported from separate files above
 
@@ -174,27 +175,14 @@ export default function ImageFramePage() {
         checkApi();
     }, [selectedHost]);
 
-    // Function to fetch recent images
+    // Function to fetch recent images (uses centralized mapper)
     const fetchRecentImages = async () => {
         try {
             const response = await fetch('/api/supabase/recent');
             if (response.ok) {
                 const data = await response.json();
                 if (data.success && data.images) {
-                    const images: UploadedImage[] = data.images.map((img: any) => ({
-                        url: img.url,
-                        directUrl: img.url,
-                        deleteUrl: img.file_path,
-                        filename: img.filename,
-                        uploadedAt: new Date(img.uploaded_at).getTime(),
-                        fileSize: img.file_size,
-                        host: 'supabase',
-                        uploaderName: img.uploader_name,
-                        uploaderEmail: img.uploader_email,
-                        id: img.id,
-                        is_private: img.is_private || false,
-                        is_nsfw: img.is_nsfw || false,
-                    }));
+                    const images = mapDbImagesToUploadedImages(data.images);
                     setGallery(images);
                 }
             }
@@ -217,8 +205,8 @@ export default function ImageFramePage() {
 
         loadGallery();
 
-        // Poll for updates every 3 seconds (simulates real-time)
-        const interval = setInterval(() => fetchRecentImages(), 3000);
+        // Poll for updates every 1 second (faster sync for privacy changes)
+        const interval = setInterval(() => fetchRecentImages(), 1000);
 
         return () => clearInterval(interval);
     }, []);
@@ -277,6 +265,38 @@ export default function ImageFramePage() {
             localStorage.setItem('wasSignedIn', 'true');
         }
     }, [isSignedIn]);
+
+    // Sync adminSelectedImage with latest data from adminImages
+    // This ensures the modal shows up-to-date visibility/NSFW status
+    useEffect(() => {
+        if (adminSelectedImage && adminImages.length > 0) {
+            const updatedImage = adminImages.find(img => img.id === adminSelectedImage.id);
+            if (updatedImage) {
+                // Only update if data has changed
+                if (updatedImage.is_private !== adminSelectedImage.is_private ||
+                    updatedImage.is_nsfw !== adminSelectedImage.is_nsfw) {
+                    setAdminSelectedImage(updatedImage);
+                }
+            }
+        }
+    }, [adminImages, adminSelectedImage]);
+
+    // Sync selectedGalleryImage with latest data from gallery
+    // This ensures the gallery modal also shows up-to-date data
+    useEffect(() => {
+        if (selectedGalleryImage && gallery.length > 0) {
+            const updatedImage = gallery.find(img => img.id === selectedGalleryImage.id);
+            if (updatedImage) {
+                if (updatedImage.is_private !== selectedGalleryImage.is_private ||
+                    updatedImage.is_nsfw !== selectedGalleryImage.is_nsfw) {
+                    setSelectedGalleryImage(updatedImage);
+                }
+            } else {
+                // Image was removed from gallery (e.g., made private), close the modal
+                setSelectedGalleryImage(null);
+            }
+        }
+    }, [gallery, selectedGalleryImage]);
 
     // Initialize crop when image loads
     const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -615,6 +635,58 @@ export default function ImageFramePage() {
         }
     };
 
+    // Admin Toggle Visibility
+    const toggleAdminVisibility = async (imageId: string, currentPrivate: boolean) => {
+        try {
+            const response = await fetch('/api/admin/update-visibility', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageId, isPrivate: !currentPrivate }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                showNotification("success", "Updated", data.message);
+                // Update the selected image locally to reflect change immediately
+                if (adminSelectedImage && adminSelectedImage.id === imageId) {
+                    setAdminSelectedImage({ ...adminSelectedImage, is_private: !currentPrivate });
+                }
+                fetchAdminImages();
+                fetchRecentImages();
+            } else {
+                showNotification("error", "Update Failed", data.error || "Failed to update visibility");
+            }
+        } catch (err) {
+            console.error("Admin visibility update error:", err);
+            showNotification("error", "Error", "Failed to update visibility");
+        }
+    };
+
+    // Admin Toggle NSFW
+    const toggleAdminNsfw = async (imageId: string, currentNsfw: boolean) => {
+        try {
+            const response = await fetch('/api/admin/update-nsfw', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageId, isNsfw: !currentNsfw }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                showNotification("success", "Updated", data.message);
+                // Update the selected image locally to reflect change immediately
+                if (adminSelectedImage && adminSelectedImage.id === imageId) {
+                    setAdminSelectedImage({ ...adminSelectedImage, is_nsfw: !currentNsfw });
+                }
+                fetchAdminImages();
+                fetchRecentImages();
+            } else {
+                showNotification("error", "Update Failed", data.error || "Failed to update NSFW status");
+            }
+        } catch (err) {
+            console.error("Admin NSFW update error:", err);
+            showNotification("error", "Error", "Failed to update NSFW status");
+        }
+    };
+
     const openImageDetails = (img: UploadedImage) => {
         setSelectedGalleryImage(img);
         setShowDeleteConfirm(false);
@@ -705,7 +777,7 @@ export default function ImageFramePage() {
         }, 1500);
     };
 
-    // Admin functions
+    // Admin functions (uses centralized mapper)
     const fetchAdminImages = async () => {
         if (!isAdmin) return;
         setIsLoadingAdmin(true);
@@ -713,29 +785,8 @@ export default function ImageFramePage() {
             const response = await fetch('/api/admin/images');
             const data = await response.json();
             if (data.success) {
-                // Convert database format to UploadedImage format
-                const images: (UploadedImage & { id?: string })[] = data.images.map((img: {
-                    url: string;
-                    file_path: string;
-                    filename: string;
-                    uploaded_at: string;
-                    file_size: number;
-                    host: HostType;
-                    uploader_name: string;
-                    uploader_email: string;
-                    id: string;
-                }) => ({
-                    url: img.url,
-                    directUrl: img.url,
-                    deleteUrl: img.file_path,
-                    filename: img.filename,
-                    uploadedAt: new Date(img.uploaded_at).getTime(),
-                    fileSize: img.file_size,
-                    host: img.host as HostType,
-                    uploaderName: img.uploader_name,
-                    uploaderEmail: img.uploader_email,
-                    id: img.id,
-                }));
+                // Use centralized mapper
+                const images = mapDbImagesToUploadedImages(data.images);
                 setAdminImages(images);
                 setAdminStats(data.stats);
 
@@ -848,6 +899,27 @@ export default function ImageFramePage() {
         setShowAdminPanel(true);
         fetchAdminImages();
     };
+
+    // Poll for admin panel updates when open (silent - no loading spinner)
+    useEffect(() => {
+        if (showAdminPanel && isAdmin) {
+            // Poll every 3 seconds to keep admin data synced (silent refresh)
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/admin/images');
+                    const data = await response.json();
+                    if (data.success) {
+                        // Use centralized mapper
+                        const images = mapDbImagesToUploadedImages(data.images);
+                        setAdminImages(images);
+                    }
+                } catch (err) {
+                    // Silent fail
+                }
+            }, 3000);
+            return () => clearInterval(interval);
+        }
+    }, [showAdminPanel, isAdmin]);
 
     // Open user panel
     const openUserPanel = () => {
@@ -1052,7 +1124,7 @@ export default function ImageFramePage() {
 
                         {/* Icon */}
                         <div className="text-center mb-4 mt-2">
-                            <div className="text-5xl">👋</div>
+                            <div className="flex justify-center"><PixelUser size={48} color="#ffa502" /></div>
                         </div>
 
                         {/* Title */}
@@ -1084,116 +1156,57 @@ export default function ImageFramePage() {
                 </div>
             )}
 
-            {/* Admin Image Detail Modal - Outside admin panel for proper z-index */}
-            {adminSelectedImage && showAdminPanel && isAdmin && (
-                <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[70] p-4" onClick={() => setAdminSelectedImage(null)}>
-                    <div className="glass rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto relative" onClick={(e) => e.stopPropagation()}>
-                        {/* Close Button */}
-                        <button
-                            onClick={() => setAdminSelectedImage(null)}
-                            className="absolute top-4 right-4 w-10 h-10 rounded-full glass hover:bg-red-500/20 flex items-center justify-center text-gray-400 hover:text-white transition-all z-10"
-                        >
-                            ✕
-                        </button>
 
-                        {/* Image Preview */}
-                        <div className="bg-black/30 rounded-xl overflow-hidden flex items-center justify-center mb-6" style={{ minHeight: '200px', maxHeight: '300px' }}>
-                            <img
-                                src={adminSelectedImage.directUrl}
-                                alt={adminSelectedImage.filename}
-                                className="max-w-full max-h-[300px] object-contain"
-                            />
-                        </div>
-
-                        {/* Title */}
-                        <h3 className="font-pixel text-base text-[#ff4757] mb-6 text-center">IMAGE DETAILS</h3>
-
-                        {/* Details Grid */}
-                        <div className="space-y-4 mb-6">
-                            <div className="glass-dark rounded-xl p-4">
-                                <p className="text-xs text-gray-400 mb-2">Filename</p>
-                                <p className="text-white font-medium break-all">{adminSelectedImage.filename}</p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="glass-dark rounded-xl p-4">
-                                    <p className="text-xs text-gray-400 mb-2">Uploader</p>
-                                    <p className="text-[#2ed573] font-medium flex items-center gap-2">
-                                        <span>👤</span>
-                                        <span className="truncate">{adminSelectedImage.uploaderName || "Anonymous"}</span>
-                                    </p>
-                                </div>
-
-                                <div className="glass-dark rounded-xl p-4">
-                                    <p className="text-xs text-gray-400 mb-2">File Size</p>
-                                    <p className="text-white font-medium">{formatFileSize(adminSelectedImage.fileSize)}</p>
-                                </div>
-                            </div>
-
-                            <div className="glass-dark rounded-xl p-4">
-                                <p className="text-xs text-gray-400 mb-2">Email</p>
-                                <p className="text-white break-all">{adminSelectedImage.uploaderEmail || "N/A"}</p>
-                            </div>
-
-                            <div className="glass-dark rounded-xl p-4">
-                                <p className="text-xs text-gray-400 mb-2">Upload Date & Time</p>
-                                <p className="text-white">{formatDate(adminSelectedImage.uploadedAt)}</p>
-                            </div>
-
-                            <div className="glass-dark rounded-xl p-4">
-                                <p className="text-xs text-gray-400 mb-2">Image URL</p>
-                                <code className="text-xs text-[#ff4757] break-all block">{adminSelectedImage.directUrl}</code>
-                            </div>
-                        </div>
-
-                        {/* Copy URL Button */}
-                        <div className="flex gap-3 w-full">
-                            <button
-                                onClick={() => copyUrl(adminSelectedImage.directUrl)}
-                                className="flex-1 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all hover:scale-105 flex items-center justify-center gap-2"
-                            >
-                                <span>{copied ? "✓" : "📋"}</span>
-                                <span>{copied ? "Copied!" : "Copy URL"}</span>
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    if (confirm("Are you sure you want to delete this image?")) {
-                                        setIsDeleting(true);
-                                        try {
-                                            const response = await fetch('/api/admin/images', {
-                                                method: 'DELETE',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                    imageIds: [adminSelectedImage.id],
-                                                    filePaths: [adminSelectedImage.deleteUrl].filter(Boolean)
-                                                }),
-                                            });
-                                            const data = await response.json();
-                                            if (data.success) {
-                                                showNotification("success", "Deleted", "Image removed successfully");
-                                                setAdminSelectedImage(null);
-                                                fetchAdminImages();
-                                                fetchRecentImages();
-                                            } else {
-                                                showNotification("error", "Error", data.error || "Failed to delete");
-                                            }
-                                        } catch (err) {
-                                            console.error("Delete error:", err);
-                                            showNotification("error", "Error", "Failed to delete image");
-                                        } finally {
-                                            setIsDeleting(false);
-                                        }
-                                    }
-                                }}
-                                disabled={isDeleting}
-                                className="px-4 py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/50 transition-all flex items-center justify-center"
-                            >
-                                {isDeleting ? "..." : <PixelTrash size={20} color="currentColor" />}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Unified Admin Image Detail Modal */}
+            <ImageDetailsModal
+                image={adminSelectedImage}
+                isAdmin={isAdmin}
+                copied={copied}
+                showDeleteConfirm={showDeleteConfirm}
+                deleteSuccess={deleteSuccess}
+                isDeleting={isDeleting}
+                onClose={() => {
+                    setAdminSelectedImage(null);
+                    setShowDeleteConfirm(false);
+                    setDeleteSuccess(false);
+                }}
+                onCopyUrl={copyUrl}
+                onDelete={async () => {
+                    if (!adminSelectedImage) return;
+                    setIsDeleting(true);
+                    try {
+                        const response = await fetch('/api/admin/images', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                imageIds: [adminSelectedImage.id],
+                                filePaths: [adminSelectedImage.deleteUrl].filter(Boolean)
+                            }),
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            setDeleteSuccess(true);
+                            // Auto close after success
+                            setTimeout(() => {
+                                setAdminSelectedImage(null);
+                                setDeleteSuccess(false);
+                                fetchAdminImages();
+                                fetchRecentImages();
+                            }, 1500);
+                        } else {
+                            showNotification("error", "Error", data.error || "Failed to delete");
+                        }
+                    } catch (err) {
+                        console.error("Delete error:", err);
+                        showNotification("error", "Error", "Failed to delete image");
+                    } finally {
+                        setIsDeleting(false);
+                    }
+                }}
+                onShowDeleteConfirm={setShowDeleteConfirm}
+                onToggleVisibility={toggleAdminVisibility}
+                onToggleNsfw={toggleAdminNsfw}
+            />
 
             {/* Image Editor Modal */}
             {showEditor && preview && (
@@ -1286,7 +1299,7 @@ export default function ImageFramePage() {
             {apiError && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
                     <div className="glass rounded-2xl p-8 max-w-md text-center border border-red-500/50">
-                        <div className="text-5xl mb-4">⚠️</div>
+                        <div className="flex justify-center mb-4"><PixelWarning size={48} color="#ffa502" /></div>
                         <h2 className="font-pixel text-lg text-red-400 mb-4">API ERROR</h2>
                         <p className="text-gray-300 mb-6">
                             There's something wrong with the upload service. Please let the server admin know!
@@ -1318,7 +1331,7 @@ export default function ImageFramePage() {
             {isUploading && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
                     <div className="glass rounded-2xl p-8 max-w-sm text-center">
-                        <div className="text-5xl mb-4 animate-pulse">📤</div>
+                        <div className="flex justify-center mb-4 animate-pulse"><PixelUpload size={48} color="#ff4757" /></div>
                         <h3 className="font-pixel text-lg text-[#ff4757] mb-4">UPLOADING</h3>
                         <p className="text-gray-300 mb-2">
                             Uploading to {selectedHost && HOSTS[selectedHost].name}...
@@ -1497,14 +1510,14 @@ export default function ImageFramePage() {
                         {!isSignedIn && (
                             <div className="glass rounded-2xl p-8 border-2 border-[#ffa502]/30 bg-gradient-to-br from-[#ffa502]/5 to-transparent mb-8">
                                 <div className="text-center space-y-4">
-                                    <div className="text-5xl mb-4">🔒</div>
+                                    <div className="flex justify-center mb-4"><PixelLock size={48} color="#ffa502" /></div>
                                     <h2 className="font-pixel text-xl text-[#ffa502]">AUTHENTICATION REQUIRED</h2>
                                     <p className="text-gray-300 max-w-md mx-auto mb-2">
                                         To upload images, you need to authenticate first
                                     </p>
                                     <div className="glass-dark rounded-lg p-4 max-w-lg mx-auto border border-[#2ed573]/20">
                                         <p className="text-sm text-gray-400 mb-2">
-                                            <span className="text-[#2ed573] font-medium">ℹ️ How it works:</span>
+                                            <span className="text-[#2ed573] font-medium flex items-center gap-2"><PixelInfo size={16} color="#2ed573" /> How it works:</span>
                                         </p>
                                         <p className="text-sm text-gray-300">
                                             Click the button below to open Clerk's secure authentication.
@@ -1515,7 +1528,7 @@ export default function ImageFramePage() {
                                     <div className="flex items-center justify-center gap-3 pt-4">
                                         <SignInButton mode="modal">
                                             <button className="px-6 py-3 bg-[#2ed573] hover:bg-[#26de81] rounded-full font-medium transition-all hover:scale-105 flex items-center gap-2 cursor-pointer">
-                                                <span>🔑</span>
+                                                <PixelKey size={16} color="currentColor" />
                                                 <span>Continue to Clerk Sign In</span>
                                             </button>
                                         </SignInButton>
@@ -1576,13 +1589,13 @@ export default function ImageFramePage() {
                                                 </li>
                                                 <li className="flex items-center gap-3">
                                                     <div className="w-6 h-6 rounded-full bg-[#2ed573]/20 flex items-center justify-center flex-shrink-0">
-                                                        <span className="text-[#2ed573] text-sm">✓</span>
+                                                        <PixelCheck size={10} color="#2ed573" />
                                                     </div>
                                                     <span className="text-[#2ed573] font-bold">Full Privacy Control</span>
                                                 </li>
                                                 <li className="flex items-center gap-3">
                                                     <div className="w-6 h-6 rounded-full bg-[#2ed573]/20 flex items-center justify-center flex-shrink-0">
-                                                        <span className="text-[#2ed573] text-sm">✓</span>
+                                                        <PixelCheck size={10} color="#2ed573" />
                                                     </div>
                                                     <span className="text-gray-300 font-medium">Fast & Secure</span>
                                                 </li>
@@ -1622,19 +1635,19 @@ export default function ImageFramePage() {
                                             <ul className="space-y-4 text-sm mt-auto">
                                                 <li className="flex items-center gap-3">
                                                     <div className="w-6 h-6 rounded-full bg-[#2ed573]/20 flex items-center justify-center flex-shrink-0">
-                                                        <span className="text-[#2ed573] text-sm">✓</span>
+                                                        <PixelCheck size={10} color="#2ed573" />
                                                     </div>
                                                     <span className="text-gray-300"><span className="text-white font-bold">{HOSTS.imgbb.maxSizeLabel}</span> Max Size</span>
                                                 </li>
                                                 <li className="flex items-center gap-3">
                                                     <div className="w-6 h-6 rounded-full bg-[#2ed573]/20 flex items-center justify-center flex-shrink-0">
-                                                        <span className="text-[#2ed573] text-sm">✓</span>
+                                                        <PixelCheck size={10} color="#2ed573" />
                                                     </div>
                                                     <span className="text-gray-300 font-medium">Fast Upload Speed</span>
                                                 </li>
                                                 <li className="flex items-center gap-3">
                                                     <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                                                        <span className="text-red-400 text-sm">✕</span>
+                                                        <PixelClose size={10} color="#f87171" />
                                                     </div>
                                                     <span className="text-red-400 font-bold">Not Private</span>
                                                 </li>
