@@ -205,8 +205,8 @@ export default function MusicPlayer() {
             <audio
                 ref={audioRef}
                 src={currentSong.file}
-                loop
                 preload="auto"
+                onEnded={nextSong}
             />
 
             {/* First-time Music Prompt Modal */}
@@ -254,8 +254,8 @@ export default function MusicPlayer() {
                                         key={song.id}
                                         onClick={() => setCurrentSongIndex(index)}
                                         className={`w-full p-2 rounded-lg text-left transition-all cursor-pointer ${currentSongIndex === index
-                                                ? "bg-[#2ed573]/20 border border-[#2ed573]/50"
-                                                : "bg-white/5 hover:bg-white/10 border border-transparent"
+                                            ? "bg-[#2ed573]/20 border border-[#2ed573]/50"
+                                            : "bg-white/5 hover:bg-white/10 border border-transparent"
                                             }`}
                                     >
                                         <p className="text-sm text-white font-medium">{song.title}</p>
@@ -386,8 +386,8 @@ export default function MusicPlayer() {
                                         key={song.id}
                                         onClick={() => changeSong(index)}
                                         className={`w-full p-3 rounded-lg text-left transition-all cursor-pointer ${currentSongIndex === index
-                                                ? "bg-[#2ed573]/20 border border-[#2ed573]/50"
-                                                : "glass border border-white/10 hover:border-[#2ed573]/30"
+                                            ? "bg-[#2ed573]/20 border border-[#2ed573]/50"
+                                            : "glass border border-white/10 hover:border-[#2ed573]/30"
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">

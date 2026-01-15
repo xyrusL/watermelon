@@ -111,6 +111,9 @@ export default function ImageFramePage() {
     const [isPrivate, setIsPrivate] = useState(false); // Default is public
     const [isNsfw, setIsNsfw] = useState(false); // Default is not NSFW
     const [revealedNsfwImages, setRevealedNsfwImages] = useState<Set<number>>(new Set()); // Track temporarily revealed NSFW images
+    const [isUrlMode, setIsUrlMode] = useState(false);
+    const [urlInput, setUrlInput] = useState("");
+
 
     // Toggle NSFW reveal for gallery
     const toggleNsfwReveal = (imageTimestamp: number, e: React.MouseEvent) => {
@@ -398,6 +401,55 @@ export default function ImageFramePage() {
                 return;
             }
             selectFile(file);
+        }
+    };
+
+    // Validate if string is a raw image URL
+    const validateImageUrl = (url: string) => {
+        return /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+    };
+
+    // Handle URL upload
+    const handleUrlUpload = async () => {
+        if (!urlInput.trim()) return;
+
+        if (!validateImageUrl(urlInput.trim())) {
+            showNotification(
+                "error",
+                "Invalid URL Format",
+                "Please enter a direct link to an image file",
+                "URL must end with .jpg, .png, .gif, or .webp"
+            );
+            return;
+        }
+
+        setIsUploading(true);
+        setError(null);
+
+        try {
+            const response = await fetch(urlInput.trim());
+            if (!response.ok) throw new Error("Failed to fetch image");
+
+            const blob = await response.blob();
+            if (!blob.type.startsWith("image/")) {
+                throw new Error("URL does not point to a valid image");
+            }
+
+            const fileName = urlInput.split('/').pop() || "image.png";
+            const file = new File([blob], fileName, { type: blob.type });
+
+            selectFile(file);
+            setUrlInput(""); // Clear input after successful selection
+        } catch (err) {
+            console.error("URL upload error:", err);
+            showNotification(
+                "error",
+                "Download Failed",
+                "Could not fetch image from the provided URL",
+                "Check if the URL is correct and accessible (CORS might be blocking it)"
+            );
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -1454,7 +1506,7 @@ export default function ImageFramePage() {
                                         onClick={changeHost}
                                         className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
                                     >
-                                        <span>🔄</span> Change
+                                        <PixelRefresh size={12} /> Change
                                     </button>
                                 </div>
                             )}
@@ -1614,69 +1666,126 @@ export default function ImageFramePage() {
                             </div>
                         ) : !uploadedImage ? (
                             <div className="space-y-6">
-                                {/* Drop Zone */}
-                                <div
-                                    onClick={() => !preview && isSignedIn && fileInputRef.current?.click()}
-                                    onDragOver={isSignedIn ? handleDragOver : undefined}
-                                    onDragLeave={isSignedIn ? handleDragLeave : undefined}
-                                    onDrop={isSignedIn ? handleDrop : undefined}
-                                    className={`
+                                {/* Toggle Upload Mode */}
+                                {isSignedIn && (
+                                    <div className="flex justify-center">
+                                        <div className="glass p-1 rounded-xl flex">
+                                            <button
+                                                onClick={() => setIsUrlMode(false)}
+                                                className={`px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${!isUrlMode ? "bg-[#2ed573] text-black font-medium" : "text-gray-400 hover:text-white"}`}
+                                            >
+                                                <PixelUpload size={14} color="currentColor" /> Upload File
+                                            </button>
+                                            <button
+                                                onClick={() => setIsUrlMode(true)}
+                                                className={`px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${isUrlMode ? "bg-[#2ed573] text-black font-medium" : "text-gray-400 hover:text-white"}`}
+                                            >
+                                                <PixelExternalLink size={14} color="currentColor" /> Import URL
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Drop Zone or URL Input */}
+                                {isUrlMode && isSignedIn ? (
+                                    <div className="glass rounded-2xl p-8 border border-white/10">
+                                        <div className="mb-6 flex justify-center">
+                                            <div className="w-16 h-16 rounded-full bg-[#2ed573]/10 flex items-center justify-center">
+                                                <PixelGlobe size={32} color="#2ed573" />
+                                            </div>
+                                        </div>
+                                        <h3 className="text-lg text-center font-pixel text-white mb-2">IMPORT FROM URL</h3>
+                                        <p className="text-gray-500 text-center text-sm mb-6">Paste a direct link to a raw image file</p>
+
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={urlInput}
+                                                onChange={(e) => setUrlInput(e.target.value)}
+                                                placeholder="https://example.com/image.png"
+                                                className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:border-[#2ed573] outline-none transition-all"
+                                                onKeyDown={(e) => e.key === "Enter" && handleUrlUpload()}
+                                            />
+                                            <button
+                                                onClick={handleUrlUpload}
+                                                disabled={isUploading || !urlInput.trim()}
+                                                className="px-6 py-3 bg-[#2ed573] hover:bg-[#26de81] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-black transition-all flex items-center gap-2"
+                                            >
+                                                {isUploading ? (
+                                                    <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                                ) : (
+                                                    <>Import <PixelCheck size={14} /></>
+                                                )}
+                                            </button>
+                                        </div>
+                                        <p className="text-center text-xs text-gray-600 mt-4">
+                                            Supported: .jpg, .png, .gif, .webp
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div
+                                        onClick={() => !preview && isSignedIn && fileInputRef.current?.click()}
+                                        onDragOver={isSignedIn ? handleDragOver : undefined}
+                                        onDragLeave={isSignedIn ? handleDragLeave : undefined}
+                                        onDrop={isSignedIn ? handleDrop : undefined}
+                                        className={`
                     ${preview ? "bg-black/60 backdrop-blur-sm" : "glass"} rounded-2xl p-8 text-center transition-all border-2
                     ${!preview && isSignedIn ? "cursor-pointer border-dashed border-white/20 hover:border-[#ff4757]/50" : ""}
                     ${preview ? "border-white/20" : ""}
                     ${isDragging && isSignedIn ? "border-[#2ed573] bg-[#2ed573]/10" : ""}
                   `}
-                                >
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept="image/png,image/jpeg,image/gif"
-                                        onChange={handleFileSelect}
-                                        className="hidden"
-                                        disabled={!isSignedIn}
-                                    />
+                                    >
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept="image/png,image/jpeg,image/gif"
+                                            onChange={handleFileSelect}
+                                            className="hidden"
+                                            disabled={!isSignedIn}
+                                        />
 
-                                    {preview ? (
-                                        <div className="space-y-4">
-                                            <img
-                                                src={preview}
-                                                alt="Preview"
-                                                className="max-h-64 mx-auto rounded-lg"
-                                            />
-                                            <p className="text-gray-400 text-sm">{selectedFile?.name}</p>
-                                            <p className="text-gray-500 text-xs">{formatFileSize(selectedFile?.size)}</p>
+                                        {preview ? (
+                                            <div className="space-y-4">
+                                                <img
+                                                    src={preview}
+                                                    alt="Preview"
+                                                    className="max-h-64 mx-auto rounded-lg"
+                                                />
+                                                <p className="text-gray-400 text-sm">{selectedFile?.name}</p>
+                                                <p className="text-gray-500 text-xs">{formatFileSize(selectedFile?.size)}</p>
 
-                                            {/* Edit Button */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setShowEditor(true);
-                                                }}
-                                                className="px-6 py-2 rounded-full bg-[#ff4757]/20 border border-[#ff4757]/50 text-[#ff4757] hover:bg-[#ff4757]/30 transition-all flex items-center gap-2 mx-auto"
-                                            >
-                                                <PixelCropIcon size={14} color="#ff4757" /> Edit & Crop
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="py-8">
-                                            <div className="mb-4 flex justify-center">
-                                                <PixelImage size={48} color="#ff4757" />
+                                                {/* Edit Button */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setShowEditor(true);
+                                                    }}
+                                                    className="px-6 py-2 rounded-full bg-[#ff4757]/20 border border-[#ff4757]/50 text-[#ff4757] hover:bg-[#ff4757]/30 transition-all flex items-center gap-2 mx-auto"
+                                                >
+                                                    <PixelCropIcon size={14} color="#ff4757" /> Edit & Crop
+                                                </button>
                                             </div>
-                                            <p className="text-lg text-gray-300 mb-2">
-                                                Drop your image here
-                                            </p>
-                                            <p className="text-sm text-gray-500 mb-3">
-                                                or click to browse
-                                            </p>
-                                            <div className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full">
-                                                <PixelUpload size={14} color="#9ca3af" />
-                                                <p className="text-xs text-gray-400">
-                                                    PNG, JPG, GIF • Max {selectedHost && HOSTS[selectedHost].maxSizeLabel}
+                                        ) : (
+                                            <div className="py-8">
+                                                <div className="mb-4 flex justify-center">
+                                                    <PixelImage size={48} color="#ff4757" />
+                                                </div>
+                                                <p className="text-lg text-gray-300 mb-2">
+                                                    Drop your image here
                                                 </p>
+                                                <p className="text-sm text-gray-500 mb-3">
+                                                    or click to browse
+                                                </p>
+                                                <div className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full">
+                                                    <PixelUpload size={14} color="#9ca3af" />
+                                                    <p className="text-xs text-gray-400">
+                                                        PNG, JPG, GIF • Max {selectedHost && HOSTS[selectedHost].maxSizeLabel}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Error Message */}
                                 {error && (
@@ -1851,6 +1960,7 @@ export default function ImageFramePage() {
                             revealedNsfwImages={revealedNsfwImages}
                             onImageClick={openImageDetails}
                             onToggleNsfwReveal={toggleNsfwReveal}
+                            isSignedIn={isSignedIn ?? false}
                         />
                     </div>
                 </main>

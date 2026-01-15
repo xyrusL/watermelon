@@ -8,6 +8,7 @@ interface ImageGalleryProps {
     revealedNsfwImages: Set<number>;
     onImageClick: (img: UploadedImage) => void;
     onToggleNsfwReveal: (timestamp: number, e: React.MouseEvent) => void;
+    isSignedIn?: boolean;
 }
 
 export default function ImageGallery({
@@ -16,7 +17,10 @@ export default function ImageGallery({
     revealedNsfwImages,
     onImageClick,
     onToggleNsfwReveal,
+    isSignedIn = false,
 }: ImageGalleryProps) {
+    // Don't show gallery if user is not signed in
+    if (!isSignedIn) return null;
     if (images.length === 0) return null;
 
     return (
@@ -34,8 +38,8 @@ export default function ImageGallery({
                             key={img.uploadedAt}
                             onClick={() => onImageClick(img)}
                             className={`glass rounded-xl overflow-hidden cursor-pointer hover:scale-105 transition-all group relative ${isOwnPrivate
-                                    ? 'ring-2 ring-[#ffa502] ring-offset-2 ring-offset-black/50 shadow-lg shadow-[#ffa502]/20'
-                                    : ''
+                                ? 'ring-2 ring-[#ffa502] ring-offset-2 ring-offset-black/50 shadow-lg shadow-[#ffa502]/20'
+                                : ''
                                 }`}
                         >
                             {/* NSFW badge */}
