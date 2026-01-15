@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
-import MusicPlayer from "./components/MusicPlayer";
 
 const SERVER_IP = "watermelon.deze.me";
 
@@ -68,8 +67,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
-      {/* Music Player */}
-      <MusicPlayer />
       {/* Background */}
       <div className="fixed inset-0 z-0">
         <Image

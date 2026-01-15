@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs'
 import "./globals.css";
+import MusicPlayer from "./components/MusicPlayer";
 
 export const metadata: Metadata = {
   title: "Watermelon SMP | Minecraft Server",
@@ -45,6 +46,7 @@ export default function RootLayout({
       <html lang="en" suppressHydrationWarning>
         <body className="antialiased">
           {children}
+          <MusicPlayer />
         </body>
       </html>
     </ClerkProvider>
