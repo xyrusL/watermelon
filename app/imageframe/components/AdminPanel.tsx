@@ -53,6 +53,7 @@ interface AdminPanelProps {
     copied: boolean;
     showNotification: (type: "error" | "warning" | "success" | "info", title: string, message: string, details?: string) => void;
     onOpen?: () => void; // Callback when panel opens
+    onImageDeleted?: () => void; // Callback when images are deleted
 }
 
 export default function AdminPanel({
@@ -65,6 +66,7 @@ export default function AdminPanel({
     copied,
     showNotification,
     onOpen,
+    onImageDeleted,
 }: AdminPanelProps) {
     // Admin panel states
     const [adminImages, setAdminImages] = useState<UploadedImage[]>([]);
@@ -212,6 +214,7 @@ export default function AdminPanel({
                 showNotification("success", "Bulk Delete Complete", `Deleted ${selectedImages.size} image(s)`);
                 setSelectedImages(new Set());
                 fetchAdminImages();
+                if (onImageDeleted) onImageDeleted();
             } else {
                 showNotification("error", "Delete Failed", data.error || "Failed to delete images");
             }
@@ -310,9 +313,42 @@ export default function AdminPanel({
                                 <div className="flex justify-between items-center"><span className="text-gray-400">Size</span><span className="text-white">{formatFileSize(adminSelectedImage.fileSize)}</span></div>
                             </div>
 
-                            <button onClick={() => copyUrl(adminSelectedImage.directUrl)} className="w-full mt-4 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all flex-shrink-0 flex items-center justify-center gap-2">
-                                {copied ? <><PixelCheck size={14} color="#fff" /> Copied!</> : <><PixelCopy size={14} color="#fff" /> Copy URL</>}
-                            </button>
+                            <div className="flex gap-3 mt-4 flex-shrink-0">
+                                <button onClick={() => copyUrl(adminSelectedImage.directUrl)} className="flex-1 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all flex items-center justify-center gap-2">
+                                    {copied ? <><PixelCheck size={14} color="#fff" /> Copied!</> : <><PixelCopy size={14} color="#fff" /> Copy URL</>}
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (confirm("Are you sure you want to delete this image?")) {
+                                            setIsDeleting(true);
+                                            try {
+                                                const response = await fetch('/api/admin/images', {
+                                                    method: 'DELETE',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ imageIds: [adminSelectedImage.id], filePaths: [adminSelectedImage.deleteUrl].filter(Boolean) }),
+                                                });
+                                                const data = await response.json();
+                                                if (data.success) {
+                                                    showNotification("success", "Image Deleted", "The image has been removed.");
+                                                    setAdminSelectedImage(null);
+                                                    fetchAdminImages();
+                                                    if (onImageDeleted) onImageDeleted();
+                                                } else {
+                                                    showNotification("error", "Delete Failed", data.error || "Failed to delete");
+                                                }
+                                            } catch (err) {
+                                                showNotification("error", "Error", "Failed to delete image");
+                                            } finally {
+                                                setIsDeleting(false);
+                                            }
+                                        }
+                                    }}
+                                    disabled={isDeleting}
+                                    className="px-4 py-3 rounded-xl bg-glass border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center"
+                                >
+                                    {isDeleting ? "..." : <PixelTrash size={16} color="currentColor" />}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

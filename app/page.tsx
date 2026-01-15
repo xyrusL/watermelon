@@ -173,10 +173,10 @@ export default function Home() {
           <div className="flex flex-col items-center gap-4 mb-8 px-4">
             <button
               onClick={copyIP}
-              className="glass px-6 sm:px-8 py-4 rounded-xl animate-pulse-glow hover:scale-105 transition-transform cursor-pointer group w-full sm:w-auto max-w-md"
+              className="glass px-8 sm:px-10 py-4 rounded-xl animate-pulse-glow hover:scale-105 transition-transform cursor-pointer group w-auto"
             >
               <p className="text-xs sm:text-sm text-gray-400 mb-1">Server IP</p>
-              <p className="font-pixel text-base sm:text-lg md:text-xl lg:text-2xl text-[#ff4757] group-hover:text-[#ff6b81] transition-colors break-all">
+              <p className="font-pixel text-sm sm:text-base md:text-lg lg:text-xl text-[#ff4757] group-hover:text-[#ff6b81] transition-colors whitespace-nowrap">
                 {SERVER_IP}
               </p>
               <p className="text-xs text-gray-500 mt-2">
@@ -278,7 +278,7 @@ export default function Home() {
                 <div
                   key={member.name}
                   className="glass p-6 rounded-2xl text-center hover:scale-110 transition-all duration-300 cursor-pointer"
-                  style={{ 
+                  style={{
                     animation: `floatCard 3s ease-in-out infinite ${index * 0.3}s, cardGlow 2s ease-in-out infinite ${index * 0.5}s`,
                   }}
                 >
@@ -313,7 +313,7 @@ export default function Home() {
                   <text x="50" y="70" fontSize="30" textAnchor="middle" fill="currentColor" className="text-[#ff4757]">!</text>
                 </svg>
               </div>
-              
+
               <div className="relative z-10">
                 {/* Animated Title */}
                 <div className="flex items-center justify-center gap-3 mb-6">
@@ -322,32 +322,32 @@ export default function Home() {
                     <path d="M30 70 L70 70" stroke="currentColor" strokeWidth="6" strokeLinecap="round" className="text-[#ff6b81]" />
                     <circle cx="50" cy="75" r="3" fill="currentColor" className="text-[#ffa502]" />
                   </svg>
-                  
+
                   <h2 className="font-pixel text-xl md:text-2xl text-center">
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-0" style={{color: '#ff4757'}}>H</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-100" style={{color: '#ff6b81'}}>A</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-200" style={{color: '#ff4757'}}>R</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-300" style={{color: '#e84118'}}>D</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-0" style={{ color: '#ff4757' }}>H</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-100" style={{ color: '#ff6b81' }}>A</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-200" style={{ color: '#ff4757' }}>R</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-300" style={{ color: '#e84118' }}>D</span>
                     <span className="inline-block mx-2"></span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-400" style={{color: '#ff4757'}}>D</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-500" style={{color: '#ff6b81'}}>I</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-600" style={{color: '#ff4757'}}>F</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-700" style={{color: '#e84118'}}>F</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-800" style={{color: '#ff4757'}}>I</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-900" style={{color: '#ff6b81'}}>C</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-1000" style={{color: '#ff4757'}}>U</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-1100" style={{color: '#e84118'}}>L</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-1200" style={{color: '#ff4757'}}>T</span>
-                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-1300" style={{color: '#ff6b81'}}>Y</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-400" style={{ color: '#ff4757' }}>D</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-500" style={{ color: '#ff6b81' }}>I</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-600" style={{ color: '#ff4757' }}>F</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-700" style={{ color: '#e84118' }}>F</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-800" style={{ color: '#ff4757' }}>I</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-900" style={{ color: '#ff6b81' }}>C</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-1000" style={{ color: '#ff4757' }}>U</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-1100" style={{ color: '#e84118' }}>L</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-1200" style={{ color: '#ff4757' }}>T</span>
+                    <span className="inline-block animate-[colorShift_3s_ease-in-out_infinite] animation-delay-1300" style={{ color: '#ff6b81' }}>Y</span>
                   </h2>
-                  
+
                   <svg className="w-10 h-10 animate-[swing_1s_ease-in-out_infinite] animation-delay-500" viewBox="0 0 100 100" fill="none">
                     <path d="M20 80 L50 10 L80 80" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" className="text-[#ff4757]" />
                     <path d="M30 70 L70 70" stroke="currentColor" strokeWidth="6" strokeLinecap="round" className="text-[#ff6b81]" />
                     <circle cx="50" cy="75" r="3" fill="currentColor" className="text-[#ffa502]" />
                   </svg>
                 </div>
-                
+
                 <p className="text-center text-gray-300 mb-8 text-lg">
                   This server is set to <span className="text-[#ff4757] font-bold">HARD mode</span> - Are you ready for the challenge?
                 </p>

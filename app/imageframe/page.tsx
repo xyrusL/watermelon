@@ -8,6 +8,9 @@ import "react-image-crop/dist/ReactCrop.css";
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import AdminPanel, { AdminButton } from "./components/AdminPanel";
 import UserPanel, { UserPanelButton } from "./components/UserPanel";
+import NotificationModal from "./components/NotificationModal";
+import ImageDetailsModal from "./components/ImageDetailsModal";
+import ImageGallery from "./components/ImageGallery";
 import {
     PixelLoader,
     PixelLock,
@@ -33,68 +36,12 @@ import {
 } from "./components/PixelIcons";
 import { Edit3, Save, X, ChevronDown, ImageIcon, Scissors, Square, RectangleHorizontal, RectangleVertical } from "lucide-react";
 
-interface UploadedImage {
-    url: string;
-    directUrl: string;
-    deleteUrl?: string;
-    thumbnail?: string;
-    filename: string;
-    uploadedAt: number;
-    fileSize?: number;
-    host?: HostType;
-    uploaderName?: string;
-    uploaderEmail?: string;
-    id?: string;
-    is_private?: boolean;
-    is_nsfw?: boolean;
-}
+// Import types, constants, and utils
+import type { UploadedImage, HostType, HostConfig, NotificationState, FrameSize } from "./types";
+import { HOSTS, FRAME_SIZES } from "./constants";
+import { ensureAbsoluteUrl, formatDate, formatFileSize } from "./utils";
 
-type HostType = "imgbb" | "supabase";
-
-interface HostConfig {
-    name: string;
-    maxSize: number;
-    maxSizeLabel: string;
-    deleteSupport: string;
-    uploadEndpoint: string;
-    deleteEndpoint: string;
-    healthEndpoint: string;
-    description?: string;
-}
-
-const HOSTS: Record<HostType, HostConfig> = {
-    imgbb: {
-        name: "imgbb",
-        maxSize: 32 * 1024 * 1024,
-        maxSizeLabel: "32MB",
-        deleteSupport: "⚠️ Unreliable (free account)",
-        uploadEndpoint: "/api/upload",
-        deleteEndpoint: "/api/delete",
-        healthEndpoint: "/api/health",
-        description: "Third-party hosting - Not recommended",
-    },
-    supabase: {
-        name: "Watermelon Storage",
-        maxSize: 8 * 1024 * 1024,
-        maxSizeLabel: "8MB",
-        deleteSupport: "✅ Full Control",
-        uploadEndpoint: "/api/supabase/upload",
-        deleteEndpoint: "/api/supabase/delete",
-        healthEndpoint: "/api/supabase/health",
-        description: "Our private storage - Recommended & Secure",
-    },
-};
-
-// Minecraft frame size options
-const FRAME_SIZES = [
-    { name: "1×1", ratio: 1, frames: 1, icon: "🖼️" },
-    { name: "2×2", ratio: 1, frames: 4, icon: "⬜" },
-    { name: "3×2", ratio: 3 / 2, frames: 6, icon: "▬" },
-    { name: "4×2", ratio: 2, frames: 8, icon: "━" },
-    { name: "2×3", ratio: 2 / 3, frames: 6, icon: "▮" },
-    { name: "2×4", ratio: 0.5, frames: 8, icon: "┃" },
-    { name: "Free", ratio: undefined, frames: 0, icon: "✂️" },
-];
+// Types, constants, and utilities are now imported from separate files above
 
 export default function ImageFramePage() {
     const { isSignedIn, user } = useUser();
@@ -102,17 +49,7 @@ export default function ImageFramePage() {
     // Check if user is admin (via Clerk's publicMetadata)
     const isAdmin = user?.publicMetadata?.role === "admin";
 
-    // Helper function to ensure URL is absolute
-    const ensureAbsoluteUrl = (url: string): string => {
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-            return url; // Already absolute
-        }
-        // Get current origin (works in both browser and SSR)
-        if (typeof window !== 'undefined') {
-            return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
-        }
-        return url; // Fallback
-    };
+    // Utility functions now imported from ./utils
 
     const [isDragging, setIsDragging] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -207,25 +144,7 @@ export default function ImageFramePage() {
         setNotification({ ...notification, show: false });
     };
 
-    // Format date in Manila/PH timezone
-    const formatDate = (timestamp: number) => {
-        return new Date(timestamp).toLocaleString("en-PH", {
-            timeZone: "Asia/Manila",
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    };
-
-    // Format file size
-    const formatFileSize = (bytes?: number) => {
-        if (!bytes) return "Unknown";
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-    };
+    // formatDate and formatFileSize now imported from ./utils
 
     // Check API health when host is selected
     useEffect(() => {
@@ -856,6 +775,7 @@ export default function ImageFramePage() {
                 showNotification("success", "Bulk Delete Complete", `Deleted ${selectedImages.size} image(s)`);
                 setSelectedImages(new Set());
                 fetchAdminImages(); // Refresh the list
+                fetchRecentImages(); // Refresh the main gallery
             } else {
                 showNotification("error", "Delete Failed", data.error || "Failed to delete images");
             }
@@ -907,54 +827,10 @@ export default function ImageFramePage() {
             <canvas ref={canvasRef} className="hidden" />
 
             {/* Notification Modal */}
-            {notification.show && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80" onClick={closeNotification}>
-                    <div className="glass rounded-2xl p-6 max-w-md w-full border-2 border-white/10" onClick={(e) => e.stopPropagation()}>
-                        {/* Icon */}
-                        <div className="text-center mb-4">
-                            {notification.type === "error" && <div className="text-5xl">❌</div>}
-                            {notification.type === "warning" && <div className="text-5xl">⚠️</div>}
-                            {notification.type === "success" && <div className="text-5xl">✅</div>}
-                            {notification.type === "info" && <div className="text-5xl">ℹ️</div>}
-                        </div>
-
-                        {/* Title */}
-                        <h3 className={`font-pixel text-lg mb-4 text-center ${notification.type === "error" ? "text-red-400" :
-                            notification.type === "warning" ? "text-yellow-400" :
-                                notification.type === "success" ? "text-[#2ed573]" :
-                                    "text-blue-400"
-                            }`}>
-                            {notification.title.toUpperCase()}
-                        </h3>
-
-                        {/* Message */}
-                        <p className="text-gray-300 text-center mb-4">
-                            {notification.message}
-                        </p>
-
-                        {/* Details */}
-                        {notification.details && (
-                            <div className="glass p-3 rounded-lg mb-4 border border-white/10">
-                                <p className="text-xs text-gray-400 text-center">
-                                    {notification.details}
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Close Button */}
-                        <button
-                            onClick={closeNotification}
-                            className={`w-full py-3 rounded-xl font-medium transition-all ${notification.type === "error" ? "bg-red-500 hover:bg-red-600" :
-                                notification.type === "warning" ? "bg-yellow-500 hover:bg-yellow-600" :
-                                    notification.type === "success" ? "bg-[#2ed573] hover:bg-[#26b85f]" :
-                                        "bg-blue-500 hover:bg-blue-600"
-                                }`}
-                        >
-                            Got it
-                        </button>
-                    </div>
-                </div>
-            )}
+            <NotificationModal
+                notification={notification}
+                onClose={closeNotification}
+            />
 
             {/* Admin Panel Modal */}
             {showAdminPanel && isAdmin && (
@@ -1238,13 +1114,50 @@ export default function ImageFramePage() {
                         </div>
 
                         {/* Copy URL Button */}
-                        <button
-                            onClick={() => copyUrl(adminSelectedImage.directUrl)}
-                            className="w-full py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all hover:scale-105 flex items-center justify-center gap-2"
-                        >
-                            <span>{copied ? "✓" : "📋"}</span>
-                            <span>{copied ? "Copied!" : "Copy URL"}</span>
-                        </button>
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={() => copyUrl(adminSelectedImage.directUrl)}
+                                className="flex-1 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all hover:scale-105 flex items-center justify-center gap-2"
+                            >
+                                <span>{copied ? "✓" : "📋"}</span>
+                                <span>{copied ? "Copied!" : "Copy URL"}</span>
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (confirm("Are you sure you want to delete this image?")) {
+                                        setIsDeleting(true);
+                                        try {
+                                            const response = await fetch('/api/admin/images', {
+                                                method: 'DELETE',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    imageIds: [adminSelectedImage.id],
+                                                    filePaths: [adminSelectedImage.deleteUrl].filter(Boolean)
+                                                }),
+                                            });
+                                            const data = await response.json();
+                                            if (data.success) {
+                                                showNotification("success", "Deleted", "Image removed successfully");
+                                                setAdminSelectedImage(null);
+                                                fetchAdminImages();
+                                                fetchRecentImages();
+                                            } else {
+                                                showNotification("error", "Error", data.error || "Failed to delete");
+                                            }
+                                        } catch (err) {
+                                            console.error("Delete error:", err);
+                                            showNotification("error", "Error", "Failed to delete image");
+                                        } finally {
+                                            setIsDeleting(false);
+                                        }
+                                    }
+                                }}
+                                disabled={isDeleting}
+                                className="px-4 py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/50 transition-all flex items-center justify-center"
+                            >
+                                {isDeleting ? "..." : <PixelTrash size={20} color="currentColor" />}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1323,114 +1236,18 @@ export default function ImageFramePage() {
             )}
 
             {/* Image Details Modal */}
-            {selectedGalleryImage && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80" onClick={closeImageDetails}>
-                    <div className="glass rounded-2xl p-6 max-w-md w-full relative" onClick={(e) => e.stopPropagation()}>
-                        {/* X Close Button */}
-                        <button
-                            onClick={closeImageDetails}
-                            className="absolute top-4 right-4 w-8 h-8 rounded-full glass border border-white/10 hover:border-red-500/50 hover:bg-red-500/10 transition-all flex items-center justify-center group z-10"
-                            title="Close"
-                        >
-                            <span className="text-gray-400 group-hover:text-red-400 transition-colors">✕</span>
-                        </button>
-                        {/* NSFW Badge in modal */}
-                        {selectedGalleryImage.is_nsfw && (
-                            <div className="absolute top-4 left-4 z-10 bg-gradient-to-r from-[#ff4757] to-[#ff6b81] text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-bold shadow-lg">
-                                <PixelWarning size={12} color="#fff" /> NSFW Content
-                            </div>
-                        )}
-
-                        <img
-                            src={selectedGalleryImage.directUrl}
-                            alt={selectedGalleryImage.filename}
-                            className="w-full max-h-48 object-contain rounded-xl mb-4"
-                        />
-
-                        {/* NSFW Warning text */}
-                        {selectedGalleryImage.is_nsfw && (
-                            <p className="text-center text-[#ff4757] text-xs mb-2 font-medium">
-                                ⚠️ This content has been marked as NSFW by the uploader
-                            </p>
-                        )}
-
-                        <h3 className="font-pixel text-sm text-[#ff4757] mb-4 text-center">IMAGE DETAILS</h3>
-
-                        <div className="space-y-3 mb-6">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-400">Filename</span>
-                                <span className="text-white truncate ml-2 max-w-[200px]">{selectedGalleryImage.filename}</span>
-                            </div>
-                            {selectedGalleryImage.uploaderName && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Uploader</span>
-                                    <span className="text-[#2ed573] font-medium">👤 {selectedGalleryImage.uploaderName}</span>
-                                </div>
-                            )}
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-400">Uploaded</span>
-                                <span className="text-white">{formatDate(selectedGalleryImage.uploadedAt)}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-400">Size</span>
-                                <span className="text-white">{formatFileSize(selectedGalleryImage.fileSize)}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-400">Host</span>
-                                <span className={`font-pixel text-xs ${selectedGalleryImage.host === "supabase" ? "text-[#2ed573]" : "text-[#ff4757]"
-                                    }`}>
-                                    {selectedGalleryImage.host === "supabase" ? "Watermelon Storage" : "imgbb"}
-                                </span>
-                            </div>
-                        </div>
-
-                        {!showDeleteConfirm ? (
-                            <div className="space-y-3">
-                                <button
-                                    onClick={() => copyUrl(ensureAbsoluteUrl(selectedGalleryImage.directUrl))}
-                                    className="w-full py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all cursor-pointer"
-                                >
-                                    {copied ? "✓ Copied!" : "📋 Copy URL"}
-                                </button>
-                                {isAdmin && (
-                                    <button
-                                        onClick={() => setShowDeleteConfirm(true)}
-                                        className="w-full py-3 rounded-xl glass border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
-                                    >
-                                        🗑️ Delete Image
-                                    </button>
-                                )}
-                            </div>
-                        ) : deleteSuccess ? (
-                            <div className="text-center py-4">
-                                <div className="text-4xl mb-4">✅</div>
-                                <p className="text-[#2ed573] font-medium">Removed from Gallery!</p>
-                                <p className="text-xs text-gray-500 mt-2">Note: Image may still exist on imgbb (free account limitation)</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <p className="text-center text-gray-300 mb-2">Are you sure you want to delete this image?</p>
-                                <p className="text-center text-xs text-gray-500 mb-4">This removes from your gallery. imgbb free accounts may not fully delete from server.</p>
-                                <button
-                                    onClick={deleteImage}
-                                    disabled={isDeleting}
-                                    className={`w-full py-3 rounded-xl font-medium transition-all cursor-pointer ${isDeleting ? "bg-gray-600" : "bg-red-500 hover:bg-red-600"
-                                        }`}
-                                >
-                                    {isDeleting ? "Deleting..." : "Yes, Delete"}
-                                </button>
-                                <button
-                                    onClick={() => setShowDeleteConfirm(false)}
-                                    disabled={isDeleting}
-                                    className="w-full py-3 rounded-xl glass border border-white/10 hover:border-white/30 transition-colors cursor-pointer"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+            <ImageDetailsModal
+                image={selectedGalleryImage}
+                isAdmin={isAdmin}
+                copied={copied}
+                showDeleteConfirm={showDeleteConfirm}
+                deleteSuccess={deleteSuccess}
+                isDeleting={isDeleting}
+                onClose={closeImageDetails}
+                onCopyUrl={copyUrl}
+                onDelete={deleteImage}
+                onShowDeleteConfirm={setShowDeleteConfirm}
+            />
 
             {/* API Error Modal */}
             {apiError && (
@@ -1922,7 +1739,7 @@ export default function ImageFramePage() {
                                                 />
                                             </button>
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-2">
+                                        <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
                                             {isNsfw
                                                 ? <><PixelWarning size={12} color="#ff4757" /> Image will appear blurred in gallery</>
                                                 : <><PixelCheck size={12} color="#2ed573" /> Image will appear normally</>
@@ -2011,80 +1828,13 @@ export default function ImageFramePage() {
                         )}
 
                         {/* Gallery */}
-                        {gallery.length > 0 && (
-                            <div className="mt-16">
-                                <h2 className="font-pixel text-lg text-[#2ed573] mb-2 text-center">
-                                    RECENT UPLOADS
-                                </h2>
-                                <p className="text-gray-500 text-sm text-center mb-6">Click an image to view details</p>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {gallery.map((img) => {
-                                        const isOwnPrivate = img.is_private && img.uploaderEmail === user?.primaryEmailAddress?.emailAddress;
-                                        const isNsfwImage = img.is_nsfw === true;
-                                        return (
-                                            <div
-                                                key={img.uploadedAt}
-                                                onClick={() => openImageDetails(img)}
-                                                className={`glass rounded-xl overflow-hidden cursor-pointer hover:scale-105 transition-all group relative ${isOwnPrivate
-                                                    ? 'ring-2 ring-[#ffa502] ring-offset-2 ring-offset-black/50 shadow-lg shadow-[#ffa502]/20'
-                                                    : ''
-                                                    }`}
-                                            >
-                                                {/* NSFW badge */}
-                                                {isNsfwImage && (
-                                                    <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-[#ff4757] to-[#ff6b81] text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-bold shadow-lg shadow-[#ff4757]/30 border border-white/20">
-                                                        <PixelWarning size={12} color="#fff" /> NSFW
-                                                    </div>
-                                                )}
-                                                {/* Private badge for owner - enhanced visibility */}
-                                                {isOwnPrivate && (
-                                                    <div className={`absolute top-2 ${isNsfwImage ? 'right-2' : 'right-2'} z-10 bg-gradient-to-r from-[#ffa502] to-[#ff6b35] text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-bold shadow-lg shadow-[#ffa502]/30 border border-white/20`}>
-                                                        <PixelLock size={12} color="#fff" /> Private
-                                                    </div>
-                                                )}
-                                                {/* Private overlay effect */}
-                                                {isOwnPrivate && (
-                                                    <div className="absolute inset-0 bg-gradient-to-t from-[#ffa502]/10 to-transparent pointer-events-none z-[5]"></div>
-                                                )}
-                                                {/* NSFW blur overlay */}
-                                                {isNsfwImage && !revealedNsfwImages.has(img.uploadedAt) && (
-                                                    <div className="absolute inset-0 bg-[#ff4757]/10 pointer-events-none z-[5]"></div>
-                                                )}
-                                                {/* Eye toggle button to reveal/hide NSFW */}
-                                                {isNsfwImage && (
-                                                    <button
-                                                        onClick={(e) => toggleNsfwReveal(img.uploadedAt, e)}
-                                                        className="absolute bottom-12 right-2 z-20 w-8 h-8 rounded-full bg-black/70 hover:bg-[#ff4757] flex items-center justify-center transition-all border border-white/20"
-                                                        title={revealedNsfwImages.has(img.uploadedAt) ? "Hide NSFW content" : "Reveal NSFW content"}
-                                                    >
-                                                        {revealedNsfwImages.has(img.uploadedAt) ? (
-                                                            <PixelEye size={14} color="#fff" />
-                                                        ) : (
-                                                            <PixelEye size={14} color="#888" />
-                                                        )}
-                                                    </button>
-                                                )}
-                                                <img
-                                                    src={img.thumbnail || img.directUrl}
-                                                    alt={img.filename}
-                                                    className={`w-full h-24 object-cover ${isNsfwImage && !revealedNsfwImages.has(img.uploadedAt) ? 'blur-lg' : ''}`}
-                                                />
-                                                <div className="p-2">
-                                                    {img.uploaderName && (
-                                                        <p className={`text-xs font-medium truncate mb-1 flex items-center gap-1 ${isOwnPrivate ? 'text-[#ffa502]' : 'text-[#2ed573]'}`}>
-                                                            <PixelUser size={12} color={isOwnPrivate ? '#ffa502' : '#2ed573'} /> {img.uploaderName}
-                                                        </p>
-                                                    )}
-                                                    <p className={`text-xs transition-colors text-center ${isOwnPrivate ? 'text-[#ffa502]/70 group-hover:text-[#ffa502]' : 'text-gray-500 group-hover:text-[#ff4757]'}`}>
-                                                        {isOwnPrivate ? '🔒 Only you can see' : 'View details'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
+                        <ImageGallery
+                            images={gallery}
+                            currentUserEmail={user?.primaryEmailAddress?.emailAddress}
+                            revealedNsfwImages={revealedNsfwImages}
+                            onImageClick={openImageDetails}
+                            onToggleNsfwReveal={toggleNsfwReveal}
+                        />
                     </div>
                 </main>
 
@@ -2098,7 +1848,6 @@ export default function ImageFramePage() {
                     copyUrl={copyUrl}
                     copied={copied}
                     showNotification={showNotification}
-                    onClose={() => fetchRecentImages()}
                 />
             </div>
         </div>
