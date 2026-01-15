@@ -209,40 +209,18 @@ export default function ImageFramePage() {
     };
 
     // Load gallery from Supabase database on mount
+    // Load gallery on mount and poll for updates
     useEffect(() => {
         const loadGallery = async () => {
-            try {
-                const response = await fetch('/api/supabase/recent');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success && data.images) {
-                        const images: UploadedImage[] = data.images.map((img: any) => ({
-                            url: img.url,
-                            directUrl: img.url,
-                            deleteUrl: img.file_path,
-                            filename: img.filename,
-                            uploadedAt: new Date(img.uploaded_at).getTime(),
-                            fileSize: img.file_size,
-                            host: 'supabase',
-                            uploaderName: img.uploader_name,
-                            uploaderEmail: img.uploader_email,
-                            id: img.id,
-                            is_private: img.is_private || false,
-                            is_nsfw: img.is_nsfw || false,
-                        }));
-                        setGallery(images);
-                    }
-                }
-            } catch (err) {
-                console.warn('Failed to fetch recent images:', err);
-                // Fallback to localStorage
-                const saved = localStorage.getItem("watermelon-gallery");
-                if (saved) {
-                    setGallery(JSON.parse(saved));
-                }
-            }
+            fetchRecentImages();
         };
+
         loadGallery();
+
+        // Poll for updates every 3 seconds (simulates real-time)
+        const interval = setInterval(fetchRecentImages, 3000);
+
+        return () => clearInterval(interval);
     }, []);
 
     // Load/generate username from Clerk metadata or email

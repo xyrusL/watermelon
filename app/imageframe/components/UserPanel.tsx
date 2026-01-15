@@ -165,10 +165,14 @@ export default function UserPanel({
         return matchesText && matchesVisibility;
     });
 
-    // Fetch when panel opens
+    // Fetch when panel opens and poll for updates
     useEffect(() => {
         if (showUserPanel && isSignedIn) {
             fetchUserImages();
+
+            // Poll for updates every 3 seconds
+            const interval = setInterval(fetchUserImages, 3000);
+            return () => clearInterval(interval);
         }
     }, [showUserPanel, isSignedIn]);
 
