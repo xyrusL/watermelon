@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import Header from "../components/Header";
 
 export default function AboutPage() {
     const [copiedUsername, setCopiedUsername] = useState(false);
@@ -34,11 +34,11 @@ export default function AboutPage() {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting && !hasTriggered.current) {
                         hasTriggered.current = true;
-                        
+
                         // Delay the heart shower slightly for dramatic effect
                         setTimeout(() => {
                             setShowHearts(true);
-                            
+
                             // Create 50 hearts across the screen
                             const newHearts = Array.from({ length: 50 }, (_, i) => ({
                                 id: Date.now() + i,
@@ -82,48 +82,7 @@ export default function AboutPage() {
             {/* Content */}
             <div className="relative z-10 min-h-screen">
                 {/* Header */}
-                <header className="py-6 px-4 border-b border-white/5">
-                    <div className="max-w-6xl mx-auto flex items-center justify-between">
-                        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                            <img src="/watermelon.svg" alt="Watermelon" width={32} height={32} />
-                            <span className="font-pixel text-xs text-[#ff4757]">WATERMELON</span>
-                        </Link>
-                        <div className="flex items-center gap-3">
-                            <Link
-                                href="/mods"
-                                className="px-4 py-2.5 glass border border-white/10 hover:border-[#ffa502]/50 rounded-full text-sm font-medium transition-all"
-                            >
-                                <span className="hidden sm:inline">🎮 Mods</span>
-                                <span className="sm:hidden">🎮</span>
-                            </Link>
-                            <Link
-                                href="/commands"
-                                className="px-4 py-2.5 glass border border-white/10 hover:border-[#2ed573]/50 rounded-full text-sm font-medium transition-all"
-                            >
-                                <span className="hidden sm:inline">📖 Commands</span>
-                                <span className="sm:hidden">📖</span>
-                            </Link>
-                            <Link
-                                href="/imageframe"
-                                className="px-4 py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all"
-                            >
-                                <span className="hidden sm:inline">🖼️ ImageFrame</span>
-                                <span className="sm:hidden">🖼️</span>
-                            </Link>
-                            <SignedOut>
-                                <SignInButton mode="modal">
-                                    <button className="px-4 py-2.5 bg-[#2ed573] hover:bg-[#26de81] rounded-full text-sm font-medium transition-all hover:scale-105 cursor-pointer">
-                                        <span className="hidden sm:inline">🔑 Sign In</span>
-                                        <span className="sm:hidden">🔑</span>
-                                    </button>
-                                </SignInButton>
-                            </SignedOut>
-                            <SignedIn>
-                                <UserButton afterSignOutUrl="/" />
-                            </SignedIn>
-                        </div>
-                    </div>
-                </header>
+                <Header />
 
                 {/* Main Content */}
                 <main className="py-12 px-4">
@@ -147,18 +106,18 @@ export default function AboutPage() {
                                 </h2>
                                 <div className="space-y-4 text-gray-300">
                                     <p className="leading-relaxed">
-                                        Watermelon SMP started as a group of friends who met in college 🎓. What began as casual 
-                                        gaming sessions between classes has turned into something special - a community built on 
+                                        Watermelon SMP started as a group of friends who met in college 🎓. What began as casual
+                                        gaming sessions between classes has turned into something special - a community built on
                                         friendship, creativity, and countless Minecraft adventures ⛏️.
                                     </p>
                                     <p className="leading-relaxed">
-                                        From our first survival base 🏠 to elaborate builds and community projects, we've been 
-                                        through it all together. Late-night mining sessions 🌙, epic PvP battles ⚔️, ambitious 
+                                        From our first survival base 🏠 to elaborate builds and community projects, we've been
+                                        through it all together. Late-night mining sessions 🌙, epic PvP battles ⚔️, ambitious
                                         redstone contraptions 🔴, and everything in between.
                                     </p>
                                     <p className="leading-relaxed">
-                                        Even though we've graduated and moved on to different paths 🛤️, Minecraft keeps us 
-                                        connected. This server is our digital home 🏡 where we continue to create memories, 
+                                        Even though we've graduated and moved on to different paths 🛤️, Minecraft keeps us
+                                        connected. This server is our digital home 🏡 where we continue to create memories,
                                         share laughs 😄, and build together.
                                     </p>
                                     <div className="glass p-4 rounded-xl mt-6 border border-[#ff4757]/30">
@@ -178,8 +137,8 @@ export default function AboutPage() {
                                 </h2>
                                 <div className="space-y-6">
                                     <p className="text-gray-300">
-                                        Our server runs on <strong className="text-white">Aternos</strong> - a free Minecraft ⚡ 
-                                        server hosting service. This means the server may be offline 😴 when no one is playing 
+                                        Our server runs on <strong className="text-white">Aternos</strong> - a free Minecraft ⚡
+                                        server hosting service. This means the server may be offline 😴 when no one is playing
                                         to save resources.
                                     </p>
 
@@ -188,7 +147,7 @@ export default function AboutPage() {
                                             <span>⚠️</span> SERVER OFFLINE?
                                         </h3>
                                         <p className="text-sm text-gray-300 mb-4">
-                                            If you try to join and the server is offline 🔌, you can start it manually! 
+                                            If you try to join and the server is offline 🔌, you can start it manually!
                                             Here's how:
                                         </p>
                                         <ol className="text-sm text-gray-300 space-y-2 mb-6">
@@ -263,17 +222,13 @@ export default function AboutPage() {
                                         "To my amazing friends Yuii, Peach, and unknown0607 👥,
                                     </p>
                                     <p className="leading-relaxed italic">
-                                        Thank you for making this journey unforgettable ✨. From our late-night study sessions 📚 
-                                        that turned into Minecraft marathons, to the builds we've created 🏗️ and the memories 
+                                        Thank you for making this journey unforgettable ✨. From our late-night study sessions 📚
+                                        that turned into Minecraft marathons, to the builds we've created 🏗️ and the memories
                                         we've made - you guys are the best.
                                     </p>
                                     <p className="leading-relaxed italic">
-                                        This server wouldn't be the same without your creativity 🎨, humor 😂, and friendship 🤝. 
+                                        This server wouldn't be the same without your creativity 🎨, humor 😂, and friendship 🤝.
                                         Here's to many more adventures together in our blocky world!
-                                    </p>
-                                    <p className="leading-relaxed italic text-gray-400 text-sm mt-4">
-                                        Special thanks to unknown0607 for the brilliant ideas 💡 and for being there when we need you, 
-                                        even if you're not always online. Your contributions matter!
                                     </p>
                                     <div className="flex items-center justify-end gap-3 mt-8">
                                         <span className="text-gray-400 italic">-</span>
@@ -298,9 +253,9 @@ export default function AboutPage() {
                                                 }}
                                             >
                                                 <svg className="w-8 h-8 md:w-12 md:h-12" viewBox="0 0 100 100" fill="none">
-                                                    <path 
-                                                        d="M50 85 L20 55 Q15 50 15 40 Q15 25 25 20 Q35 15 45 25 L50 30 L55 25 Q65 15 75 20 Q85 25 85 40 Q85 50 80 55 Z" 
-                                                        fill="currentColor" 
+                                                    <path
+                                                        d="M50 85 L20 55 Q15 50 15 40 Q15 25 25 20 Q35 15 45 25 L50 30 L55 25 Q65 15 75 20 Q85 25 85 40 Q85 50 80 55 Z"
+                                                        fill="currentColor"
                                                         className="text-[#ff6b81]"
                                                         style={{
                                                             filter: 'drop-shadow(0 0 10px rgba(255, 107, 129, 0.8))',
@@ -370,8 +325,8 @@ export default function AboutPage() {
                                     JOIN OUR COMMUNITY!
                                 </h2>
                                 <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-                                    We're always happy to welcome new friends to Watermelon SMP 🍉! Whether you're 
-                                    a builder 👷, explorer 🗺️, redstone enthusiast 🔴, or just looking for a fun community 
+                                    We're always happy to welcome new friends to Watermelon SMP 🍉! Whether you're
+                                    a builder 👷, explorer 🗺️, redstone enthusiast 🔴, or just looking for a fun community
                                     to play with 🎮 - there's a place for you here.
                                 </p>
                                 <div className="flex flex-col sm:flex-row gap-4 justify-center">

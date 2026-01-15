@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import Header from "../components/Header";
 
 const performanceMods = [
     {
@@ -184,48 +184,7 @@ export default function ModsPage() {
             {/* Content */}
             <div className="relative z-10 min-h-screen">
                 {/* Header */}
-                <header className="py-6 px-4 border-b border-white/5">
-                    <div className="max-w-6xl mx-auto flex items-center justify-between">
-                        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                            <img src="/watermelon.svg" alt="Watermelon" width={32} height={32} />
-                            <span className="font-pixel text-xs text-[#ff4757]">WATERMELON</span>
-                        </Link>
-                        <div className="flex items-center gap-3">
-                            <Link
-                                href="/about"
-                                className="px-4 py-2.5 glass border border-white/10 hover:border-[#5f27cd]/50 rounded-full text-sm font-medium transition-all"
-                            >
-                                <span className="hidden sm:inline">ℹ️ About</span>
-                                <span className="sm:hidden">ℹ️</span>
-                            </Link>
-                            <Link
-                                href="/commands"
-                                className="px-4 py-2.5 glass border border-white/10 hover:border-[#2ed573]/50 rounded-full text-sm font-medium transition-all"
-                            >
-                                <span className="hidden sm:inline">📖 Commands</span>
-                                <span className="sm:hidden">📖</span>
-                            </Link>
-                            <Link
-                                href="/imageframe"
-                                className="px-4 py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all"
-                            >
-                                <span className="hidden sm:inline">🖼️ ImageFrame</span>
-                                <span className="sm:hidden">🖼️</span>
-                            </Link>
-                            <SignedOut>
-                                <SignInButton mode="modal">
-                                    <button className="px-4 py-2.5 bg-[#2ed573] hover:bg-[#26de81] rounded-full text-sm font-medium transition-all hover:scale-105 cursor-pointer">
-                                        <span className="hidden sm:inline">🔑 Sign In</span>
-                                        <span className="sm:hidden">🔑</span>
-                                    </button>
-                                </SignInButton>
-                            </SignedOut>
-                            <SignedIn>
-                                <UserButton afterSignOutUrl="/" />
-                            </SignedIn>
-                        </div>
-                    </div>
-                </header>
+                <Header />
 
                 {/* Main Content */}
                 <main className="py-12 px-4">
@@ -282,7 +241,7 @@ export default function ModsPage() {
                                 <h3 className="font-pixel text-lg text-[#5f27cd] mb-4 flex items-center gap-2">
                                     <span>🔓</span> FOR NON-PREMIUM PLAYERS
                                 </h3>
-                                
+
                                 {/* SKLauncher */}
                                 <div className="glass rounded-2xl p-6 border-2 border-[#5f27cd]/30 mb-4">
                                     <div className="flex items-start gap-4 mb-6">
@@ -450,7 +409,7 @@ export default function ModsPage() {
                                     <span>ℹ️</span> SERVER VERSION
                                 </h4>
                                 <p className="text-gray-300 text-sm">
-                                    Our server runs <strong className="text-white">Minecraft {minecraftVersion}</strong> with <strong className="text-[#2ed573]">Fabric</strong>. 
+                                    Our server runs <strong className="text-white">Minecraft {minecraftVersion}</strong> with <strong className="text-[#2ed573]">Fabric</strong>.
                                     Make sure to select this exact version in your launcher!
                                 </p>
                             </div>

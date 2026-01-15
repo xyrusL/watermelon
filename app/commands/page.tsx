@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { useState } from "react";
+import Header from "../components/Header";
 
 const commands = [
     {
@@ -137,37 +137,7 @@ export default function CommandsPage() {
             {/* Content */}
             <div className="relative z-10 min-h-screen">
                 {/* Header */}
-                <header className="py-6 px-4 border-b border-white/5">
-                    <div className="max-w-6xl mx-auto flex items-center justify-between">
-                        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                            <img src="/watermelon.svg" alt="Watermelon" width={32} height={32} />
-                            <span className="font-pixel text-xs text-[#ff4757]">WATERMELON</span>
-                        </Link>
-                        <div className="flex items-center gap-3">
-                            <Link
-                                href="/about"
-                                className="px-4 py-2.5 glass border border-white/10 hover:border-[#5f27cd]/50 rounded-full text-sm font-medium transition-all"
-                            >
-                                <span className="hidden sm:inline">ℹ️ About</span>
-                                <span className="sm:hidden">ℹ️</span>
-                            </Link>
-                            <Link
-                                href="/mods"
-                                className="px-4 py-2.5 glass border border-white/10 hover:border-[#ffa502]/50 rounded-full text-sm font-medium transition-all"
-                            >
-                                <span className="hidden sm:inline">🎮 Mods</span>
-                                <span className="sm:hidden">🎮</span>
-                            </Link>
-                            <Link
-                                href="/imageframe"
-                                className="px-4 py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all"
-                            >
-                                <span className="hidden sm:inline">🖼️ ImageFrame</span>
-                                <span className="sm:hidden">🖼️</span>
-                            </Link>
-                        </div>
-                    </div>
-                </header>
+                <Header />
 
                 {/* Main Content */}
                 <main className="py-12 px-4">

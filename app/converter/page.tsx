@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import Header from "../components/Header";
 
 // Force dynamic rendering - FFmpeg only works in browser
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export default function ConverterPage() {
     const { isSignedIn } = useUser();
     const [converterType, setConverterType] = useState<"video" | "image">("video");
-    
+
     // Video converter states
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [videoPreview, setVideoPreview] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export default function ConverterPage() {
     const [duration, setDuration] = useState(0);
     const [maxDuration, setMaxDuration] = useState(10);
     const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
-    
+
     // Image converter states
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -40,10 +41,10 @@ export default function ConverterPage() {
     const [outputFormat, setOutputFormat] = useState<"png" | "jpeg" | "webp">("png");
     const [imageQuality, setImageQuality] = useState(0.9);
     const [isConvertingImage, setIsConvertingImage] = useState(false);
-    
+
     // Error modal
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    
+
     const ffmpegRef = useRef<FFmpeg | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -57,10 +58,10 @@ export default function ConverterPage() {
     // Load FFmpeg
     useEffect(() => {
         if (typeof window === 'undefined' || !ffmpegRef.current) return;
-        
+
         const loadFFmpeg = async () => {
             const ffmpeg = ffmpegRef.current!;
-            
+
             ffmpeg.on("log", ({ message }) => {
                 console.log(message);
             });
@@ -156,7 +157,7 @@ export default function ConverterPage() {
             const uint8 = new Uint8Array(data as Uint8Array);
             const blob = new Blob([uint8], { type: "image/gif" });
             const url = URL.createObjectURL(blob);
-            
+
             setGifUrl(url);
             setGifSize(blob.size);
             setGifBlob(blob);
@@ -182,7 +183,7 @@ export default function ConverterPage() {
         a.href = gifUrl;
         a.download = `watermelon-gif-${Date.now()}.gif`;
         a.click();
-        
+
         // Reset after download
         setTimeout(() => {
             reset();
@@ -280,9 +281,9 @@ export default function ConverterPage() {
             canvas.width = img.width;
             canvas.height = img.height;
             const ctx = canvas.getContext("2d");
-            
+
             if (!ctx) throw new Error("Failed to get canvas context");
-            
+
             ctx.drawImage(img, 0, 0);
 
             canvas.toBlob(
@@ -319,7 +320,7 @@ export default function ConverterPage() {
         a.href = convertedImageUrl;
         a.download = `watermelon-image-${Date.now()}.${outputFormat}`;
         a.click();
-        
+
         setTimeout(() => {
             resetImage();
         }, 500);
@@ -333,8 +334,8 @@ export default function ConverterPage() {
 
         try {
             const formData = new FormData();
-            const file = new File([convertedImageBlob], `watermelon-image-${Date.now()}.${outputFormat}`, { 
-                type: `image/${outputFormat}` 
+            const file = new File([convertedImageBlob], `watermelon-image-${Date.now()}.${outputFormat}`, {
+                type: `image/${outputFormat}`
             });
             formData.append("image", file);
 
@@ -387,36 +388,7 @@ export default function ConverterPage() {
             {/* Content */}
             <div className="relative z-10">
                 {/* Header */}
-                <header className="fixed top-0 left-0 right-0 z-50 py-3 px-4">
-                    <div className="max-w-6xl mx-auto">
-                        <div className="glass rounded-2xl px-4 py-3 flex items-center justify-between">
-                            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
-                                <img src="/watermelon.svg" alt="Watermelon" width={28} height={28} />
-                                <span className="font-pixel text-xs text-[#ff4757] hidden sm:block">WATERMELON</span>
-                            </Link>
-                            <nav className="flex items-center gap-3">
-                                <Link href="/imageframe" className="px-4 py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all">
-                                    <span className="hidden sm:inline">🖼️ ImageFrame</span>
-                                    <span className="sm:hidden">🖼️</span>
-                                </Link>
-                                <Link href="/mods" className="px-4 py-2.5 glass border border-white/10 hover:border-[#ffa502]/50 rounded-full text-sm font-medium transition-all">
-                                    <span className="hidden sm:inline">🎮 Mods</span>
-                                    <span className="sm:hidden">🎮</span>
-                                </Link>
-                                <SignedOut>
-                                    <SignInButton mode="modal">
-                                        <button className="px-4 py-2.5 bg-[#2ed573] hover:bg-[#26de81] rounded-full text-sm font-medium transition-all">
-                                            Sign In
-                                        </button>
-                                    </SignInButton>
-                                </SignedOut>
-                                <SignedIn>
-                                    <UserButton afterSignOutUrl="/" />
-                                </SignedIn>
-                            </nav>
-                        </div>
-                    </div>
-                </header>
+                <Header variant="fixed" />
 
                 {/* Main */}
                 <main className="pt-24 pb-12 px-4 min-h-screen">
@@ -425,7 +397,7 @@ export default function ConverterPage() {
                         <div className="text-center mb-8">
                             <h1 className="font-pixel text-2xl sm:text-3xl lg:text-4xl text-[#ff4757] mb-2 px-4">CONVERTER</h1>
                             <p className="text-sm sm:text-base text-gray-400 px-4">Transform your videos into GIFs instantly</p>
-                            
+
                             {/* Converter Type Selector */}
                             <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6 px-4">
                                 <button
@@ -434,11 +406,10 @@ export default function ConverterPage() {
                                         resetImage();
                                         reset();
                                     }}
-                                    className={`px-4 sm:px-6 py-3 rounded-xl font-medium transition-all text-sm sm:text-base w-full sm:w-auto ${
-                                        converterType === "video"
-                                            ? "bg-[#2ed573] text-white"
-                                            : "glass border border-white/10 hover:border-[#2ed573]/50"
-                                    }`}
+                                    className={`px-4 sm:px-6 py-3 rounded-xl font-medium transition-all text-sm sm:text-base w-full sm:w-auto ${converterType === "video"
+                                        ? "bg-[#2ed573] text-white"
+                                        : "glass border border-white/10 hover:border-[#2ed573]/50"
+                                        }`}
                                 >
                                     🎬 Video to GIF
                                 </button>
@@ -448,16 +419,15 @@ export default function ConverterPage() {
                                         reset();
                                         resetImage();
                                     }}
-                                    className={`px-4 sm:px-6 py-3 rounded-xl font-medium transition-all text-sm sm:text-base w-full sm:w-auto ${
-                                        converterType === "image"
-                                            ? "bg-[#2ed573] text-white"
-                                            : "glass border border-white/10 hover:border-[#2ed573]/50"
-                                    }`}
+                                    className={`px-4 sm:px-6 py-3 rounded-xl font-medium transition-all text-sm sm:text-base w-full sm:w-auto ${converterType === "image"
+                                        ? "bg-[#2ed573] text-white"
+                                        : "glass border border-white/10 hover:border-[#2ed573]/50"
+                                        }`}
                                 >
                                     🖼️ Image Format
                                 </button>
                             </div>
-                            
+
                             {!ffmpegLoaded && converterType === "video" && (
                                 <p className="text-yellow-400 text-sm mt-2">⚡ Loading converter engine...</p>
                             )}
@@ -477,154 +447,154 @@ export default function ConverterPage() {
                         ) : converterType === "video" ? (
                             // VIDEO TO GIF CONVERTER
                             !videoFile ? (
-                            <div
-                                onDrop={handleDrop}
-                                onDragOver={(e) => e.preventDefault()}
-                                className="glass rounded-2xl p-12 border-2 border-dashed border-white/20 hover:border-[#2ed573]/50 transition-all text-center cursor-pointer"
-                                onClick={() => document.getElementById("video-input")?.click()}
-                            >
-                                <div className="text-6xl mb-4">🎬</div>
-                                <h3 className="font-pixel text-lg text-[#2ed573] mb-2">UPLOAD VIDEO</h3>
-                                <p className="text-gray-400 mb-4">Drag & drop or click to select</p>
-                                <p className="text-xs text-gray-500">Supports MP4, WEBM, MOV and more</p>
-                                <input
-                                    id="video-input"
-                                    type="file"
-                                    accept="video/*"
-                                    onChange={(e) => e.target.files?.[0] && handleVideoSelect(e.target.files[0])}
-                                    className="hidden"
-                                />
-                            </div>
-                        ) : (
-                            <div className="space-y-6">
-                                {/* Preview */}
-                                <div className="glass rounded-2xl p-6">
-                                    <h3 className="font-pixel text-sm text-[#2ed573] mb-4">PREVIEW</h3>
-                                    {videoPreview && !gifUrl && (
-                                        <video
-                                            ref={videoRef}
-                                            src={videoPreview}
-                                            controls
-                                            className="w-full rounded-xl max-h-96 bg-black"
-                                        />
-                                    )}
-                                    {gifUrl && (
-                                        <div className="text-center">
-                                            <img src={gifUrl} alt="Generated GIF" className="mx-auto rounded-xl max-h-96" />
-                                            <p className="text-sm text-gray-400 mt-4">Size: {formatFileSize(gifSize)}</p>
-                                        </div>
-                                    )}
+                                <div
+                                    onDrop={handleDrop}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    className="glass rounded-2xl p-12 border-2 border-dashed border-white/20 hover:border-[#2ed573]/50 transition-all text-center cursor-pointer"
+                                    onClick={() => document.getElementById("video-input")?.click()}
+                                >
+                                    <div className="text-6xl mb-4">🎬</div>
+                                    <h3 className="font-pixel text-lg text-[#2ed573] mb-2">UPLOAD VIDEO</h3>
+                                    <p className="text-gray-400 mb-4">Drag & drop or click to select</p>
+                                    <p className="text-xs text-gray-500">Supports MP4, WEBM, MOV and more</p>
+                                    <input
+                                        id="video-input"
+                                        type="file"
+                                        accept="video/*"
+                                        onChange={(e) => e.target.files?.[0] && handleVideoSelect(e.target.files[0])}
+                                        className="hidden"
+                                    />
                                 </div>
-
-                                {!gifUrl && (
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Preview */}
                                     <div className="glass rounded-2xl p-6">
-                                        <h3 className="font-pixel text-sm text-[#2ed573] mb-4">SETTINGS</h3>
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="text-sm text-gray-400 block mb-2">Start Time (seconds)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    max={maxDuration}
-                                                    value={startTime}
-                                                    onChange={(e) => setStartTime(Number(e.target.value))}
-                                                    className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-2 text-white"
-                                                />
+                                        <h3 className="font-pixel text-sm text-[#2ed573] mb-4">PREVIEW</h3>
+                                        {videoPreview && !gifUrl && (
+                                            <video
+                                                ref={videoRef}
+                                                src={videoPreview}
+                                                controls
+                                                className="w-full rounded-xl max-h-96 bg-black"
+                                            />
+                                        )}
+                                        {gifUrl && (
+                                            <div className="text-center">
+                                                <img src={gifUrl} alt="Generated GIF" className="mx-auto rounded-xl max-h-96" />
+                                                <p className="text-sm text-gray-400 mt-4">Size: {formatFileSize(gifSize)}</p>
                                             </div>
-                                            <div>
-                                                <label className="text-sm text-gray-400 block mb-2">Duration (seconds): {duration}s</label>
-                                                <input
-                                                    type="range"
-                                                    min="1"
-                                                    max={Math.min(10, maxDuration)}
-                                                    value={duration}
-                                                    onChange={(e) => setDuration(Number(e.target.value))}
-                                                    className="w-full"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-sm text-gray-400 block mb-2">FPS: {fps}</label>
-                                                <input
-                                                    type="range"
-                                                    min="10"
-                                                    max="30"
-                                                    value={fps}
-                                                    onChange={(e) => setFps(Number(e.target.value))}
-                                                    className="w-full"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-sm text-gray-400 block mb-2">Width: {scale}px</label>
-                                                <input
-                                                    type="range"
-                                                    min="320"
-                                                    max="720"
-                                                    step="80"
-                                                    value={scale}
-                                                    onChange={(e) => setScale(Number(e.target.value))}
-                                                    className="w-full"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-sm text-gray-400 block mb-2">Quality: {quality <= 10 ? "High" : quality <= 20 ? "Medium" : "Low"}</label>
-                                                <input
-                                                    type="range"
-                                                    min="5"
-                                                    max="25"
-                                                    value={quality}
-                                                    onChange={(e) => setQuality(Number(e.target.value))}
-                                                    className="w-full"
-                                                />
+                                        )}
+                                    </div>
+
+                                    {!gifUrl && (
+                                        <div className="glass rounded-2xl p-6">
+                                            <h3 className="font-pixel text-sm text-[#2ed573] mb-4">SETTINGS</h3>
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="text-sm text-gray-400 block mb-2">Start Time (seconds)</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max={maxDuration}
+                                                        value={startTime}
+                                                        onChange={(e) => setStartTime(Number(e.target.value))}
+                                                        className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-2 text-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-sm text-gray-400 block mb-2">Duration (seconds): {duration}s</label>
+                                                    <input
+                                                        type="range"
+                                                        min="1"
+                                                        max={Math.min(10, maxDuration)}
+                                                        value={duration}
+                                                        onChange={(e) => setDuration(Number(e.target.value))}
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-sm text-gray-400 block mb-2">FPS: {fps}</label>
+                                                    <input
+                                                        type="range"
+                                                        min="10"
+                                                        max="30"
+                                                        value={fps}
+                                                        onChange={(e) => setFps(Number(e.target.value))}
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-sm text-gray-400 block mb-2">Width: {scale}px</label>
+                                                    <input
+                                                        type="range"
+                                                        min="320"
+                                                        max="720"
+                                                        step="80"
+                                                        value={scale}
+                                                        onChange={(e) => setScale(Number(e.target.value))}
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-sm text-gray-400 block mb-2">Quality: {quality <= 10 ? "High" : quality <= 20 ? "Medium" : "Low"}</label>
+                                                    <input
+                                                        type="range"
+                                                        min="5"
+                                                        max="25"
+                                                        value={quality}
+                                                        onChange={(e) => setQuality(Number(e.target.value))}
+                                                        className="w-full"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* Actions */}
-                                <div className="flex gap-3">
-                                    {!gifUrl ? (
-                                        <>
-                                            <button
-                                                onClick={convertToGif}
-                                                disabled={isLoading || !ffmpegLoaded}
-                                                className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                {isLoading ? `Converting... ${progress}%` : "Convert to GIF"}
-                                            </button>
-                                            <button
-                                                onClick={reset}
-                                                className="px-6 py-4 rounded-xl glass border border-white/10 hover:border-red-500/50 transition-all"
-                                            >
-                                                Cancel
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button
-                                                onClick={uploadToSupabase}
-                                                disabled={isUploading}
-                                                className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50"
-                                            >
-                                                {isUploading ? "Uploading..." : "📤 Upload to Storage"}
-                                            </button>
-                                            <button
-                                                onClick={downloadGif}
-                                                disabled={isUploading}
-                                                className="flex-1 py-4 rounded-xl bg-[#ff4757] hover:bg-[#ff6b81] font-medium transition-all disabled:opacity-50"
-                                            >
-                                                📥 Download
-                                            </button>
-                                        </>
+                                    {/* Actions */}
+                                    <div className="flex gap-3">
+                                        {!gifUrl ? (
+                                            <>
+                                                <button
+                                                    onClick={convertToGif}
+                                                    disabled={isLoading || !ffmpegLoaded}
+                                                    className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isLoading ? `Converting... ${progress}%` : "Convert to GIF"}
+                                                </button>
+                                                <button
+                                                    onClick={reset}
+                                                    className="px-6 py-4 rounded-xl glass border border-white/10 hover:border-red-500/50 transition-all"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={uploadToSupabase}
+                                                    disabled={isUploading}
+                                                    className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50"
+                                                >
+                                                    {isUploading ? "Uploading..." : "📤 Upload to Storage"}
+                                                </button>
+                                                <button
+                                                    onClick={downloadGif}
+                                                    disabled={isUploading}
+                                                    className="flex-1 py-4 rounded-xl bg-[#ff4757] hover:bg-[#ff6b81] font-medium transition-all disabled:opacity-50"
+                                                >
+                                                    📥 Download
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {loadingMessage && (
+                                        <div className="text-center text-gray-400 text-sm">
+                                            {loadingMessage}
+                                        </div>
                                     )}
                                 </div>
-
-                                {loadingMessage && (
-                                    <div className="text-center text-gray-400 text-sm">
-                                        {loadingMessage}
-                                    </div>
-                                )}
-                            </div>
-                        )) : (
+                            )) : (
                             // IMAGE FORMAT CONVERTER
                             !imageFile ? (
                                 <div
@@ -656,10 +626,10 @@ export default function ConverterPage() {
                                         <h3 className="font-pixel text-sm text-[#2ed573] mb-4">
                                             {convertedImageUrl ? "CONVERTED IMAGE" : "ORIGINAL IMAGE"}
                                         </h3>
-                                        <img 
-                                            src={convertedImageUrl || imagePreview || ""} 
-                                            alt="Preview" 
-                                            className="mx-auto rounded-xl max-h-96" 
+                                        <img
+                                            src={convertedImageUrl || imagePreview || ""}
+                                            alt="Preview"
+                                            className="mx-auto rounded-xl max-h-96"
                                         />
                                         {convertedImageUrl && (
                                             <p className="text-sm text-gray-400 mt-4 text-center">
@@ -674,31 +644,28 @@ export default function ConverterPage() {
                                             <div className="flex gap-3 mb-4">
                                                 <button
                                                     onClick={() => setOutputFormat("png")}
-                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${
-                                                        outputFormat === "png"
-                                                            ? "bg-[#2ed573] text-white"
-                                                            : "glass border border-white/10"
-                                                    }`}
+                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${outputFormat === "png"
+                                                        ? "bg-[#2ed573] text-white"
+                                                        : "glass border border-white/10"
+                                                        }`}
                                                 >
                                                     PNG
                                                 </button>
                                                 <button
                                                     onClick={() => setOutputFormat("jpeg")}
-                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${
-                                                        outputFormat === "jpeg"
-                                                            ? "bg-[#2ed573] text-white"
-                                                            : "glass border border-white/10"
-                                                    }`}
+                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${outputFormat === "jpeg"
+                                                        ? "bg-[#2ed573] text-white"
+                                                        : "glass border border-white/10"
+                                                        }`}
                                                 >
                                                     JPEG
                                                 </button>
                                                 <button
                                                     onClick={() => setOutputFormat("webp")}
-                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${
-                                                        outputFormat === "webp"
-                                                            ? "bg-[#2ed573] text-white"
-                                                            : "glass border border-white/10"
-                                                    }`}
+                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${outputFormat === "webp"
+                                                        ? "bg-[#2ed573] text-white"
+                                                        : "glass border border-white/10"
+                                                        }`}
                                                 >
                                                     WebP
                                                 </button>
@@ -779,8 +746,8 @@ export default function ConverterPage() {
                         <div className="text-5xl mb-4 text-center">⚠️</div>
                         <h3 className="font-pixel text-lg text-red-400 mb-4 text-center">ERROR</h3>
                         <p className="text-gray-300 text-center mb-6">{errorMessage}</p>
-                        <button 
-                            onClick={() => setErrorMessage(null)} 
+                        <button
+                            onClick={() => setErrorMessage(null)}
                             className="w-full py-3 bg-[#ff4757] hover:bg-[#ff6b81] rounded-xl font-medium transition-all"
                         >
                             Close

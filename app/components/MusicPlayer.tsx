@@ -2,6 +2,28 @@
 
 import { useState, useRef, useEffect } from "react";
 
+interface Song {
+    id: string;
+    title: string;
+    artist: string;
+    file: string;
+}
+
+const songs: Song[] = [
+    {
+        id: "illit-not-cute-anymore",
+        title: "Not Cute Anymore",
+        artist: "ILLIT (아일릿)",
+        file: "/music/background-music.mp3",
+    },
+    {
+        id: "katseye-gabriela",
+        title: "Gabriela",
+        artist: "KATSEYE",
+        file: "/music/gabriela-katseye.mp3",
+    },
+];
+
 export default function MusicPlayer() {
     const [isOpen, setIsOpen] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -10,7 +32,11 @@ export default function MusicPlayer() {
     const [showPrompt, setShowPrompt] = useState(true);
     const [isLargeScreen, setIsLargeScreen] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
+    const [currentSongIndex, setCurrentSongIndex] = useState(0);
+    const [showSongList, setShowSongList] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
+
+    const currentSong = songs[currentSongIndex];
 
     // Check screen size - only show on tablets, PCs, and smart TVs (768px+)
     useEffect(() => {
@@ -28,12 +54,19 @@ export default function MusicPlayer() {
         const savedVolume = localStorage.getItem("watermelon-music-volume");
         const savedTime = localStorage.getItem("watermelon-music-time");
         const wasPlaying = localStorage.getItem("watermelon-music-playing");
+        const savedSongIndex = localStorage.getItem("watermelon-music-song-index");
 
         if (musicEnabled === "true") {
             setShowPrompt(false);
         }
         if (savedVolume) {
             setVolume(parseFloat(savedVolume));
+        }
+        if (savedSongIndex) {
+            const index = parseInt(savedSongIndex);
+            if (index >= 0 && index < songs.length) {
+                setCurrentSongIndex(index);
+            }
         }
         if (savedTime && audioRef.current) {
             audioRef.current.currentTime = parseFloat(savedTime);
@@ -55,13 +88,17 @@ export default function MusicPlayer() {
         return () => clearInterval(interval);
     }, [isPlaying]);
 
-    // Save volume changes
+    // Save volume and song index changes
     useEffect(() => {
         localStorage.setItem("watermelon-music-volume", volume.toString());
         if (audioRef.current) {
             audioRef.current.volume = isMuted ? 0 : volume;
         }
     }, [volume, isMuted]);
+
+    useEffect(() => {
+        localStorage.setItem("watermelon-music-song-index", currentSongIndex.toString());
+    }, [currentSongIndex]);
 
     // Restore position when audio is ready
     useEffect(() => {
@@ -130,12 +167,44 @@ export default function MusicPlayer() {
         }
     };
 
+    const changeSong = (index: number) => {
+        const wasPlaying = isPlaying;
+        if (audioRef.current) {
+            audioRef.current.pause();
+        }
+        setCurrentSongIndex(index);
+        localStorage.setItem("watermelon-music-time", "0");
+        setShowSongList(false);
+
+        // Wait for source to update then play
+        setTimeout(() => {
+            if (audioRef.current) {
+                audioRef.current.currentTime = 0;
+                if (wasPlaying) {
+                    audioRef.current.play().then(() => {
+                        setIsPlaying(true);
+                    }).catch((err) => {
+                        console.error("Failed to play audio:", err);
+                    });
+                }
+            }
+        }, 100);
+    };
+
+    const nextSong = () => {
+        changeSong((currentSongIndex + 1) % songs.length);
+    };
+
+    const prevSong = () => {
+        changeSong((currentSongIndex - 1 + songs.length) % songs.length);
+    };
+
     return (
         <>
             {/* Hidden Audio Element */}
             <audio
                 ref={audioRef}
-                src="/music/background-music.mp3"
+                src={currentSong.file}
                 loop
                 preload="auto"
             />
@@ -172,16 +241,36 @@ export default function MusicPlayer() {
                             🎵 JUKEBOX 🎵
                         </h2>
 
-                        <p className="text-gray-300 mb-6">
+                        <p className="text-gray-300 mb-4">
                             Want some background music while you explore?
                         </p>
+
+                        {/* Song List for Selection */}
+                        <div className="glass rounded-xl p-3 mb-4 border border-white/10">
+                            <p className="text-xs text-gray-400 mb-2">Pick a song to start:</p>
+                            <div className="space-y-2">
+                                {songs.map((song, index) => (
+                                    <button
+                                        key={song.id}
+                                        onClick={() => setCurrentSongIndex(index)}
+                                        className={`w-full p-2 rounded-lg text-left transition-all cursor-pointer ${currentSongIndex === index
+                                                ? "bg-[#2ed573]/20 border border-[#2ed573]/50"
+                                                : "bg-white/5 hover:bg-white/10 border border-transparent"
+                                            }`}
+                                    >
+                                        <p className="text-sm text-white font-medium">{song.title}</p>
+                                        <p className="text-xs text-gray-400">{song.artist}</p>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
 
                         <div className="flex flex-col gap-3">
                             <button
                                 onClick={enableMusic}
                                 className="w-full py-4 px-6 bg-[#2ed573] hover:bg-[#26de81] rounded-xl font-pixel text-xs text-black transition-all hover:scale-105 cursor-pointer flex items-center justify-center gap-2"
                             >
-                                <span>▶</span> ENABLE MUSIC
+                                <span>▶</span> PLAY {currentSong.title}
                             </button>
                             <button
                                 onClick={() => setShowPrompt(false)}
@@ -190,10 +279,6 @@ export default function MusicPlayer() {
                                 No thanks, maybe later
                             </button>
                         </div>
-
-                        <p className="text-xs text-gray-600 mt-4">
-                            🎶 Now Playing: ILLIT - Not Cute Anymore
-                        </p>
                     </div>
                 </div>
             )}
@@ -219,7 +304,7 @@ export default function MusicPlayer() {
 
             {/* Music Player Modal */}
             {isOpen && (
-                <div className="fixed bottom-24 right-6 z-50 w-72">
+                <div className="fixed bottom-24 right-6 z-50 w-80">
                     <div className="glass rounded-2xl p-5 border-2 border-[#2ed573]/30">
                         {/* Header */}
                         <div className="flex items-center justify-between mb-4">
@@ -241,30 +326,91 @@ export default function MusicPlayer() {
                                     <div className="w-4 h-4 rounded-full bg-[#1a1a1a]" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-white font-medium truncate">Not Cute Anymore</p>
-                                    <p className="text-xs text-gray-400 truncate">ILLIT (아일릿)</p>
+                                    <p className="text-sm text-white font-medium truncate">{currentSong.title}</p>
+                                    <p className="text-xs text-gray-400 truncate">{currentSong.artist}</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Controls */}
-                        <div className="flex items-center justify-center gap-4 mb-4">
+                        <div className="flex items-center justify-center gap-3 mb-4">
+                            <button
+                                onClick={prevSong}
+                                className="w-10 h-10 rounded-lg glass border border-white/10 hover:border-[#2ed573]/50 flex items-center justify-center transition-all hover:scale-105 cursor-pointer"
+                            >
+                                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
+                                </svg>
+                            </button>
                             <button
                                 onClick={togglePlay}
-                                className="w-12 h-12 rounded-xl bg-[#2ed573] hover:bg-[#26de81] flex items-center justify-center transition-all hover:scale-105 cursor-pointer"
+                                className="w-14 h-14 rounded-xl bg-[#2ed573] hover:bg-[#26de81] flex items-center justify-center transition-all hover:scale-105 cursor-pointer"
                             >
                                 {isPlaying ? (
-                                    <svg className="w-6 h-6 text-black" viewBox="0 0 24 24" fill="currentColor">
+                                    <svg className="w-7 h-7 text-black" viewBox="0 0 24 24" fill="currentColor">
                                         <rect x="6" y="5" width="4" height="14" />
                                         <rect x="14" y="5" width="4" height="14" />
                                     </svg>
                                 ) : (
-                                    <svg className="w-6 h-6 text-black ml-1" viewBox="0 0 24 24" fill="currentColor">
+                                    <svg className="w-7 h-7 text-black ml-1" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="6,4 20,12 6,20" />
                                     </svg>
                                 )}
                             </button>
+                            <button
+                                onClick={nextSong}
+                                className="w-10 h-10 rounded-lg glass border border-white/10 hover:border-[#2ed573]/50 flex items-center justify-center transition-all hover:scale-105 cursor-pointer"
+                            >
+                                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                                </svg>
+                            </button>
                         </div>
+
+                        {/* Song List Toggle */}
+                        <button
+                            onClick={() => setShowSongList(!showSongList)}
+                            className="w-full mb-4 py-2 px-3 glass rounded-lg border border-white/10 hover:border-[#2ed573]/50 transition-all cursor-pointer flex items-center justify-between"
+                        >
+                            <span className="text-xs text-gray-400">Song List ({songs.length} songs)</span>
+                            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showSongList ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M6 9l6 6 6-6" />
+                            </svg>
+                        </button>
+
+                        {/* Song List */}
+                        {showSongList && (
+                            <div className="mb-4 space-y-2 max-h-40 overflow-y-auto">
+                                {songs.map((song, index) => (
+                                    <button
+                                        key={song.id}
+                                        onClick={() => changeSong(index)}
+                                        className={`w-full p-3 rounded-lg text-left transition-all cursor-pointer ${currentSongIndex === index
+                                                ? "bg-[#2ed573]/20 border border-[#2ed573]/50"
+                                                : "glass border border-white/10 hover:border-[#2ed573]/30"
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {currentSongIndex === index && isPlaying ? (
+                                                <div className="w-4 h-4 flex items-center justify-center">
+                                                    <div className="flex gap-0.5">
+                                                        <div className="w-1 h-3 bg-[#2ed573] animate-[bounce_0.5s_ease-in-out_infinite]" />
+                                                        <div className="w-1 h-3 bg-[#2ed573] animate-[bounce_0.5s_ease-in-out_infinite_0.1s]" />
+                                                        <div className="w-1 h-3 bg-[#2ed573] animate-[bounce_0.5s_ease-in-out_infinite_0.2s]" />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-gray-500 w-4 text-center">{index + 1}</span>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm text-white font-medium truncate">{song.title}</p>
+                                                <p className="text-xs text-gray-400 truncate">{song.artist}</p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Volume Control */}
                         <div className="flex items-center gap-3">
@@ -303,3 +449,4 @@ export default function MusicPlayer() {
         </>
     );
 }
+
