@@ -42,18 +42,21 @@ export default function ImageGallery({
                                 : ''
                                 }`}
                         >
-                            {/* NSFW badge */}
-                            {isNsfwImage && (
-                                <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-[#ff4757] to-[#ff6b81] text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-bold shadow-lg shadow-[#ff4757]/30 border border-white/20">
-                                    <PixelWarning size={12} color="#fff" /> NSFW
-                                </div>
-                            )}
-                            {/* Private badge for owner - enhanced visibility */}
-                            {isOwnPrivate && (
-                                <div className={`absolute top-2 ${isNsfwImage ? 'right-2' : 'right-2'} z-10 bg-gradient-to-r from-[#ffa502] to-[#ff6b35] text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 font-bold shadow-lg shadow-[#ffa502]/30 border border-white/20`}>
-                                    <PixelLock size={12} color="#fff" /> Private
-                                </div>
-                            )}
+                            {/* Status Badges Container */}
+                            <div className="absolute top-2 left-2 z-10 flex flex-col gap-1.5">
+                                {/* Private Badge */}
+                                {isOwnPrivate && (
+                                    <div className="bg-[#ffa502]/90 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg border border-white/10">
+                                        <PixelLock size={10} color="#fff" /> PRIVATE
+                                    </div>
+                                )}
+                                {/* NSFW Badge */}
+                                {isNsfwImage && (
+                                    <div className="bg-[#ff4757]/90 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg border border-white/10">
+                                        <PixelWarning size={10} color="#fff" /> NSFW
+                                    </div>
+                                )}
+                            </div>
                             {/* Private overlay effect */}
                             {isOwnPrivate && (
                                 <div className="absolute inset-0 bg-gradient-to-t from-[#ffa502]/10 to-transparent pointer-events-none z-[5]"></div>

@@ -45,6 +45,11 @@ export default function ConverterPage() {
     // Error modal
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+    // URL import states (shared)
+    const [isUrlMode, setIsUrlMode] = useState(false);
+    const [urlInput, setUrlInput] = useState("");
+    const [isLoadingUrl, setIsLoadingUrl] = useState(false);
+
     const ffmpegRef = useRef<FFmpeg | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -120,6 +125,72 @@ export default function ConverterPage() {
         e.preventDefault();
         const file = e.dataTransfer.files[0];
         if (file) handleVideoSelect(file);
+    };
+
+    // Fetch video from URL
+    const handleVideoUrlImport = async () => {
+        if (!urlInput.trim()) {
+            setErrorMessage("Please enter a valid URL");
+            return;
+        }
+
+        setIsLoadingUrl(true);
+        try {
+            const response = await fetch(urlInput);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch: ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            if (!blob.type.startsWith("video/")) {
+                throw new Error("URL does not point to a valid video file");
+            }
+
+            const fileName = urlInput.split('/').pop()?.split('?')[0] || "video.mp4";
+            const file = new File([blob], fileName, { type: blob.type });
+
+            handleVideoSelect(file);
+            setUrlInput("");
+            setIsUrlMode(false);
+        } catch (error) {
+            console.error("URL import error:", error);
+            setErrorMessage("Could not fetch video from URL. Make sure it's a direct video link and publicly accessible (CORS may block some sources like Facebook/Instagram).");
+        } finally {
+            setIsLoadingUrl(false);
+        }
+    };
+
+    // Fetch image from URL
+    const handleImageUrlImport = async () => {
+        if (!urlInput.trim()) {
+            setErrorMessage("Please enter a valid URL");
+            return;
+        }
+
+        setIsLoadingUrl(true);
+        try {
+            const response = await fetch(urlInput);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch: ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            if (!blob.type.startsWith("image/")) {
+                throw new Error("URL does not point to a valid image file");
+            }
+
+            const fileName = urlInput.split('/').pop()?.split('?')[0] || "image.png";
+            const file = new File([blob], fileName, { type: blob.type });
+
+            handleImageSelect(file);
+            setUrlInput("");
+            setIsUrlMode(false);
+        } catch (error) {
+            console.error("URL import error:", error);
+            setErrorMessage("Could not fetch image from URL. Make sure it's a direct image link and publicly accessible (CORS may block some sources like Facebook/Instagram).");
+        } finally {
+            setIsLoadingUrl(false);
+        }
     };
 
     const convertToGif = async () => {
@@ -447,23 +518,81 @@ export default function ConverterPage() {
                         ) : converterType === "video" ? (
                             // VIDEO TO GIF CONVERTER
                             !videoFile ? (
-                                <div
-                                    onDrop={handleDrop}
-                                    onDragOver={(e) => e.preventDefault()}
-                                    className="glass rounded-2xl p-12 border-2 border-dashed border-white/20 hover:border-[#2ed573]/50 transition-all text-center cursor-pointer"
-                                    onClick={() => document.getElementById("video-input")?.click()}
-                                >
-                                    <div className="text-6xl mb-4">🎬</div>
-                                    <h3 className="font-pixel text-lg text-[#2ed573] mb-2">UPLOAD VIDEO</h3>
-                                    <p className="text-gray-400 mb-4">Drag & drop or click to select</p>
-                                    <p className="text-xs text-gray-500">Supports MP4, WEBM, MOV and more</p>
-                                    <input
-                                        id="video-input"
-                                        type="file"
-                                        accept="video/*"
-                                        onChange={(e) => e.target.files?.[0] && handleVideoSelect(e.target.files[0])}
-                                        className="hidden"
-                                    />
+                                <div className="space-y-4">
+                                    {/* Input Mode Toggle - Segmented Control */}
+                                    <div className="flex justify-center mb-6">
+                                        <div className="inline-flex rounded-xl bg-white/5 p-1 border border-white/10">
+                                            <button
+                                                onClick={() => setIsUrlMode(false)}
+                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${!isUrlMode
+                                                    ? "bg-white/15 text-white shadow-sm"
+                                                    : "text-gray-400 hover:text-gray-300"
+                                                    }`}
+                                            >
+                                                📁 Upload File
+                                            </button>
+                                            <button
+                                                onClick={() => setIsUrlMode(true)}
+                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isUrlMode
+                                                    ? "bg-white/15 text-white shadow-sm"
+                                                    : "text-gray-400 hover:text-gray-300"
+                                                    }`}
+                                            >
+                                                🔗 Import URL
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {!isUrlMode ? (
+                                        /* File Upload Mode */
+                                        <div
+                                            onDrop={handleDrop}
+                                            onDragOver={(e) => e.preventDefault()}
+                                            className="glass rounded-2xl p-12 border-2 border-dashed border-white/20 hover:border-[#2ed573]/50 transition-all text-center cursor-pointer"
+                                            onClick={() => document.getElementById("video-input")?.click()}
+                                        >
+                                            <div className="text-6xl mb-4">🎬</div>
+                                            <h3 className="font-pixel text-lg text-[#2ed573] mb-2">UPLOAD VIDEO</h3>
+                                            <p className="text-gray-400 mb-4">Drag & drop or click to select</p>
+                                            <p className="text-xs text-gray-500">Supports MP4, WEBM, MOV and more</p>
+                                            <input
+                                                id="video-input"
+                                                type="file"
+                                                accept="video/*"
+                                                onChange={(e) => e.target.files?.[0] && handleVideoSelect(e.target.files[0])}
+                                                className="hidden"
+                                            />
+                                        </div>
+                                    ) : (
+                                        /* URL Import Mode */
+                                        <div className="glass rounded-2xl p-8 border border-white/10">
+                                            <div className="text-5xl mb-4 text-center">🔗</div>
+                                            <h3 className="font-pixel text-lg text-[#2ed573] mb-4 text-center">IMPORT FROM URL</h3>
+                                            <p className="text-gray-400 text-sm mb-6 text-center">
+                                                Paste a direct link to a video file
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="url"
+                                                    value={urlInput}
+                                                    onChange={(e) => setUrlInput(e.target.value)}
+                                                    placeholder="https://example.com/video.mp4"
+                                                    className="flex-1 px-4 py-3 rounded-xl bg-black/40 border border-white/20 text-white placeholder-gray-500 focus:border-[#2ed573]/50 focus:outline-none"
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleVideoUrlImport()}
+                                                />
+                                                <button
+                                                    onClick={handleVideoUrlImport}
+                                                    disabled={isLoadingUrl || !urlInput.trim()}
+                                                    className="px-6 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isLoadingUrl ? "..." : "Fetch"}
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-4 text-center">
+                                                ⚠️ Only direct video links work. Facebook/Instagram may block due to CORS.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-6">
@@ -597,27 +726,85 @@ export default function ConverterPage() {
                             )) : (
                             // IMAGE FORMAT CONVERTER
                             !imageFile ? (
-                                <div
-                                    onDrop={(e) => {
-                                        e.preventDefault();
-                                        const file = e.dataTransfer.files[0];
-                                        if (file) handleImageSelect(file);
-                                    }}
-                                    onDragOver={(e) => e.preventDefault()}
-                                    className="glass rounded-2xl p-12 border-2 border-dashed border-white/20 hover:border-[#2ed573]/50 transition-all text-center cursor-pointer"
-                                    onClick={() => document.getElementById("image-input")?.click()}
-                                >
-                                    <div className="text-6xl mb-4">🖼️</div>
-                                    <h3 className="font-pixel text-lg text-[#2ed573] mb-2">UPLOAD IMAGE</h3>
-                                    <p className="text-gray-400 mb-4">Drag & drop or click to select</p>
-                                    <p className="text-xs text-gray-500">Supports PNG, JPG, JPEG, WebP</p>
-                                    <input
-                                        id="image-input"
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => e.target.files?.[0] && handleImageSelect(e.target.files[0])}
-                                        className="hidden"
-                                    />
+                                <div className="space-y-4">
+                                    {/* Input Mode Toggle - Segmented Control */}
+                                    <div className="flex justify-center mb-6">
+                                        <div className="inline-flex rounded-xl bg-white/5 p-1 border border-white/10">
+                                            <button
+                                                onClick={() => setIsUrlMode(false)}
+                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${!isUrlMode
+                                                    ? "bg-white/15 text-white shadow-sm"
+                                                    : "text-gray-400 hover:text-gray-300"
+                                                    }`}
+                                            >
+                                                📁 Upload File
+                                            </button>
+                                            <button
+                                                onClick={() => setIsUrlMode(true)}
+                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isUrlMode
+                                                    ? "bg-white/15 text-white shadow-sm"
+                                                    : "text-gray-400 hover:text-gray-300"
+                                                    }`}
+                                            >
+                                                🔗 Import URL
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {!isUrlMode ? (
+                                        /* File Upload Mode */
+                                        <div
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                const file = e.dataTransfer.files[0];
+                                                if (file) handleImageSelect(file);
+                                            }}
+                                            onDragOver={(e) => e.preventDefault()}
+                                            className="glass rounded-2xl p-12 border-2 border-dashed border-white/20 hover:border-[#2ed573]/50 transition-all text-center cursor-pointer"
+                                            onClick={() => document.getElementById("image-input")?.click()}
+                                        >
+                                            <div className="text-6xl mb-4">🖼️</div>
+                                            <h3 className="font-pixel text-lg text-[#2ed573] mb-2">UPLOAD IMAGE</h3>
+                                            <p className="text-gray-400 mb-4">Drag & drop or click to select</p>
+                                            <p className="text-xs text-gray-500">Supports PNG, JPG, JPEG, WebP</p>
+                                            <input
+                                                id="image-input"
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e) => e.target.files?.[0] && handleImageSelect(e.target.files[0])}
+                                                className="hidden"
+                                            />
+                                        </div>
+                                    ) : (
+                                        /* URL Import Mode */
+                                        <div className="glass rounded-2xl p-8 border border-white/10">
+                                            <div className="text-5xl mb-4 text-center">🔗</div>
+                                            <h3 className="font-pixel text-lg text-[#2ed573] mb-4 text-center">IMPORT FROM URL</h3>
+                                            <p className="text-gray-400 text-sm mb-6 text-center">
+                                                Paste a direct link to an image file
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="url"
+                                                    value={urlInput}
+                                                    onChange={(e) => setUrlInput(e.target.value)}
+                                                    placeholder="https://example.com/image.png"
+                                                    className="flex-1 px-4 py-3 rounded-xl bg-black/40 border border-white/20 text-white placeholder-gray-500 focus:border-[#2ed573]/50 focus:outline-none"
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleImageUrlImport()}
+                                                />
+                                                <button
+                                                    onClick={handleImageUrlImport}
+                                                    disabled={isLoadingUrl || !urlInput.trim()}
+                                                    className="px-6 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isLoadingUrl ? "..." : "Fetch"}
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-4 text-center">
+                                                ⚠️ Only direct image links work. Facebook/Instagram may block due to CORS.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-6">

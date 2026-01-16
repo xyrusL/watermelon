@@ -198,11 +198,18 @@ export default function AdminPanel({
     const bulkDeleteImages = async () => {
         if (selectedImages.size === 0) return;
         setIsDeleting(true);
-        try {
-            const imagesToDelete = adminImages.filter(img => selectedImages.has(img.id || img.uploadedAt.toString()));
-            const imageIds = imagesToDelete.map(img => img.id);
-            const filePaths = imagesToDelete.map(img => img.deleteUrl).filter(Boolean);
 
+        // Store images to delete for potential revert
+        const imagesToDelete = adminImages.filter(img => selectedImages.has(img.id || img.uploadedAt.toString()));
+        const imageIds = imagesToDelete.map(img => img.id);
+        const filePaths = imagesToDelete.map(img => img.deleteUrl).filter(Boolean);
+
+        // Optimistic update - remove from local state immediately
+        setAdminImages(prev => prev.filter(img => !selectedImages.has(img.id || img.uploadedAt.toString())));
+        const deletedCount = selectedImages.size;
+        setSelectedImages(new Set());
+
+        try {
             const response = await fetch('/api/admin/images', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
@@ -211,14 +218,16 @@ export default function AdminPanel({
 
             const data = await response.json();
             if (data.success) {
-                showNotification("success", "Bulk Delete Complete", `Deleted ${selectedImages.size} image(s)`);
-                setSelectedImages(new Set());
-                fetchAdminImages();
+                showNotification("success", "Bulk Delete Complete", `Deleted ${deletedCount} image(s)`);
                 if (onImageDeleted) onImageDeleted();
             } else {
+                // Revert on failure
+                setAdminImages(prev => [...imagesToDelete, ...prev]);
                 showNotification("error", "Delete Failed", data.error || "Failed to delete images");
             }
         } catch (err) {
+            // Revert on error
+            setAdminImages(prev => [...imagesToDelete, ...prev]);
             console.error("Bulk delete error:", err);
             showNotification("error", "Delete Failed", "An error occurred while deleting");
         } finally {
@@ -321,22 +330,30 @@ export default function AdminPanel({
                                     onClick={async () => {
                                         if (confirm("Are you sure you want to delete this image?")) {
                                             setIsDeleting(true);
+                                            const imageToDelete = adminSelectedImage;
+
+                                            // Optimistic update - remove from local state
+                                            setAdminImages(prev => prev.filter(img => img.id !== imageToDelete.id));
+                                            setAdminSelectedImage(null);
+
                                             try {
                                                 const response = await fetch('/api/admin/images', {
                                                     method: 'DELETE',
                                                     headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ imageIds: [adminSelectedImage.id], filePaths: [adminSelectedImage.deleteUrl].filter(Boolean) }),
+                                                    body: JSON.stringify({ imageIds: [imageToDelete.id], filePaths: [imageToDelete.deleteUrl].filter(Boolean) }),
                                                 });
                                                 const data = await response.json();
                                                 if (data.success) {
                                                     showNotification("success", "Image Deleted", "The image has been removed.");
-                                                    setAdminSelectedImage(null);
-                                                    fetchAdminImages();
                                                     if (onImageDeleted) onImageDeleted();
                                                 } else {
+                                                    // Revert on failure
+                                                    setAdminImages(prev => [imageToDelete, ...prev]);
                                                     showNotification("error", "Delete Failed", data.error || "Failed to delete");
                                                 }
                                             } catch (err) {
+                                                // Revert on error
+                                                setAdminImages(prev => [imageToDelete, ...prev]);
                                                 showNotification("error", "Error", "Failed to delete image");
                                             } finally {
                                                 setIsDeleting(false);

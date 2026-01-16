@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useCallback, useEffect } from "react";
-import ReactCrop, { Crop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import AdminPanel, { AdminButton } from "./components/AdminPanel";
@@ -11,6 +10,7 @@ import UserPanel, { UserPanelButton } from "./components/UserPanel";
 import NotificationModal from "./components/NotificationModal";
 import ImageDetailsModal from "./components/ImageDetailsModal";
 import ImageGallery from "./components/ImageGallery";
+import ImageEditor from "./components/ImageEditor";
 import {
     PixelLoader,
     PixelLock,
@@ -37,8 +37,8 @@ import {
 import { Edit3, Save, X, ChevronDown, ImageIcon, Scissors, Square, RectangleHorizontal, RectangleVertical } from "lucide-react";
 
 // Import types, constants, and utils
-import type { UploadedImage, HostType, HostConfig, NotificationState, FrameSize } from "./types";
-import { HOSTS, FRAME_SIZES } from "./constants";
+import type { UploadedImage, HostType, HostConfig, NotificationState } from "./types";
+import { HOSTS } from "./constants";
 import { ensureAbsoluteUrl, formatDate, formatFileSize } from "./utils";
 import { mapDbImagesToUploadedImages } from "./lib/image-mapper";
 
@@ -101,11 +101,8 @@ export default function ImageFramePage() {
         message: "",
     });
 
-    // Image editor states
+    // Image editor state
     const [showEditor, setShowEditor] = useState(false);
-    const [crop, setCrop] = useState<Crop>();
-    const [completedCrop, setCompletedCrop] = useState<Crop>();
-    const [selectedFrameSize, setSelectedFrameSize] = useState(FRAME_SIZES[1]); // Default 2×2
     const [croppedPreview, setCroppedPreview] = useState<string | null>(null);
 
     // Visibility state
@@ -131,8 +128,6 @@ export default function ImageFramePage() {
     };
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const imgRef = useRef<HTMLImageElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     // Show notification helper
     const showNotification = (
@@ -298,51 +293,6 @@ export default function ImageFramePage() {
         }
     }, [gallery, selectedGalleryImage]);
 
-    // Initialize crop when image loads
-    const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-        const { width, height } = e.currentTarget;
-        const aspect = selectedFrameSize.ratio;
-
-        if (aspect) {
-            const crop = centerCrop(
-                makeAspectCrop(
-                    { unit: "%", width: 90 },
-                    aspect,
-                    width,
-                    height
-                ),
-                width,
-                height
-            );
-            setCrop(crop);
-        }
-    }, [selectedFrameSize.ratio]);
-
-    // Update crop when frame size changes
-    useEffect(() => {
-        if (imgRef.current && showEditor) {
-            const { width, height } = imgRef.current;
-            const aspect = selectedFrameSize.ratio;
-
-            if (aspect) {
-                const newCrop = centerCrop(
-                    makeAspectCrop(
-                        { unit: "%", width: 90 },
-                        aspect,
-                        width,
-                        height
-                    ),
-                    width,
-                    height
-                );
-                setCrop(newCrop);
-            } else {
-                // Free crop - reset to center
-                setCrop({ unit: "%", x: 5, y: 5, width: 90, height: 90 });
-            }
-        }
-    }, [selectedFrameSize, showEditor]);
-
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(true);
@@ -450,52 +400,6 @@ export default function ImageFramePage() {
         } finally {
             setIsUploading(false);
         }
-    };
-
-    // Apply crop and create cropped image
-    const applyCrop = async () => {
-        if (!completedCrop || !imgRef.current || !canvasRef.current) return;
-
-        const image = imgRef.current;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const scaleX = image.naturalWidth / image.width;
-        const scaleY = image.naturalHeight / image.height;
-
-        canvas.width = completedCrop.width * scaleX;
-        canvas.height = completedCrop.height * scaleY;
-
-        ctx.drawImage(
-            image,
-            completedCrop.x * scaleX,
-            completedCrop.y * scaleY,
-            completedCrop.width * scaleX,
-            completedCrop.height * scaleY,
-            0,
-            0,
-            canvas.width,
-            canvas.height
-        );
-
-        // Convert to blob and update preview
-        canvas.toBlob((blob) => {
-            if (blob) {
-                const croppedUrl = URL.createObjectURL(blob);
-                setCroppedPreview(croppedUrl);
-
-                // Create new file from blob
-                const originalName = selectedFile?.name || "image.png";
-                const extension = originalName.split('.').pop() || 'png';
-                const croppedFile = new File([blob], `watermelon-${Date.now()}.${extension}`, {
-                    type: "image/png",
-                });
-                setSelectedFile(croppedFile);
-                setPreview(croppedUrl);
-                setShowEditor(false);
-            }
-        }, "image/png");
     };
 
     const uploadImage = async () => {
@@ -635,53 +539,103 @@ export default function ImageFramePage() {
         }
     };
 
-    // Admin Toggle Visibility
+    // Admin Toggle Visibility (Optimistic UI - no flicker)
     const toggleAdminVisibility = async (imageId: string, currentPrivate: boolean) => {
+        const newPrivate = !currentPrivate;
+
+        // Optimistic update - update selected image immediately
+        if (adminSelectedImage && adminSelectedImage.id === imageId) {
+            setAdminSelectedImage({ ...adminSelectedImage, is_private: newPrivate });
+        }
+        // Also update recent images if present
+        setGallery((prev: UploadedImage[]) => prev.map((img: UploadedImage) =>
+            (img.id || img.uploadedAt.toString()) === imageId
+                ? { ...img, is_private: newPrivate }
+                : img
+        ));
+
         try {
             const response = await fetch('/api/admin/update-visibility', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageId, isPrivate: !currentPrivate }),
+                body: JSON.stringify({ imageId, isPrivate: newPrivate }),
             });
             const data = await response.json();
             if (data.success) {
                 showNotification("success", "Updated", data.message);
-                // Update the selected image locally to reflect change immediately
-                if (adminSelectedImage && adminSelectedImage.id === imageId) {
-                    setAdminSelectedImage({ ...adminSelectedImage, is_private: !currentPrivate });
-                }
-                fetchAdminImages();
-                fetchRecentImages();
             } else {
+                // Revert on failure
+                if (adminSelectedImage && adminSelectedImage.id === imageId) {
+                    setAdminSelectedImage({ ...adminSelectedImage, is_private: currentPrivate });
+                }
+                setGallery((prev: UploadedImage[]) => prev.map((img: UploadedImage) =>
+                    (img.id || img.uploadedAt.toString()) === imageId
+                        ? { ...img, is_private: currentPrivate }
+                        : img
+                ));
                 showNotification("error", "Update Failed", data.error || "Failed to update visibility");
             }
         } catch (err) {
+            // Revert on error
+            if (adminSelectedImage && adminSelectedImage.id === imageId) {
+                setAdminSelectedImage({ ...adminSelectedImage, is_private: currentPrivate });
+            }
+            setGallery((prev: UploadedImage[]) => prev.map((img: UploadedImage) =>
+                (img.id || img.uploadedAt.toString()) === imageId
+                    ? { ...img, is_private: currentPrivate }
+                    : img
+            ));
             console.error("Admin visibility update error:", err);
             showNotification("error", "Error", "Failed to update visibility");
         }
     };
 
-    // Admin Toggle NSFW
+    // Admin Toggle NSFW (Optimistic UI - no flicker)
     const toggleAdminNsfw = async (imageId: string, currentNsfw: boolean) => {
+        const newNsfw = !currentNsfw;
+
+        // Optimistic update - update selected image immediately
+        if (adminSelectedImage && adminSelectedImage.id === imageId) {
+            setAdminSelectedImage({ ...adminSelectedImage, is_nsfw: newNsfw });
+        }
+        // Also update recent images if present
+        setGallery((prev: UploadedImage[]) => prev.map((img: UploadedImage) =>
+            (img.id || img.uploadedAt.toString()) === imageId
+                ? { ...img, is_nsfw: newNsfw }
+                : img
+        ));
+
         try {
             const response = await fetch('/api/admin/update-nsfw', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageId, isNsfw: !currentNsfw }),
+                body: JSON.stringify({ imageId, isNsfw: newNsfw }),
             });
             const data = await response.json();
             if (data.success) {
                 showNotification("success", "Updated", data.message);
-                // Update the selected image locally to reflect change immediately
-                if (adminSelectedImage && adminSelectedImage.id === imageId) {
-                    setAdminSelectedImage({ ...adminSelectedImage, is_nsfw: !currentNsfw });
-                }
-                fetchAdminImages();
-                fetchRecentImages();
             } else {
+                // Revert on failure
+                if (adminSelectedImage && adminSelectedImage.id === imageId) {
+                    setAdminSelectedImage({ ...adminSelectedImage, is_nsfw: currentNsfw });
+                }
+                setGallery((prev: UploadedImage[]) => prev.map((img: UploadedImage) =>
+                    (img.id || img.uploadedAt.toString()) === imageId
+                        ? { ...img, is_nsfw: currentNsfw }
+                        : img
+                ));
                 showNotification("error", "Update Failed", data.error || "Failed to update NSFW status");
             }
         } catch (err) {
+            // Revert on error
+            if (adminSelectedImage && adminSelectedImage.id === imageId) {
+                setAdminSelectedImage({ ...adminSelectedImage, is_nsfw: currentNsfw });
+            }
+            setGallery((prev: UploadedImage[]) => prev.map((img: UploadedImage) =>
+                (img.id || img.uploadedAt.toString()) === imageId
+                    ? { ...img, is_nsfw: currentNsfw }
+                    : img
+            ));
             console.error("Admin NSFW update error:", err);
             showNotification("error", "Error", "Failed to update NSFW status");
         }
@@ -928,8 +882,6 @@ export default function ImageFramePage() {
 
     return (
         <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
-            {/* Hidden canvas for crop processing */}
-            <canvas ref={canvasRef} className="hidden" />
 
             {/* Notification Modal */}
             <NotificationModal
@@ -1209,77 +1161,18 @@ export default function ImageFramePage() {
             />
 
             {/* Image Editor Modal */}
-            {showEditor && preview && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90">
-                    <div className="glass rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <h2 className="font-pixel text-lg text-[#ff4757] mb-4 text-center">EDIT IMAGE</h2>
-
-                        {/* Frame Size Selector */}
-                        <div className="mb-4">
-                            <p className="text-sm text-gray-400 mb-2 text-center">Select frame size:</p>
-                            <div className="flex flex-wrap justify-center gap-2">
-                                {FRAME_SIZES.map((size) => (
-                                    <button
-                                        key={size.name}
-                                        onClick={() => setSelectedFrameSize(size)}
-                                        className={`px-3 py-2 rounded-lg text-sm transition-all ${selectedFrameSize.name === size.name
-                                            ? "bg-[#ff4757] text-white"
-                                            : "glass border border-white/10 hover:border-[#ff4757]/50"
-                                            }`}
-                                    >
-                                        <span className="mr-1">{size.icon}</span>
-                                        {size.name}
-                                        {size.frames > 0 && (
-                                            <span className="text-xs opacity-70 ml-1">({size.frames} frames)</span>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Crop Area */}
-                        <div className="flex justify-center mb-4">
-                            <ReactCrop
-                                crop={crop}
-                                onChange={(c) => setCrop(c)}
-                                onComplete={(c) => setCompletedCrop(c)}
-                                aspect={selectedFrameSize.ratio}
-                                className="max-h-[50vh]"
-                            >
-                                <img
-                                    ref={imgRef}
-                                    src={preview}
-                                    alt="Edit"
-                                    onLoad={onImageLoad}
-                                    className="max-h-[50vh] object-contain"
-                                />
-                            </ReactCrop>
-                        </div>
-
-                        {/* Info */}
-                        <p className="text-xs text-gray-500 text-center mb-4">
-                            Drag to position • {selectedFrameSize.name} ratio
-                            {selectedFrameSize.frames > 0 && ` • Fits ${selectedFrameSize.frames} Minecraft frames`}
-                        </p>
-
-                        {/* Actions */}
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowEditor(false)}
-                                className="flex-1 py-3 rounded-xl glass border border-white/10 hover:border-white/30 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={applyCrop}
-                                className="flex-1 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all"
-                            >
-                                ✓ Apply Crop
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ImageEditor
+                isOpen={showEditor}
+                imageSrc={preview}
+                originalFile={selectedFile}
+                onClose={() => setShowEditor(false)}
+                onApply={(croppedFile, previewUrl) => {
+                    setSelectedFile(croppedFile);
+                    setPreview(previewUrl);
+                    setCroppedPreview(previewUrl);
+                    setShowEditor(false);
+                }}
+            />
 
             {/* Image Details Modal */}
             <ImageDetailsModal

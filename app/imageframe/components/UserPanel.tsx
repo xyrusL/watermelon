@@ -64,6 +64,7 @@ export default function UserPanel({
     const [filterText, setFilterText] = useState("");
     const [filterVisibility, setFilterVisibility] = useState<"all" | "public" | "private">("all");
 
+
     // Fetch user's images (uses centralized mapper)
     const fetchUserImages = async (isPolling = false) => {
         if (!isSignedIn) return;
@@ -86,51 +87,111 @@ export default function UserPanel({
         }
     };
 
-    // Toggle image visibility
-    const toggleVisibility = async (imageId: string, currentPrivate: boolean) => {
+    // Toggle image visibility (Optimistic UI - no flicker)
+    const toggleVisibility = async (imageId: string, currentPrivate: boolean): Promise<boolean> => {
+        const newPrivate = !currentPrivate;
+
+        // Optimistic update - update local state immediately
+        setUserImages(prev => prev.map(img =>
+            (img.id || img.uploadedAt.toString()) === imageId
+                ? { ...img, is_private: newPrivate }
+                : img
+        ));
+        // Also update selected image if it's the same one
+        setSelectedImage(prev =>
+            prev && (prev.id || prev.uploadedAt.toString()) === imageId
+                ? { ...prev, is_private: newPrivate }
+                : prev
+        );
+
         try {
             const response = await fetch('/api/user/update-visibility', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageId, isPrivate: !currentPrivate }),
+                body: JSON.stringify({ imageId, isPrivate: newPrivate }),
             });
 
             const data = await response.json();
             if (data.success) {
                 showNotification("success", "Updated", data.message);
-                fetchUserImages(); // Refresh
-                onImageUpdate?.(); // Notify parent
+                onImageUpdate?.(); // Notify parent for gallery sync
+                return true;
             } else {
+                // Revert on failure
+                setUserImages(prev => prev.map(img =>
+                    (img.id || img.uploadedAt.toString()) === imageId
+                        ? { ...img, is_private: currentPrivate }
+                        : img
+                ));
                 showNotification("error", "Update Failed", data.error || "Failed to update visibility");
+                return false;
             }
         } catch (err) {
+            // Revert on error
+            setUserImages(prev => prev.map(img =>
+                (img.id || img.uploadedAt.toString()) === imageId
+                    ? { ...img, is_private: currentPrivate }
+                    : img
+            ));
             console.error("Visibility update error:", err);
             showNotification("error", "Error", "An error occurred while updating visibility");
+            return false;
         }
     };
 
-    // Toggle NSFW status
-    const toggleNsfw = async (imageId: string, currentNsfw: boolean) => {
+    // Toggle NSFW status (Optimistic UI - no flicker)
+    const toggleNsfw = async (imageId: string, currentNsfw: boolean): Promise<boolean> => {
+        const newNsfw = !currentNsfw;
+
+        // Optimistic update - update local state immediately
+        setUserImages(prev => prev.map(img =>
+            (img.id || img.uploadedAt.toString()) === imageId
+                ? { ...img, is_nsfw: newNsfw }
+                : img
+        ));
+        // Also update selected image if it's the same one
+        setSelectedImage(prev =>
+            prev && (prev.id || prev.uploadedAt.toString()) === imageId
+                ? { ...prev, is_nsfw: newNsfw }
+                : prev
+        );
+
         try {
             const response = await fetch('/api/user/update-nsfw', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageId, isNsfw: !currentNsfw }),
+                body: JSON.stringify({ imageId, isNsfw: newNsfw }),
             });
 
             const data = await response.json();
             if (data.success) {
                 showNotification("success", "Updated", data.message);
-                fetchUserImages(); // Refresh
-                onImageUpdate?.(); // Notify parent
+                onImageUpdate?.(); // Notify parent for gallery sync
+                return true;
             } else {
+                // Revert on failure
+                setUserImages(prev => prev.map(img =>
+                    (img.id || img.uploadedAt.toString()) === imageId
+                        ? { ...img, is_nsfw: currentNsfw }
+                        : img
+                ));
                 showNotification("error", "Update Failed", data.error || "Failed to update NSFW status");
+                return false;
             }
         } catch (err) {
+            // Revert on error
+            setUserImages(prev => prev.map(img =>
+                (img.id || img.uploadedAt.toString()) === imageId
+                    ? { ...img, is_nsfw: currentNsfw }
+                    : img
+            ));
             console.error("NSFW update error:", err);
             showNotification("error", "Error", "An error occurred while updating NSFW status");
+            return false;
         }
     };
+
+
 
     // Filter images
     const filteredImages = userImages.filter(img => {
@@ -240,31 +301,36 @@ export default function UserPanel({
                                     const imgId = img.id || img.uploadedAt.toString();
                                     return (
                                         <div key={imgId} className="relative rounded-xl overflow-hidden group">
-                                            {/* Privacy Badge */}
-                                            <div className="absolute top-2 left-2 z-10">
+                                            {/* Status Toggles Container - Flex Column to prevent overlap */}
+                                            <div className="absolute top-2 left-2 z-10 flex flex-col gap-1.5">
+                                                {/* Privacy Badge */}
                                                 <button
-                                                    onClick={() => toggleVisibility(imgId, img.is_private || false)}
-                                                    className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${img.is_private
-                                                        ? "bg-[#ffa502] hover:bg-[#ff8c00]"
-                                                        : "bg-[#2ed573] hover:bg-[#26b85f]"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // Prevent opening modal
+                                                        toggleVisibility(imgId, img.is_private || false);
+                                                    }}
+                                                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-lg backdrop-blur-md flex items-center gap-1.5 border border-white/10 ${img.is_private
+                                                        ? "bg-[#ffa502]/90 hover:bg-[#ffa502] text-white"
+                                                        : "bg-[#2ed573]/90 hover:bg-[#2ed573] text-white"
                                                         }`}
                                                     title={img.is_private ? "Private - Click to make public" : "Public - Click to make private"}
                                                 >
-                                                    {img.is_private ? <PixelLock size={12} color="#fff" /> : <PixelEye size={12} color="#fff" />}
+                                                    {img.is_private ? <><PixelLock size={10} color="#fff" /> PRIVATE</> : <><PixelEye size={10} color="#fff" /> PUBLIC</>}
                                                 </button>
-                                            </div>
 
-                                            {/* NSFW Badge */}
-                                            <div className="absolute top-2 left-10 z-10">
+                                                {/* NSFW Badge */}
                                                 <button
-                                                    onClick={() => toggleNsfw(imgId, img.is_nsfw || false)}
-                                                    className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${img.is_nsfw
-                                                        ? "bg-[#ff4757] hover:bg-[#ff6b81]"
-                                                        : "bg-gray-500 hover:bg-gray-400"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // Prevent opening modal
+                                                        toggleNsfw(imgId, img.is_nsfw || false);
+                                                    }}
+                                                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-lg backdrop-blur-md flex items-center gap-1.5 border border-white/10 ${img.is_nsfw
+                                                        ? "bg-[#ff4757]/90 hover:bg-[#ff4757] text-white"
+                                                        : "bg-gray-500/90 hover:bg-gray-500 text-white"
                                                         }`}
                                                     title={img.is_nsfw ? "NSFW - Click to mark as safe" : "Safe - Click to mark as NSFW"}
                                                 >
-                                                    {img.is_nsfw ? <PixelWarning size={12} color="#fff" /> : <PixelCheck size={12} color="#fff" />}
+                                                    {img.is_nsfw ? <><PixelWarning size={10} color="#fff" /> NSFW</> : <><PixelCheck size={10} color="#fff" /> SAFE</>}
                                                 </button>
                                             </div>
 
@@ -303,10 +369,18 @@ export default function UserPanel({
                 isAdmin={false}
                 isOwner={true}
                 copied={copied}
-                onClose={() => setSelectedImage(null)}
+                onClose={() => {
+                    setSelectedImage(null);
+                }}
                 onCopyUrl={copyUrl}
-                onToggleVisibility={toggleVisibility}
-                onToggleNsfw={toggleNsfw}
+                onToggleVisibility={async (id, val) => {
+                    const success = await toggleVisibility(id, val);
+                    if (success) setSelectedImage(null);
+                }}
+                onToggleNsfw={async (id, val) => {
+                    const success = await toggleNsfw(id, val);
+                    if (success) setSelectedImage(null);
+                }}
             />
         </>
     );
