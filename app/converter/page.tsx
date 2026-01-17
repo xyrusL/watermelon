@@ -467,7 +467,11 @@ export default function ConverterPage() {
                         {/* Title */}
                         <div className="text-center mb-8">
                             <h1 className="font-pixel text-2xl sm:text-3xl lg:text-4xl text-[#ff4757] mb-2 px-4">CONVERTER</h1>
-                            <p className="text-sm sm:text-base text-gray-400 px-4">Transform your videos into GIFs instantly</p>
+                            <p className="text-sm sm:text-base text-gray-400 px-4">
+                                {converterType === "video"
+                                    ? "Transform your videos into GIFs instantly"
+                                    : "Convert your images to different formats"}
+                            </p>
 
                             {/* Converter Type Selector */}
                             <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6 px-4">

@@ -563,6 +563,36 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Minecraft Download Section */}
+        <section className="py-10 px-4 bg-[#1a1a1a]/50">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-center text-gray-400 mb-4 text-sm">
+              📱 Wanna play on mobile?
+            </p>
+            <Link
+              href="/minecraft"
+              className="glass rounded-xl p-4 sm:p-5 border border-[#2ed573]/20 hover:border-[#2ed573]/50 flex items-center justify-between gap-4 transition-all group cursor-pointer"
+            >
+              {/* Left: Icon + Text */}
+              <div className="flex items-center gap-4">
+                <span className="text-3xl">🍉</span>
+                <div>
+                  <p className="font-pixel text-sm sm:text-base text-white group-hover:text-[#2ed573] transition-colors">
+                    Download Minecraft PE
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-500">
+                    v1.21.132 • Android
+                  </p>
+                </div>
+              </div>
+              {/* Right: Arrow */}
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#2ed573]/10 group-hover:bg-[#2ed573] flex items-center justify-center transition-all">
+                <span className="text-[#2ed573] group-hover:text-white transition-colors">➔</span>
+              </div>
+            </Link>
+          </div>
+        </section>
+
         {/* Footer */}
         <footer className="py-12 px-4 border-t border-white/5">
           <div className="max-w-4xl 2xl:max-w-6xl mx-auto text-center">
