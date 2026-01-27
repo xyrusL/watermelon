@@ -42,9 +42,10 @@ export async function GET(request: NextRequest) {
         // If not admin, only show public images OR user's own images
         if (!isAdmin) {
             if (userEmail) {
-                // Show public images (NULL or false) OR user's own private images
-                const encodedEmail = encodeURIComponent(userEmail);
-                query = query.or(`is_private.is.null,is_private.eq.false,uploader_email.eq.${encodedEmail}`);
+                // Show public images (NULL or false) OR user's own private images.
+                // PostgREST filter values should be quoted/escaped, not URL-encoded.
+                const safeEmail = userEmail.replace(/"/g, '\\"');
+                query = query.or(`is_private.is.null,is_private.eq.false,uploader_email.eq."${safeEmail}"`);
             } else {
                 // Only show public images (NULL or false)
                 query = query.or('is_private.is.null,is_private.eq.false');
@@ -55,7 +56,12 @@ export async function GET(request: NextRequest) {
         const { data: images, error } = await query;
 
         if (error) {
-            console.error("Database error:", error);
+            console.error("Database error in /api/supabase/recent:", {
+                message: error.message,
+                details: (error as { details?: string }).details,
+                hint: (error as { hint?: string }).hint,
+                code: (error as { code?: string }).code,
+            });
             return NextResponse.json({
                 success: false,
                 error: error.message

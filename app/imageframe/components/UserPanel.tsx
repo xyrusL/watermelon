@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     PixelLoader,
     PixelLock,
@@ -63,6 +63,14 @@ export default function UserPanel({
     const [selectedImage, setSelectedImage] = useState<UploadedImage | null>(null);
     const [filterText, setFilterText] = useState("");
     const [filterVisibility, setFilterVisibility] = useState<"all" | "public" | "private">("all");
+    const lastUserImagesErrorRef = useRef<string | null>(null);
+
+    const notifyUserImagesError = (message: string, details?: string, dedupe = false) => {
+        const dedupeKey = `${message}::${details || ""}`;
+        if (dedupe && lastUserImagesErrorRef.current === dedupeKey) return;
+        lastUserImagesErrorRef.current = dedupeKey;
+        showNotification("error", "User Images Error", message, details);
+    };
 
 
     // Fetch user's images (uses centralized mapper)
@@ -71,17 +79,43 @@ export default function UserPanel({
         if (!isPolling) setIsLoading(true);
         try {
             const response = await fetch('/api/user/images');
-            const data = await response.json();
-            if (data.success) {
+            let data: any = null;
+            try {
+                data = await response.json();
+            } catch {
+                // Non-JSON response; we'll fall back to status-based errors below.
+            }
+
+            if (!response.ok) {
+                const statusMessage = `Request failed with status ${response.status}`;
+                const apiMessage = data?.error || data?.message || statusMessage;
+                notifyUserImagesError(
+                    apiMessage,
+                    "Endpoint: /api/user/images",
+                    isPolling
+                );
+                return;
+            }
+
+            if (data?.success) {
                 const images = mapDbImagesToUploadedImages(data.images);
                 setUserImages(images);
                 setStats(data.stats);
+                lastUserImagesErrorRef.current = null;
             } else {
-                showNotification("error", "Fetch Failed", data.error || "Failed to fetch your images");
+                notifyUserImagesError(
+                    data?.error || "Failed to fetch your images",
+                    "Endpoint: /api/user/images",
+                    isPolling
+                );
             }
         } catch (err) {
             console.error("Failed to fetch user images:", err);
-            showNotification("error", "Error", "An error occurred while fetching your images");
+            notifyUserImagesError(
+                err instanceof Error ? err.message : "Network error while fetching your images",
+                "Endpoint: /api/user/images",
+                isPolling
+            );
         } finally {
             setIsLoading(false);
         }

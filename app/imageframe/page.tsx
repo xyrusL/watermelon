@@ -141,6 +141,7 @@ export default function ImageFramePage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const latestGalleryRequestIdRef = useRef(0);
     const isGalleryFetchInFlightRef = useRef(false);
+    const lastGalleryApiErrorRef = useRef<string | null>(null);
 
     // Show notification helper
     const showNotification = (
@@ -157,6 +158,13 @@ export default function ImageFramePage() {
     };
 
     // formatDate and formatFileSize now imported from ./utils
+
+    const notifyGalleryApiError = (message: string, details?: string) => {
+        const dedupeKey = `${message}::${details || ""}`;
+        if (lastGalleryApiErrorRef.current === dedupeKey) return;
+        lastGalleryApiErrorRef.current = dedupeKey;
+        showNotification("error", "Gallery API Error", message, details);
+    };
 
     // Check API health when host is selected
     useEffect(() => {
@@ -192,15 +200,36 @@ export default function ImageFramePage() {
 
         try {
             const response = await fetch('/api/supabase/recent');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.images && requestId === latestGalleryRequestIdRef.current) {
-                    const images = mapDbImagesToUploadedImages(data.images);
-                    setGallery(images);
-                }
+            let data: any = null;
+            try {
+                data = await response.json();
+            } catch {
+                // Non-JSON response; we'll fall back to status-based errors below.
+            }
+
+            if (!response.ok) {
+                const statusMessage = `Request failed with status ${response.status}`;
+                const apiMessage = data?.error || data?.message || statusMessage;
+                notifyGalleryApiError(apiMessage, "Endpoint: /api/supabase/recent");
+                return;
+            }
+
+            if (data?.success && data.images && requestId === latestGalleryRequestIdRef.current) {
+                const images = mapDbImagesToUploadedImages(data.images);
+                setGallery(images);
+                lastGalleryApiErrorRef.current = null;
+            } else if (data && !data.success) {
+                notifyGalleryApiError(
+                    data.error || "Gallery API returned an error",
+                    "Endpoint: /api/supabase/recent"
+                );
             }
         } catch (err) {
             console.warn('Failed to fetch recent images:', err);
+            notifyGalleryApiError(
+                err instanceof Error ? err.message : "Network error while fetching gallery",
+                "Endpoint: /api/supabase/recent"
+            );
             // Fallback to localStorage
             const saved = localStorage.getItem("watermelon-gallery");
             if (saved) {
