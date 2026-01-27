@@ -12,7 +12,7 @@ import Header from "../components/Header";
 export const dynamic = 'force-dynamic';
 
 export default function ConverterPage() {
-    const { isSignedIn } = useUser();
+    const { isSignedIn, user } = useUser();
     const [converterType, setConverterType] = useState<"video" | "image">("video");
 
     // Video converter states
@@ -53,12 +53,58 @@ export default function ConverterPage() {
     const ffmpegRef = useRef<FFmpeg | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
 
+    const revokeObjectUrl = (url: string | null | undefined) => {
+        if (url && url.startsWith("blob:")) {
+            URL.revokeObjectURL(url);
+        }
+    };
+
+    const extToImageMime: Record<string, string> = {
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        gif: "image/gif",
+        webp: "image/webp",
+    };
+    const extToVideoMime: Record<string, string> = {
+        mp4: "video/mp4",
+        webm: "video/webm",
+        mov: "video/quicktime",
+        m4v: "video/x-m4v",
+    };
+    const getExtFromName = (name: string) =>
+        name.split(".").pop()?.toLowerCase() || "";
+
+    const getUploaderHeaders = () => {
+        const uploaderEmail = user?.primaryEmailAddress?.emailAddress || "";
+        const displayName = user?.unsafeMetadata?.displayName as string | undefined;
+        const fallbackName = uploaderEmail.split("@")[0] || "Anonymous";
+        const uploaderName = (displayName && displayName.trim()) || fallbackName;
+
+        return {
+            "x-uploader-name": uploaderName,
+            "x-uploader-email": uploaderEmail,
+            "x-is-private": "false",
+            "x-is-nsfw": "false",
+        } as const;
+    };
+
     // Initialize FFmpeg only in browser
     useEffect(() => {
         if (typeof window !== 'undefined') {
             ffmpegRef.current = new FFmpeg();
         }
     }, []);
+
+    // Cleanup any remaining object URLs on unmount
+    useEffect(() => {
+        return () => {
+            revokeObjectUrl(videoPreview);
+            revokeObjectUrl(gifUrl);
+            revokeObjectUrl(imagePreview);
+            revokeObjectUrl(convertedImageUrl);
+        };
+    }, [videoPreview, gifUrl, imagePreview, convertedImageUrl]);
 
     // Load FFmpeg
     useEffect(() => {
@@ -109,8 +155,14 @@ export default function ConverterPage() {
 
         setVideoFile(file);
         const url = URL.createObjectURL(file);
-        setVideoPreview(url);
-        setGifUrl(null);
+        setVideoPreview((prev) => {
+            revokeObjectUrl(prev);
+            return url;
+        });
+        setGifUrl((prev) => {
+            revokeObjectUrl(prev);
+            return null;
+        });
 
         // Get video duration when loaded
         const video = document.createElement("video");
@@ -142,12 +194,17 @@ export default function ConverterPage() {
             }
 
             const blob = await response.blob();
-            if (!blob.type.startsWith("video/")) {
+            const fileName = urlInput.split('/').pop()?.split('?')[0] || "video.mp4";
+            const ext = getExtFromName(fileName);
+            const mimeType = blob.type.startsWith("video/")
+                ? blob.type
+                : extToVideoMime[ext];
+
+            if (!mimeType) {
                 throw new Error("URL does not point to a valid video file");
             }
 
-            const fileName = urlInput.split('/').pop()?.split('?')[0] || "video.mp4";
-            const file = new File([blob], fileName, { type: blob.type });
+            const file = new File([blob], fileName, { type: mimeType });
 
             handleVideoSelect(file);
             setUrlInput("");
@@ -175,12 +232,17 @@ export default function ConverterPage() {
             }
 
             const blob = await response.blob();
-            if (!blob.type.startsWith("image/")) {
+            const fileName = urlInput.split('/').pop()?.split('?')[0] || "image.png";
+            const ext = getExtFromName(fileName);
+            const mimeType = blob.type.startsWith("image/")
+                ? blob.type
+                : extToImageMime[ext];
+
+            if (!mimeType) {
                 throw new Error("URL does not point to a valid image file");
             }
 
-            const fileName = urlInput.split('/').pop()?.split('?')[0] || "image.png";
-            const file = new File([blob], fileName, { type: blob.type });
+            const file = new File([blob], fileName, { type: mimeType });
 
             handleImageSelect(file);
             setUrlInput("");
@@ -229,7 +291,10 @@ export default function ConverterPage() {
             const blob = new Blob([uint8], { type: "image/gif" });
             const url = URL.createObjectURL(blob);
 
-            setGifUrl(url);
+            setGifUrl((prev) => {
+                revokeObjectUrl(prev);
+                return url;
+            });
             setGifSize(blob.size);
             setGifBlob(blob);
             setLoadingMessage("");
@@ -275,6 +340,7 @@ export default function ConverterPage() {
             const response = await fetch("/api/supabase/upload", {
                 method: "POST",
                 body: formData,
+                headers: getUploaderHeaders(),
             });
 
             const data = await response.json();
@@ -299,8 +365,14 @@ export default function ConverterPage() {
 
     const reset = () => {
         setVideoFile(null);
-        setVideoPreview(null);
-        setGifUrl(null);
+        setVideoPreview((prev) => {
+            revokeObjectUrl(prev);
+            return null;
+        });
+        setGifUrl((prev) => {
+            revokeObjectUrl(prev);
+            return null;
+        });
         setGifBlob(null);
         setProgress(0);
         setStartTime(0);
@@ -330,8 +402,14 @@ export default function ConverterPage() {
 
         setImageFile(file);
         const url = URL.createObjectURL(file);
-        setImagePreview(url);
-        setConvertedImageUrl(null);
+        setImagePreview((prev) => {
+            revokeObjectUrl(prev);
+            return url;
+        });
+        setConvertedImageUrl((prev) => {
+            revokeObjectUrl(prev);
+            return null;
+        });
     };
 
     const convertImage = async () => {
@@ -342,10 +420,18 @@ export default function ConverterPage() {
 
         try {
             const img = new window.Image();
-            img.src = URL.createObjectURL(imageFile);
+            const sourceUrl = URL.createObjectURL(imageFile);
+            img.src = sourceUrl;
 
-            await new Promise((resolve) => {
-                img.onload = resolve;
+            await new Promise<void>((resolve, reject) => {
+                img.onload = () => {
+                    revokeObjectUrl(sourceUrl);
+                    resolve();
+                };
+                img.onerror = () => {
+                    revokeObjectUrl(sourceUrl);
+                    reject(new Error("Failed to load image"));
+                };
             });
 
             const canvas = document.createElement("canvas");
@@ -367,7 +453,10 @@ export default function ConverterPage() {
                     }
 
                     const url = URL.createObjectURL(blob);
-                    setConvertedImageUrl(url);
+                    setConvertedImageUrl((prev) => {
+                        revokeObjectUrl(prev);
+                        return url;
+                    });
                     setConvertedImageBlob(blob);
                     setGifSize(blob.size);
                     setLoadingMessage("");
@@ -413,6 +502,7 @@ export default function ConverterPage() {
             const response = await fetch("/api/supabase/upload", {
                 method: "POST",
                 body: formData,
+                headers: getUploaderHeaders(),
             });
 
             const data = await response.json();
@@ -436,8 +526,14 @@ export default function ConverterPage() {
 
     const resetImage = () => {
         setImageFile(null);
-        setImagePreview(null);
-        setConvertedImageUrl(null);
+        setImagePreview((prev) => {
+            revokeObjectUrl(prev);
+            return null;
+        });
+        setConvertedImageUrl((prev) => {
+            revokeObjectUrl(prev);
+            return null;
+        });
         setConvertedImageBlob(null);
         setLoadingMessage("");
     };

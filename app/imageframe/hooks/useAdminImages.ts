@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { UploadedImage } from "../types";
 import { fetchAdminImages as fetchAdminImagesService } from "../lib/image-service";
 
@@ -34,22 +34,34 @@ export function useAdminImages(options: UseAdminImagesOptions = {}): UseAdminIma
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isFirstLoad, setIsFirstLoad] = useState(true);
+    const latestRequestIdRef = useRef(0);
+    const inFlightRef = useRef(false);
 
     const refresh = useCallback(async (silent = false) => {
+        if (inFlightRef.current) return;
+        inFlightRef.current = true;
+        const requestId = ++latestRequestIdRef.current;
+
         if (!silent) setIsLoading(true);
 
-        const result = await fetchAdminImagesService();
+        try {
+            const result = await fetchAdminImagesService();
 
-        if (result.success) {
-            setImages(result.images);
-            setStats(result.stats || null);
-            setError(null);
-        } else {
-            setError(result.error || 'Failed to fetch admin images');
+            // Ignore stale responses that completed out of order.
+            if (requestId !== latestRequestIdRef.current) return;
+
+            if (result.success) {
+                setImages(result.images);
+                setStats(result.stats || null);
+                setError(null);
+            } else {
+                setError(result.error || "Failed to fetch admin images");
+            }
+        } finally {
+            if (!silent) setIsLoading(false);
+            setIsFirstLoad(false);
+            inFlightRef.current = false;
         }
-
-        if (!silent) setIsLoading(false);
-        setIsFirstLoad(false);
     }, []);
 
     // Fetch when enabled

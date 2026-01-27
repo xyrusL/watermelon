@@ -44,6 +44,17 @@ import { mapDbImagesToUploadedImages } from "./lib/image-mapper";
 
 // Types, constants, and utilities are now imported from separate files above
 
+const ALLOWED_IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+const EXT_TO_MIME: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+};
+const getExtFromName = (name: string) =>
+    name.split(".").pop()?.toLowerCase() || "";
+
 export default function ImageFramePage() {
     const { isSignedIn, user } = useUser();
 
@@ -128,6 +139,8 @@ export default function ImageFramePage() {
     };
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const latestGalleryRequestIdRef = useRef(0);
+    const isGalleryFetchInFlightRef = useRef(false);
 
     // Show notification helper
     const showNotification = (
@@ -172,11 +185,16 @@ export default function ImageFramePage() {
 
     // Function to fetch recent images (uses centralized mapper)
     const fetchRecentImages = async () => {
+        // Prevent overlapping polling requests and guard against stale responses.
+        if (isGalleryFetchInFlightRef.current) return;
+        isGalleryFetchInFlightRef.current = true;
+        const requestId = ++latestGalleryRequestIdRef.current;
+
         try {
             const response = await fetch('/api/supabase/recent');
             if (response.ok) {
                 const data = await response.json();
-                if (data.success && data.images) {
+                if (data.success && data.images && requestId === latestGalleryRequestIdRef.current) {
                     const images = mapDbImagesToUploadedImages(data.images);
                     setGallery(images);
                 }
@@ -188,6 +206,8 @@ export default function ImageFramePage() {
             if (saved) {
                 setGallery(JSON.parse(saved));
             }
+        } finally {
+            isGalleryFetchInFlightRef.current = false;
         }
     };
 
@@ -308,12 +328,15 @@ export default function ImageFramePage() {
         setIsDragging(false);
         const file = e.dataTransfer.files[0];
         if (file) {
-            if (!file.type.startsWith("image/")) {
+            const ext = getExtFromName(file.name);
+            const hasImageType = file.type.startsWith("image/");
+            const hasAllowedExt = ALLOWED_IMAGE_EXTS.has(ext);
+            if (!hasImageType && !hasAllowedExt) {
                 showNotification(
                     "error",
                     "Invalid File Type",
-                    "Please upload an image file (PNG, JPG, or GIF)",
-                    `File type: ${file.type || "unknown"}`
+                    "Please upload an image file (PNG, JPG, GIF, or WebP)",
+                    `File type: ${file.type || `.${ext || "unknown"}`}`
                 );
                 return;
             }
@@ -335,13 +358,23 @@ export default function ImageFramePage() {
         const file = e.target.files?.[0];
         if (file) {
             // Validate file type
-            const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif"];
-            if (!validTypes.includes(file.type)) {
+            const validTypes = new Set([
+                "image/png",
+                "image/jpeg",
+                "image/jpg",
+                "image/gif",
+                "image/webp",
+            ]);
+            const ext = getExtFromName(file.name);
+            const hasValidType = validTypes.has(file.type);
+            const hasValidExt = ALLOWED_IMAGE_EXTS.has(ext);
+
+            if (!hasValidType && !hasValidExt) {
                 showNotification(
                     "error",
                     "Invalid File Format",
-                    "Only PNG, JPG, and GIF images are supported",
-                    `You selected: ${file.type || "unknown file type"}`
+                    "Only PNG, JPG, GIF, and WebP images are supported",
+                    `You selected: ${file.type || `.${ext || "unknown"}`}`
                 );
                 if (fileInputRef.current) {
                     fileInputRef.current.value = "";
@@ -379,12 +412,19 @@ export default function ImageFramePage() {
             if (!response.ok) throw new Error("Failed to fetch image");
 
             const blob = await response.blob();
-            if (!blob.type.startsWith("image/")) {
+
+            const fileName = urlInput.split('/').pop() || "image.png";
+            const ext = getExtFromName(fileName);
+            const inferredMime = EXT_TO_MIME[ext];
+            const mimeType = blob.type.startsWith("image/")
+                ? blob.type
+                : inferredMime;
+
+            if (!mimeType) {
                 throw new Error("URL does not point to a valid image");
             }
 
-            const fileName = urlInput.split('/').pop() || "image.png";
-            const file = new File([blob], fileName, { type: blob.type });
+            const file = new File([blob], fileName, { type: mimeType });
 
             selectFile(file);
             setUrlInput(""); // Clear input after successful selection
@@ -1625,7 +1665,7 @@ export default function ImageFramePage() {
                                         <input
                                             ref={fileInputRef}
                                             type="file"
-                                            accept="image/png,image/jpeg,image/gif"
+                                            accept="image/png,image/jpeg,image/gif,image/webp"
                                             onChange={handleFileSelect}
                                             className="hidden"
                                             disabled={!isSignedIn}

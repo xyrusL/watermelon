@@ -31,56 +31,84 @@ export async function POST(request: NextRequest) {
         const arrayBuffer = await file.arrayBuffer();
         let buffer: Buffer = Buffer.from(arrayBuffer);
 
+        // Determine extension and whether this is an animated GIF.
+        // GIFs must not be processed by Sharp because it can flatten animations.
+        const rawExt = file.name.split(".").pop() || "";
+        const fileExt = rawExt.toLowerCase();
+        const isGif = file.type === "image/gif" || fileExt === "gif";
+
+        // Best-effort content type fallback when the browser provides an empty type.
+        const extToMime: Record<string, string> = {
+            jpg: "image/jpeg",
+            jpeg: "image/jpeg",
+            png: "image/png",
+            webp: "image/webp",
+            gif: "image/gif",
+        };
+        const inferredContentType = extToMime[fileExt];
+        let contentType = file.type || inferredContentType || "application/octet-stream";
+
         // Optimize image using Sharp
-        try {
-            const image = sharp(buffer);
-            const metadata = await image.metadata();
+        if (!isGif) {
+            try {
+                const image = sharp(buffer);
+                const metadata = await image.metadata();
 
-            // Optimize based on format
-            if (metadata.format === 'jpeg' || metadata.format === 'jpg') {
-                buffer = await image
-                    .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
-                    .jpeg({ quality: 85, progressive: true, mozjpeg: true })
-                    .toBuffer() as Buffer;
-            } else if (metadata.format === 'png') {
-                buffer = await image
-                    .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
-                    .png({ quality: 85, compressionLevel: 9, progressive: true })
-                    .toBuffer() as Buffer;
-            } else if (metadata.format === 'webp') {
-                buffer = await image
-                    .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
-                    .webp({ quality: 85 })
-                    .toBuffer() as Buffer;
-            } else if (metadata.format === 'gif') {
-                // For GIF, don't optimize as it might break animations
-                // Just resize if needed
-                if (metadata.width && metadata.width > 2048) {
-                    buffer = await image
-                        .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
-                        .toBuffer() as Buffer;
+                // If Sharp can detect the format and the incoming type was empty,
+                // prefer the detected type for storage metadata.
+                if (!file.type && metadata.format) {
+                    const detectedMime = extToMime[metadata.format];
+                    if (detectedMime) {
+                        contentType = detectedMime;
+                    }
                 }
-            }
 
-            console.log(`Image optimized: ${file.size} bytes -> ${buffer.length} bytes (${((1 - buffer.length / file.size) * 100).toFixed(1)}% reduction)`);
-        } catch (optimizeError) {
-            console.warn("Image optimization failed, using original:", optimizeError);
-            // If optimization fails, use original buffer
+                // Optimize based on format
+                if (metadata.format === "jpeg" || metadata.format === "jpg") {
+                    buffer = (await image
+                        .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+                        .jpeg({ quality: 85, progressive: true, mozjpeg: true })
+                        .toBuffer()) as Buffer;
+                } else if (metadata.format === "png") {
+                    buffer = (await image
+                        .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+                        .png({ quality: 85, compressionLevel: 9, progressive: true })
+                        .toBuffer()) as Buffer;
+                } else if (metadata.format === "webp") {
+                    buffer = (await image
+                        .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+                        .webp({ quality: 85 })
+                        .toBuffer()) as Buffer;
+                }
+
+                console.log(
+                    `Image optimized: ${file.size} bytes -> ${buffer.length} bytes (${(
+                        (1 - buffer.length / file.size) *
+                        100
+                    ).toFixed(1)}% reduction)`
+                );
+            } catch (optimizeError) {
+                console.warn("Image optimization failed, using original:", optimizeError);
+                // If optimization fails, use original buffer
+            }
+        } else {
+            // Ensure GIF uploads always carry the correct content type.
+            contentType = "image/gif";
         }
 
         // Generate unique filename
         const timestamp = Date.now();
         const randomString = Math.random().toString(36).substring(2, 15);
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${timestamp}-${randomString}.${fileExt}`;
+        const safeExt = fileExt || "bin";
+        const fileName = `${timestamp}-${randomString}.${safeExt}`;
         const filePath = `imageframe/${fileName}`;
 
         // Upload to Supabase Storage
         const { data, error } = await supabase.storage
             .from('watermelon-images') // Your bucket name
             .upload(filePath, buffer, {
-                contentType: file.type,
-                cacheControl: '3600',
+                contentType,
+                cacheControl: "3600",
                 upsert: false
             });
 
