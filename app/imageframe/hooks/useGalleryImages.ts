@@ -8,7 +8,7 @@ import { UploadedImage } from "../types";
 import { fetchPublicImages } from "../lib/image-service";
 
 interface UseGalleryImagesOptions {
-    pollInterval?: number; // ms, default 1000
+    pollInterval?: number; // ms, default 3000
     enabled?: boolean;     // default true
 }
 
@@ -20,7 +20,7 @@ interface UseGalleryImagesResult {
 }
 
 export function useGalleryImages(options: UseGalleryImagesOptions = {}): UseGalleryImagesResult {
-    const { pollInterval = 1000, enabled = true } = options;
+    const { pollInterval = 3000, enabled = true } = options;
 
     const [images, setImages] = useState<(UploadedImage & { id: string })[]>([]);
     const [isLoading, setIsLoading] = useState(false);

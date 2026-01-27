@@ -220,8 +220,8 @@ export default function ImageFramePage() {
 
         loadGallery();
 
-        // Poll for updates every 1 second (faster sync for privacy changes)
-        const interval = setInterval(() => fetchRecentImages(), 1000);
+        // Poll for updates every 3 seconds to reduce request pressure
+        const interval = setInterval(() => fetchRecentImages(), 3000);
 
         return () => clearInterval(interval);
     }, []);

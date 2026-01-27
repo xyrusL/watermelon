@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
         if (!isAdmin) {
             if (userEmail) {
                 // Show public images (NULL or false) OR user's own private images
-                query = query.or(`is_private.is.null,is_private.eq.false,uploader_email.eq.${userEmail}`);
+                const encodedEmail = encodeURIComponent(userEmail);
+                query = query.or(`is_private.is.null,is_private.eq.false,uploader_email.eq.${encodedEmail}`);
             } else {
                 // Only show public images (NULL or false)
                 query = query.or('is_private.is.null,is_private.eq.false');
