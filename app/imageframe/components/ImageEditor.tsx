@@ -21,6 +21,16 @@ interface ImageEditorProps {
     onApply: (croppedFile: File, previewUrl: string) => void;
 }
 
+const MIME_BY_EXT: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+};
+
+const CANVAS_SUPPORTED_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
+
 export default function ImageEditor({
     isOpen,
     imageSrc,
@@ -182,14 +192,31 @@ export default function ImageEditor({
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        const scaleX = image.naturalWidth / image.width;
-        const scaleY = image.naturalHeight / image.height;
+        const resolveCropPixels = (crop: Crop) => {
+            if (crop.unit === "%") {
+                return {
+                    x: (crop.x / 100) * image.naturalWidth,
+                    y: (crop.y / 100) * image.naturalHeight,
+                    width: (crop.width / 100) * image.naturalWidth,
+                    height: (crop.height / 100) * image.naturalHeight,
+                };
+            }
+
+            const scaleX = image.naturalWidth / image.width;
+            const scaleY = image.naturalHeight / image.height;
+            return {
+                x: crop.x * scaleX,
+                y: crop.y * scaleY,
+                width: crop.width * scaleX,
+                height: crop.height * scaleY,
+            };
+        };
 
         // Calculate crop dimensions
-        const cropX = completedCrop.x * scaleX;
-        const cropY = completedCrop.y * scaleY;
-        const cropWidth = completedCrop.width * scaleX;
-        const cropHeight = completedCrop.height * scaleY;
+        const { x: cropX, y: cropY, width: cropWidth, height: cropHeight } =
+            resolveCropPixels(completedCrop);
+
+        if (cropWidth <= 0 || cropHeight <= 0) return;
 
         // Determine output dimensions based on rotation
         const isRotated90or270 = rotation === 90 || rotation === 270;
@@ -219,18 +246,33 @@ export default function ImageEditor({
         );
         ctx.restore();
 
+        const originalName = originalFile?.name || "image.png";
+        const originalExt = originalName.split(".").pop()?.toLowerCase() || "";
+        const originalMime = originalFile?.type || MIME_BY_EXT[originalExt] || "";
+        const outputType = CANVAS_SUPPORTED_MIME.has(originalMime)
+            ? originalMime
+            : "image/png";
+        const outputExt =
+            outputType === "image/jpeg"
+                ? originalExt === "jpeg"
+                    ? "jpeg"
+                    : "jpg"
+                : outputType === "image/webp"
+                    ? "webp"
+                    : "png";
+
         // Convert to blob and create file
         canvas.toBlob((blob) => {
             if (blob) {
                 const croppedUrl = URL.createObjectURL(blob);
-                const originalName = originalFile?.name || "image.png";
-                const extension = originalName.split('.').pop() || 'png';
-                const croppedFile = new File([blob], `watermelon-${Date.now()}.${extension}`, {
-                    type: "image/png",
-                });
+                const croppedFile = new File(
+                    [blob],
+                    `watermelon-${Date.now()}.${outputExt}`,
+                    { type: outputType }
+                );
                 onApply(croppedFile, croppedUrl);
             }
-        }, "image/png");
+        }, outputType);
     };
 
     // Zoom handlers

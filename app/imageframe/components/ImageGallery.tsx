@@ -33,9 +33,10 @@ export default function ImageGallery({
                 {images.map((img) => {
                     const isOwnPrivate = img.is_private && img.uploaderEmail === currentUserEmail;
                     const isNsfwImage = img.is_nsfw === true;
+                    const imageKey = img.id || img.directUrl || `${img.uploadedAt}-${img.filename}`;
                     return (
                         <div
-                            key={img.uploadedAt}
+                            key={imageKey}
                             onClick={() => onImageClick(img)}
                             className={`glass rounded-xl overflow-hidden cursor-pointer hover:scale-105 transition-all group relative ${isOwnPrivate
                                 ? 'ring-2 ring-[#ffa502] ring-offset-2 ring-offset-black/50 shadow-lg shadow-[#ffa502]/20'

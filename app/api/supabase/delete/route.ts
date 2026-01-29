@@ -1,8 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 export async function POST(request: NextRequest) {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json(
+                { success: false, error: "Unauthorized" },
+                { status: 401 }
+            );
+        }
+
+        const client = await clerkClient();
+        const currentUser = await client.users.getUser(userId);
+        const userEmail = currentUser.emailAddresses[0]?.emailAddress;
+        const isAdmin = currentUser.publicMetadata?.role === "admin";
+
+        if (!userEmail && !isAdmin) {
+            return NextResponse.json(
+                { success: false, error: "User email not found" },
+                { status: 400 }
+            );
+        }
+
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -24,6 +45,27 @@ export async function POST(request: NextRequest) {
 
         // Initialize Supabase client
         const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Verify ownership (or admin) before deleting
+        const { data: imageRecord, error: fetchError } = await supabase
+            .from('images')
+            .select('uploader_email, file_path')
+            .eq('file_path', deleteUrl)
+            .single();
+
+        if (fetchError || !imageRecord) {
+            return NextResponse.json(
+                { success: false, error: "Image not found" },
+                { status: 404 }
+            );
+        }
+
+        if (!isAdmin && imageRecord.uploader_email !== userEmail) {
+            return NextResponse.json(
+                { success: false, error: "Forbidden - You can only delete your own images" },
+                { status: 403 }
+            );
+        }
 
         // Delete from Supabase Storage
         const { error } = await supabase.storage

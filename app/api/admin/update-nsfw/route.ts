@@ -1,10 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { auth, clerkClient } from "@clerk/nextjs/server";
+
+async function requireAdmin() {
+    const { userId } = await auth();
+    if (!userId) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { success: false, error: "Unauthorized" },
+                { status: 401 }
+            ),
+        };
+    }
+
+    const client = await clerkClient();
+    const currentUser = await client.users.getUser(userId);
+
+    if (currentUser.publicMetadata?.role !== "admin") {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { success: false, error: "Forbidden - Admin access required" },
+                { status: 403 }
+            ),
+        };
+    }
+
+    return { ok: true as const };
+}
 
 // POST: Admin update NSFW status
 export async function POST(request: NextRequest) {
     try {
-        // Note: In production, verify admin role from Clerk or middleware
+        const adminCheck = await requireAdmin();
+        if (!adminCheck.ok) return adminCheck.response;
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
