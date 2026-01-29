@@ -66,9 +66,9 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden reduce-motion-on-mobile">
       {/* Background */}
-      <div className="fixed inset-0 z-0">
+      <div className="background-layer inset-0 z-0">
         <Image
           src="/bg.png"
           alt="Background"

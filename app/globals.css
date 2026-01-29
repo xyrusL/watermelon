@@ -136,3 +136,31 @@ button {
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* Performance: reduce heavy effects on small screens */
+.background-layer {
+  position: fixed;
+}
+
+@media (max-width: 639px) {
+  .background-layer {
+    position: absolute;
+  }
+
+  .glass {
+    backdrop-filter: none;
+    background: rgba(26, 26, 26, 0.85);
+  }
+
+  .reduce-motion-on-mobile * {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
