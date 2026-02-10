@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildWatermelonFilename } from "@/app/api/_lib/filename";
 
 export async function POST(request: NextRequest) {
     try {
@@ -18,12 +19,15 @@ export async function POST(request: NextRequest) {
         const bytes = await image.arrayBuffer();
         const buffer = Buffer.from(bytes);
         const base64 = buffer.toString("base64");
+        const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const normalizedFileName = buildWatermelonFilename(image.name, uniqueSuffix, "png");
 
         // Upload to freeimage.host (same API format as imgbb)
         const freeimageFormData = new FormData();
         freeimageFormData.append("key", process.env.FREEIMAGE_API_KEY || "");
         freeimageFormData.append("source", base64);
         freeimageFormData.append("format", "json");
+        freeimageFormData.append("name", normalizedFileName.replace(/\.[^/.]+$/, ""));
 
         const response = await fetch("https://freeimage.host/api/1/upload", {
             method: "POST",
@@ -49,7 +53,7 @@ export async function POST(request: NextRequest) {
             directUrl: data.image.url,
             deleteUrl: data.image.delete_url,
             thumbnail: data.image.thumb?.url || data.image.url,
-            filename: data.image.filename || image.name,
+            filename: normalizedFileName,
             host: "freeimage",
         });
     } catch (error) {

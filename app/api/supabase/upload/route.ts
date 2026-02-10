@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { suggestFrameSizeFromPixels } from "@/app/imageframe/lib/imageframe-command";
+import { buildWatermelonFilename } from "@/app/api/_lib/filename";
 
 export async function POST(request: NextRequest) {
     try {
@@ -101,11 +102,12 @@ export async function POST(request: NextRequest) {
         const timestamp = Date.now();
         const randomString = Math.random().toString(36).substring(2, 15);
         const safeExt = fileExt || "bin";
-        const fileName = `${timestamp}-${randomString}.${safeExt}`;
+        const uniqueSuffix = `${timestamp}-${randomString}`;
+        const fileName = buildWatermelonFilename(file.name, uniqueSuffix, safeExt);
         const filePath = `imageframe/${fileName}`;
 
         // Upload to Supabase Storage
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
             .from('watermelon-images') // Your bucket name
             .upload(filePath, buffer, {
                 contentType,
@@ -146,12 +148,13 @@ export async function POST(request: NextRequest) {
 
         let frameWidth: number | null = null;
         let frameHeight: number | null = null;
-        let frameSource: "user" | "algorithm" | "fallback" = "fallback";
+        let frameSource: "user" | "face-auto" | "algorithm" | "fallback" = "fallback";
+        const requestedFrameSource = request.headers.get("x-frame-source");
 
         if (hasUserFrame) {
             frameWidth = parsedFrameWidth;
             frameHeight = parsedFrameHeight;
-            frameSource = "user";
+            frameSource = requestedFrameSource === "face-auto" ? "face-auto" : "user";
         } else if (imageWidth && imageHeight) {
             const suggested = suggestFrameSizeFromPixels(imageWidth, imageHeight);
             frameWidth = suggested.dimensions.width;
@@ -165,7 +168,7 @@ export async function POST(request: NextRequest) {
                 .from('images')
                 .insert({
                     file_path: filePath,
-                    filename: file.name,
+                    filename: fileName,
                     url: directPublicUrl,
                     file_size: buffer.length,
                     uploader_name: uploaderName,
@@ -194,7 +197,7 @@ export async function POST(request: NextRequest) {
             directUrl: directPublicUrl,
             deleteUrl: filePath, // Store the path for deletion
             thumbnail: directPublicUrl,
-            filename: file.name,
+            filename: fileName,
             imageWidth,
             imageHeight,
             frameWidth,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildWatermelonFilename } from "@/app/api/_lib/filename";
 
 export async function POST(request: NextRequest) {
     try {
@@ -13,12 +14,14 @@ export async function POST(request: NextRequest) {
         const bytes = await image.arrayBuffer();
         const buffer = Buffer.from(bytes);
         const base64 = buffer.toString("base64");
+        const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const normalizedFileName = buildWatermelonFilename(image.name, uniqueSuffix, "png");
 
         // Upload to imgbb
         const imgbbFormData = new FormData();
         imgbbFormData.append("key", process.env.IMGBB_API_KEY || "");
         imgbbFormData.append("image", base64);
-        imgbbFormData.append("name", image.name.replace(/\.[^/.]+$/, "")); // Remove extension
+        imgbbFormData.append("name", normalizedFileName.replace(/\.[^/.]+$/, ""));
 
         const response = await fetch("https://api.imgbb.com/1/upload", {
             method: "POST",
@@ -41,7 +44,7 @@ export async function POST(request: NextRequest) {
             directUrl: data.data.image.url, // Direct link to image file
             deleteUrl: data.data.delete_url,
             thumbnail: data.data.thumb?.url,
-            filename: data.data.image.filename,
+            filename: normalizedFileName,
         });
     } catch (error) {
         console.error("Upload error:", error);
