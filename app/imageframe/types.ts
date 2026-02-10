@@ -13,6 +13,10 @@ export interface UploadedImage {
     id?: string;
     is_private?: boolean;
     is_nsfw?: boolean;
+    imageWidth?: number;
+    imageHeight?: number;
+    frameWidth?: number;
+    frameHeight?: number;
 }
 
 export type HostType = "imgbb" | "supabase";
@@ -41,4 +45,9 @@ export interface FrameSize {
     ratio: number | undefined;
     frames: number;
     icon: React.ReactNode | string;
+}
+
+export interface FrameDimensions {
+    width: number;
+    height: number;
 }
