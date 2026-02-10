@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import { suggestFrameSizeFromPixels } from "@/app/imageframe/lib/imageframe-command";
 
 export async function POST(request: NextRequest) {
     try {
@@ -133,6 +134,31 @@ export async function POST(request: NextRequest) {
         const isPrivate = request.headers.get('x-is-private') === 'true'; // Default false
         const isNsfw = request.headers.get('x-is-nsfw') === 'true'; // Default false
 
+        const parsedFrameWidth = Number.parseInt(request.headers.get("x-frame-width") || "", 10);
+        const parsedFrameHeight = Number.parseInt(request.headers.get("x-frame-height") || "", 10);
+        const hasUserFrame = Number.isFinite(parsedFrameWidth) && Number.isFinite(parsedFrameHeight)
+            && parsedFrameWidth >= 1 && parsedFrameWidth <= 100
+            && parsedFrameHeight >= 1 && parsedFrameHeight <= 100;
+
+        const metadataForSize = await sharp(buffer, { animated: isGif }).metadata();
+        const imageWidth = metadataForSize.width || null;
+        const imageHeight = metadataForSize.height || null;
+
+        let frameWidth: number | null = null;
+        let frameHeight: number | null = null;
+        let frameSource: "user" | "algorithm" | "fallback" = "fallback";
+
+        if (hasUserFrame) {
+            frameWidth = parsedFrameWidth;
+            frameHeight = parsedFrameHeight;
+            frameSource = "user";
+        } else if (imageWidth && imageHeight) {
+            const suggested = suggestFrameSizeFromPixels(imageWidth, imageHeight);
+            frameWidth = suggested.dimensions.width;
+            frameHeight = suggested.dimensions.height;
+            frameSource = "algorithm";
+        }
+
         // Save image metadata to database for admin tracking
         try {
             const { error: dbError } = await supabase
@@ -147,7 +173,11 @@ export async function POST(request: NextRequest) {
                     host: 'supabase',
                     uploaded_at: new Date().toISOString(),
                     is_private: isPrivate,
-                    is_nsfw: isNsfw
+                    is_nsfw: isNsfw,
+                    image_width: imageWidth,
+                    image_height: imageHeight,
+                    frame_width: frameWidth,
+                    frame_height: frameHeight,
                 });
 
             if (dbError) {
@@ -165,6 +195,11 @@ export async function POST(request: NextRequest) {
             deleteUrl: filePath, // Store the path for deletion
             thumbnail: directPublicUrl,
             filename: file.name,
+            imageWidth,
+            imageHeight,
+            frameWidth,
+            frameHeight,
+            frameSource,
             message: "Image uploaded successfully to Watermelon Storage"
         });
 
