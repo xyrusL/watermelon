@@ -70,7 +70,7 @@ const loadImageDimensions = (src: string): Promise<FrameDimensions> =>
     });
 
 export default function ImageFramePage() {
-    const { isSignedIn, user } = useUser();
+    const { isSignedIn, isLoaded, user } = useUser();
 
     // Check if user is admin (via Clerk's publicMetadata)
     const isAdmin = user?.publicMetadata?.role === "admin";
@@ -160,6 +160,7 @@ export default function ImageFramePage() {
     const latestGalleryRequestIdRef = useRef(0);
     const isGalleryFetchInFlightRef = useRef(false);
     const lastGalleryApiErrorRef = useRef<string | null>(null);
+    const logoutModalTimeoutRef = useRef<number | null>(null);
 
     // Show notification helper
     const showNotification = (
@@ -319,14 +320,38 @@ export default function ImageFramePage() {
 
     // Detect logout and show modal
     useEffect(() => {
-        const wasSignedIn = localStorage.getItem('wasSignedIn');
-        if (wasSignedIn === 'true' && !isSignedIn) {
-            setShowLogoutConfirm(true);
-            localStorage.removeItem('wasSignedIn');
-        } else if (isSignedIn) {
-            localStorage.setItem('wasSignedIn', 'true');
+        if (!isLoaded) return;
+
+        if (logoutModalTimeoutRef.current) {
+            window.clearTimeout(logoutModalTimeoutRef.current);
+            logoutModalTimeoutRef.current = null;
         }
-    }, [isSignedIn]);
+
+        const wasSignedIn = localStorage.getItem('wasSignedIn');
+        if (isSignedIn) {
+            localStorage.setItem('wasSignedIn', 'true');
+            setShowLogoutConfirm(false);
+            return;
+        }
+
+        // Auth can briefly appear signed-out during initial hydration/session refresh.
+        // Delay modal display and re-check settled state before showing logout prompt.
+        if (wasSignedIn === 'true' && !isSignedIn) {
+            logoutModalTimeoutRef.current = window.setTimeout(() => {
+                if (!isSignedIn) {
+                    setShowLogoutConfirm(true);
+                    localStorage.removeItem('wasSignedIn');
+                }
+            }, 1500);
+        }
+
+        return () => {
+            if (logoutModalTimeoutRef.current) {
+                window.clearTimeout(logoutModalTimeoutRef.current);
+                logoutModalTimeoutRef.current = null;
+            }
+        };
+    }, [isLoaded, isSignedIn]);
 
     // Sync adminSelectedImage with latest data from adminImages
     // This ensures the modal shows up-to-date visibility/NSFW status
@@ -1363,6 +1388,8 @@ export default function ImageFramePage() {
                 onCopyUrl={copyUrl}
                 onDelete={deleteImage}
                 onShowDeleteConfirm={setShowDeleteConfirm}
+                onToggleVisibility={isAdmin ? toggleAdminVisibility : undefined}
+                onToggleNsfw={isAdmin ? toggleAdminNsfw : undefined}
             />
 
             {/* API Error Modal */}
