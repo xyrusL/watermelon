@@ -10,7 +10,7 @@ import {
     PixelRefresh,
 } from "./PixelIcons";
 import { FRAME_SIZES } from "../constants";
-import type { FrameSize } from "../types";
+import type { FrameSize, FrameDimensions } from "../types";
 import { RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 
 interface ImageEditorProps {
@@ -18,7 +18,7 @@ interface ImageEditorProps {
     imageSrc: string | null;
     originalFile: File | null;
     onClose: () => void;
-    onApply: (croppedFile: File, previewUrl: string) => void;
+    onApply: (croppedFile: File, previewUrl: string, frameDimensions: FrameDimensions) => void;
 }
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -52,6 +52,8 @@ export default function ImageEditor({
     // Custom frame size state
     const [customWidth, setCustomWidth] = useState(3);
     const [customHeight, setCustomHeight] = useState(2);
+    const [customWidthInput, setCustomWidthInput] = useState("3");
+    const [customHeightInput, setCustomHeightInput] = useState("2");
     const [isCustomMode, setIsCustomMode] = useState(false);
 
     // Refs
@@ -76,8 +78,52 @@ export default function ImageEditor({
             setIsCustomMode(false);
             setCustomWidth(3);
             setCustomHeight(2);
+            setCustomWidthInput("3");
+            setCustomHeightInput("2");
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        setCustomWidthInput(String(customWidth));
+    }, [customWidth]);
+
+    useEffect(() => {
+        setCustomHeightInput(String(customHeight));
+    }, [customHeight]);
+
+    const clampFrameDimension = (value: number) => Math.max(1, Math.min(100, value));
+
+    const commitCustomWidth = () => {
+        const parsed = parseInt(customWidthInput, 10);
+        const next = Number.isNaN(parsed) ? 1 : clampFrameDimension(parsed);
+        setCustomWidth(next);
+        setCustomWidthInput(String(next));
+        setIsCustomMode(true);
+    };
+
+    const commitCustomHeight = () => {
+        const parsed = parseInt(customHeightInput, 10);
+        const next = Number.isNaN(parsed) ? 1 : clampFrameDimension(parsed);
+        setCustomHeight(next);
+        setCustomHeightInput(String(next));
+        setIsCustomMode(true);
+    };
+
+    const getCurrentFrameDimensions = (): FrameDimensions => {
+        if (isCustomMode) {
+            return { width: customWidth, height: customHeight };
+        }
+
+        const match = selectedFrameSize.name.match(/^(\d+)×(\d+)$/);
+        if (match) {
+            return {
+                width: Number(match[1]),
+                height: Number(match[2]),
+            };
+        }
+
+        return { width: 1, height: 1 };
+    };
 
     // Get the current aspect ratio (either from preset or custom)
     const getCurrentAspectRatio = useCallback(() => {
@@ -270,7 +316,7 @@ export default function ImageEditor({
                     `watermelon-${Date.now()}.${outputExt}`,
                     { type: outputType }
                 );
-                onApply(croppedFile, croppedUrl);
+                onApply(croppedFile, croppedUrl, getCurrentFrameDimensions());
             }
         }, outputType);
     };
@@ -399,13 +445,22 @@ export default function ImageEditor({
                                                 type="number"
                                                 min="1"
                                                 max="100"
-                                                value={customWidth}
+                                                value={customWidthInput}
                                                 onChange={(e) => {
-                                                    const val = Math.max(1, Math.min(100, parseInt(e.target.value) || 1));
-                                                    setCustomWidth(val);
+                                                    setCustomWidthInput(e.target.value);
                                                     setIsCustomMode(true);
                                                 }}
-                                                onFocus={() => setIsCustomMode(true)}
+                                                onBlur={commitCustomWidth}
+                                                onFocus={(e) => {
+                                                    setIsCustomMode(true);
+                                                    e.currentTarget.select();
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        commitCustomWidth();
+                                                        e.currentTarget.blur();
+                                                    }
+                                                }}
                                                 className="w-full px-2 py-1.5 rounded-lg bg-black/40 border border-white/10 text-white text-center text-sm focus:border-[#2ed573]/50 focus:outline-none"
                                             />
                                         </div>
@@ -416,13 +471,22 @@ export default function ImageEditor({
                                                 type="number"
                                                 min="1"
                                                 max="100"
-                                                value={customHeight}
+                                                value={customHeightInput}
                                                 onChange={(e) => {
-                                                    const val = Math.max(1, Math.min(100, parseInt(e.target.value) || 1));
-                                                    setCustomHeight(val);
+                                                    setCustomHeightInput(e.target.value);
                                                     setIsCustomMode(true);
                                                 }}
-                                                onFocus={() => setIsCustomMode(true)}
+                                                onBlur={commitCustomHeight}
+                                                onFocus={(e) => {
+                                                    setIsCustomMode(true);
+                                                    e.currentTarget.select();
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        commitCustomHeight();
+                                                        e.currentTarget.blur();
+                                                    }
+                                                }}
                                                 className="w-full px-2 py-1.5 rounded-lg bg-black/40 border border-white/10 text-white text-center text-sm focus:border-[#2ed573]/50 focus:outline-none"
                                             />
                                         </div>
