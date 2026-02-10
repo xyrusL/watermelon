@@ -2,14 +2,25 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Dispatch, SetStateAction } from "react";
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import Header from "../components/Header";
+import ActionButton from "../components/ActionButton";
 
 // Force dynamic rendering - FFmpeg only works in browser
 export const dynamic = 'force-dynamic';
+
+type VideoGifSettings = {
+    startTime: number;
+    duration: number;
+    fps: number;
+    scale: number;
+    quality: number;
+};
+
+type QualityPreset = "high" | "medium" | "low";
 
 export default function ConverterPage() {
     const { isSignedIn, user } = useUser();
@@ -32,6 +43,8 @@ export default function ConverterPage() {
     const [duration, setDuration] = useState(0);
     const [maxDuration, setMaxDuration] = useState(10);
     const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+    const [suggestedSettings, setSuggestedSettings] = useState<VideoGifSettings | null>(null);
+    const [useSuggestedSettings, setUseSuggestedSettings] = useState(true);
 
     // Image converter states
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -52,6 +65,9 @@ export default function ConverterPage() {
 
     const ffmpegRef = useRef<FFmpeg | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const isConvertingRef = useRef(false);
+    const conversionDurationRef = useRef(0);
+    const lastProgressRef = useRef(0);
 
     const revokeObjectUrl = (url: string | null | undefined) => {
         if (url && url.startsWith("blob:")) {
@@ -74,6 +90,113 @@ export default function ConverterPage() {
     };
     const getExtFromName = (name: string) =>
         name.split(".").pop()?.toLowerCase() || "";
+
+    const parseTimestampToSeconds = (value: string) => {
+        const match = value.match(/(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)/);
+        if (!match) return null;
+
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+        const seconds = Number(match[3]);
+
+        if ([hours, minutes, seconds].some((part) => Number.isNaN(part))) {
+            return null;
+        }
+
+        return hours * 3600 + minutes * 60 + seconds;
+    };
+
+    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+    const normalizeScale = (value: number) => {
+        const snapped = Math.round(value / 80) * 80;
+        return clamp(snapped, 320, 720);
+    };
+    const getSuggestedVideoSettings = (video: {
+        width: number;
+        height: number;
+        duration: number;
+        sizeBytes: number;
+    }): VideoGifSettings => {
+        const sourceWidth = Math.max(1, video.width);
+        const sourceHeight = Math.max(1, video.height);
+        const sourceDurationSeconds = Math.max(0.1, video.duration);
+        const sourceDurationRounded = Math.max(1, Math.floor(video.duration));
+        const durationCap = Math.max(1, Math.min(10, sourceDurationRounded));
+        const sizeMB = video.sizeBytes / (1024 * 1024);
+        const pixelsPerFrame = Math.max(1, sourceWidth * sourceHeight);
+        const aspectRatio = sourceWidth / sourceHeight;
+        const isPortrait = aspectRatio < 1;
+
+        // Proxy for "how hard this video is to compress" without decoding every frame.
+        const bitrateBps = (video.sizeBytes * 8) / sourceDurationSeconds;
+        const bitsPerPixelPerSecond = bitrateBps / pixelsPerFrame;
+        const detailScore = clamp((bitsPerPixelPerSecond - 0.04) / 0.24, 0, 1);
+        const resolutionScore = clamp((pixelsPerFrame - 640 * 360) / (1920 * 1080 - 640 * 360), 0, 1);
+        const lengthScore = clamp((sourceDurationSeconds - 4) / 24, 0, 1);
+        const sizeScore = clamp((sizeMB - 4) / 40, 0, 1);
+        const compressionPressure = clamp(
+            0.42 * resolutionScore + 0.26 * lengthScore + 0.22 * sizeScore + 0.10 * detailScore,
+            0,
+            1
+        );
+
+        let suggestedDuration = sourceDurationSeconds <= 4
+            ? sourceDurationSeconds
+            : 6.5 - compressionPressure * 2 + detailScore * 0.8;
+        suggestedDuration = clamp(Math.round(suggestedDuration), 1, durationCap);
+
+        let suggestedFps = 18 + detailScore * 6 - compressionPressure * 6;
+        if (sourceDurationSeconds >= 20) suggestedFps -= 1.5;
+        if (sourceDurationSeconds <= 3) suggestedFps += 1.5;
+        suggestedFps = clamp(Math.round(suggestedFps), 10, 24);
+
+        let targetPixelsPerFrame = 360_000 - compressionPressure * 190_000 + detailScore * 35_000;
+        if (isPortrait) targetPixelsPerFrame *= 0.9;
+
+        const widthFromTargetPixels = Math.sqrt(Math.max(1, targetPixelsPerFrame * aspectRatio));
+        const cappedWidth = Math.min(widthFromTargetPixels, sourceWidth, 720);
+        const suggestedScale = normalizeScale(clamp(cappedWidth, 320, 720));
+
+        let suggestedQuality = 11 + compressionPressure * 10 - detailScore * 3;
+        if (sourceDurationSeconds >= 20) suggestedQuality += 1;
+        if (sourceDurationSeconds <= 3 && compressionPressure < 0.35) suggestedQuality -= 1;
+        suggestedQuality = clamp(Math.round(suggestedQuality), 6, 22);
+
+        return {
+            startTime: 0,
+            duration: Math.max(1, Math.round(suggestedDuration)),
+            fps: clamp(Math.round(suggestedFps), 10, 30),
+            scale: suggestedScale,
+            quality: clamp(Math.round(suggestedQuality), 5, 25),
+        };
+    };
+    const applyVideoSettings = (settings: VideoGifSettings) => {
+        setStartTime(clamp(settings.startTime, 0, Math.max(0, maxDuration)));
+        setDuration(clamp(settings.duration, 1, Math.max(1, Math.min(10, maxDuration))));
+        setFps(clamp(settings.fps, 10, 30));
+        setScale(normalizeScale(settings.scale));
+        setQuality(clamp(settings.quality, 5, 25));
+    };
+    const handleManualVideoSettingChange = (setter: Dispatch<SetStateAction<number>>, value: number) => {
+        setUseSuggestedSettings(false);
+        setter(value);
+    };
+    const handleSuggestedToggle = (enabled: boolean) => {
+        setUseSuggestedSettings(enabled);
+        if (enabled && suggestedSettings) {
+            applyVideoSettings(suggestedSettings);
+        }
+    };
+    const getQualityPreset = (value: number): QualityPreset => {
+        if (value <= 10) return "high";
+        if (value <= 17) return "medium";
+        return "low";
+    };
+    const getQualityPresetValue = (preset: QualityPreset) => {
+        if (preset === "high") return 8;
+        if (preset === "medium") return 14;
+        return 21;
+    };
 
     const getUploaderHeaders = () => {
         const uploaderEmail = user?.primaryEmailAddress?.emailAddress || "";
@@ -115,10 +238,36 @@ export default function ConverterPage() {
 
             ffmpeg.on("log", ({ message }) => {
                 console.log(message);
+
+                if (!isConvertingRef.current) return;
+
+                const timeMatch = message.match(/time=(\d{2}:\d{2}:\d{2}(?:\.\d+)?)/);
+                if (!timeMatch) return;
+
+                const processedSeconds = parseTimestampToSeconds(timeMatch[1]);
+                const totalSeconds = conversionDurationRef.current;
+
+                if (processedSeconds === null || totalSeconds <= 0) return;
+
+                const conversionRatio = Math.min(processedSeconds / totalSeconds, 1);
+                const mappedProgress = Math.min(94, 10 + Math.round(conversionRatio * 84));
+
+                if (mappedProgress > lastProgressRef.current) {
+                    lastProgressRef.current = mappedProgress;
+                    setProgress(mappedProgress);
+                }
             });
 
             ffmpeg.on("progress", ({ progress: p }) => {
-                setProgress(Math.round(p * 100));
+                if (!isConvertingRef.current) return;
+
+                const safeProgress = Number.isFinite(p) ? Math.min(Math.max(p, 0), 1) : 0;
+                const mappedProgress = Math.min(94, 10 + Math.round(safeProgress * 84));
+
+                if (mappedProgress > lastProgressRef.current) {
+                    lastProgressRef.current = mappedProgress;
+                    setProgress(mappedProgress);
+                }
             });
 
             try {
@@ -168,8 +317,21 @@ export default function ConverterPage() {
         const video = document.createElement("video");
         video.src = url;
         video.onloadedmetadata = () => {
-            setMaxDuration(Math.floor(video.duration));
-            setDuration(Math.min(5, Math.floor(video.duration))); // Default 5 seconds
+            const videoDuration = Math.max(1, Math.floor(video.duration));
+            setMaxDuration(videoDuration);
+            const recommendation = getSuggestedVideoSettings({
+                width: video.videoWidth,
+                height: video.videoHeight,
+                duration: video.duration,
+                sizeBytes: file.size,
+            });
+            setSuggestedSettings(recommendation);
+            setUseSuggestedSettings(true);
+            setStartTime(recommendation.startTime);
+            setDuration(clamp(recommendation.duration, 1, Math.max(1, Math.min(10, videoDuration))));
+            setFps(recommendation.fps);
+            setScale(recommendation.scale);
+            setQuality(recommendation.quality);
         };
     };
 
@@ -260,13 +422,19 @@ export default function ConverterPage() {
 
         setIsLoading(true);
         setProgress(0);
+        lastProgressRef.current = 0;
+        conversionDurationRef.current = duration;
+        isConvertingRef.current = true;
         setLoadingMessage("Preparing video...");
 
         try {
             const ffmpeg = ffmpegRef.current;
+            setProgress(2);
 
             // Write video to FFmpeg virtual file system
             await ffmpeg.writeFile("input.mp4", await fetchFile(videoFile));
+            setProgress(10);
+            lastProgressRef.current = 10;
 
             setLoadingMessage("Converting to GIF...");
 
@@ -283,6 +451,8 @@ export default function ConverterPage() {
             await ffmpeg.exec(args);
 
             setLoadingMessage("Finalizing GIF...");
+            setProgress((prev) => Math.max(prev, 95));
+            lastProgressRef.current = 95;
 
             // Read the output GIF
             const data = await ffmpeg.readFile("output.gif");
@@ -309,6 +479,9 @@ export default function ConverterPage() {
             const errorMsg = error instanceof Error ? error.message : "Unknown error";
             setErrorMessage(`Failed to convert video: ${errorMsg}. Please try with a smaller video or different format.`);
         } finally {
+            isConvertingRef.current = false;
+            conversionDurationRef.current = 0;
+            lastProgressRef.current = 0;
             setIsLoading(false);
         }
     };
@@ -377,6 +550,8 @@ export default function ConverterPage() {
         setProgress(0);
         setStartTime(0);
         setDuration(5);
+        setSuggestedSettings(null);
+        setUseSuggestedSettings(true);
         setLoadingMessage("");
     };
 
@@ -571,32 +746,28 @@ export default function ConverterPage() {
 
                             {/* Converter Type Selector */}
                             <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6 px-4">
-                                <button
+                                <ActionButton
                                     onClick={() => {
                                         setConverterType("video");
                                         resetImage();
                                         reset();
                                     }}
-                                    className={`px-4 sm:px-6 py-3 rounded-xl font-medium transition-all text-sm sm:text-base w-full sm:w-auto ${converterType === "video"
-                                        ? "bg-[#2ed573] text-white"
-                                        : "glass border border-white/10 hover:border-[#2ed573]/50"
-                                        }`}
+                                    variant={converterType === "video" ? "primary" : "secondary"}
+                                    className="px-4 sm:px-6 py-3 text-sm sm:text-base w-full sm:w-auto"
                                 >
                                     🎬 Video to GIF
-                                </button>
-                                <button
+                                </ActionButton>
+                                <ActionButton
                                     onClick={() => {
                                         setConverterType("image");
                                         reset();
                                         resetImage();
                                     }}
-                                    className={`px-4 sm:px-6 py-3 rounded-xl font-medium transition-all text-sm sm:text-base w-full sm:w-auto ${converterType === "image"
-                                        ? "bg-[#2ed573] text-white"
-                                        : "glass border border-white/10 hover:border-[#2ed573]/50"
-                                        }`}
+                                    variant={converterType === "image" ? "primary" : "secondary"}
+                                    className="px-4 sm:px-6 py-3 text-sm sm:text-base w-full sm:w-auto"
                                 >
                                     🖼️ Image Format
-                                </button>
+                                </ActionButton>
                             </div>
 
                             {!ffmpegLoaded && converterType === "video" && (
@@ -610,9 +781,9 @@ export default function ConverterPage() {
                                 <h2 className="font-pixel text-xl text-[#ffa502] mb-4">SIGN IN REQUIRED</h2>
                                 <p className="text-gray-300 mb-6">Please sign in to use the converter</p>
                                 <SignInButton mode="modal">
-                                    <button className="px-6 py-3 bg-[#2ed573] hover:bg-[#26de81] rounded-full font-medium transition-all">
+                                    <ActionButton variant="primary" shape="pill" className="px-6 py-3">
                                         Sign In
-                                    </button>
+                                    </ActionButton>
                                 </SignInButton>
                             </div>
                         ) : converterType === "video" ? (
@@ -622,24 +793,22 @@ export default function ConverterPage() {
                                     {/* Input Mode Toggle - Segmented Control */}
                                     <div className="flex justify-center mb-6">
                                         <div className="inline-flex rounded-xl bg-white/5 p-1 border border-white/10">
-                                            <button
+                                            <ActionButton
                                                 onClick={() => setIsUrlMode(false)}
-                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${!isUrlMode
-                                                    ? "bg-white/15 text-white shadow-sm"
-                                                    : "text-gray-400 hover:text-gray-300"
-                                                    }`}
+                                                variant={!isUrlMode ? "primary" : "secondary"}
+                                                size="sm"
+                                                className={`px-4 py-2 rounded-lg text-sm ${!isUrlMode ? "shadow-sm" : "text-gray-400 hover:text-gray-300"}`}
                                             >
                                                 📁 Upload File
-                                            </button>
-                                            <button
+                                            </ActionButton>
+                                            <ActionButton
                                                 onClick={() => setIsUrlMode(true)}
-                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isUrlMode
-                                                    ? "bg-white/15 text-white shadow-sm"
-                                                    : "text-gray-400 hover:text-gray-300"
-                                                    }`}
+                                                variant={isUrlMode ? "primary" : "secondary"}
+                                                size="sm"
+                                                className={`px-4 py-2 rounded-lg text-sm ${isUrlMode ? "shadow-sm" : "text-gray-400 hover:text-gray-300"}`}
                                             >
                                                 🔗 Import URL
-                                            </button>
+                                            </ActionButton>
                                         </div>
                                     </div>
 
@@ -680,13 +849,14 @@ export default function ConverterPage() {
                                                     className="flex-1 px-4 py-3 rounded-xl bg-black/40 border border-white/20 text-white placeholder-gray-500 focus:border-[#2ed573]/50 focus:outline-none"
                                                     onKeyDown={(e) => e.key === 'Enter' && handleVideoUrlImport()}
                                                 />
-                                                <button
+                                                <ActionButton
                                                     onClick={handleVideoUrlImport}
                                                     disabled={isLoadingUrl || !urlInput.trim()}
-                                                    className="px-6 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    variant="primary"
+                                                    className="px-6 py-3"
                                                 >
                                                     {isLoadingUrl ? "..." : "Fetch"}
-                                                </button>
+                                                </ActionButton>
                                             </div>
                                             <p className="text-xs text-gray-500 mt-4 text-center">
                                                 ⚠️ Only direct video links work. Facebook/Instagram may block due to CORS.
@@ -717,63 +887,128 @@ export default function ConverterPage() {
 
                                     {!gifUrl && (
                                         <div className="glass rounded-2xl p-6">
-                                            <h3 className="font-pixel text-sm text-[#2ed573] mb-4">SETTINGS</h3>
+                                            <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+                                                <h3 className="font-pixel text-sm text-[#2ed573]">SETTINGS</h3>
+                                                <label className="inline-flex items-center gap-2 text-xs sm:text-sm text-gray-300 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={useSuggestedSettings}
+                                                        onChange={(e) => handleSuggestedToggle(e.target.checked)}
+                                                        className="h-4 w-4 accent-[#2ed573]"
+                                                        disabled={!suggestedSettings}
+                                                    />
+                                                    Suggested settings
+                                                </label>
+                                            </div>
+                                            {suggestedSettings && (
+                                                <p className="text-xs text-gray-500 mb-4">
+                                                    Balanced preset: {suggestedSettings.duration}s, {suggestedSettings.fps} FPS, {suggestedSettings.scale}px, quality {suggestedSettings.quality}
+                                                </p>
+                                            )}
                                             <div className="space-y-4">
-                                                <div>
-                                                    <label className="text-sm text-gray-400 block mb-2">Start Time (seconds)</label>
+                                                <div className="space-y-2">
+                                                    <label className="text-sm text-gray-400 block">Start Time (s)</label>
                                                     <input
                                                         type="number"
                                                         min="0"
                                                         max={maxDuration}
                                                         value={startTime}
-                                                        onChange={(e) => setStartTime(Number(e.target.value))}
-                                                        className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-2 text-white"
+                                                        onChange={(e) =>
+                                                            handleManualVideoSettingChange(
+                                                                setStartTime,
+                                                                clamp(Number(e.target.value), 0, maxDuration)
+                                                            )
+                                                        }
+                                                        className="w-full bg-black/30 border border-white/20 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#2ed573]/50"
                                                     />
                                                 </div>
-                                                <div>
-                                                    <label className="text-sm text-gray-400 block mb-2">Duration (seconds): {duration}s</label>
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-sm text-gray-400">Duration (s)</label>
+                                                        <span className="px-3 py-1 text-sm rounded-lg bg-black/40 border border-white/10 text-white min-w-[68px] text-center">
+                                                            {duration}s
+                                                        </span>
+                                                    </div>
                                                     <input
                                                         type="range"
                                                         min="1"
                                                         max={Math.min(10, maxDuration)}
                                                         value={duration}
-                                                        onChange={(e) => setDuration(Number(e.target.value))}
-                                                        className="w-full"
+                                                        onChange={(e) =>
+                                                            handleManualVideoSettingChange(
+                                                                setDuration,
+                                                                clamp(Number(e.target.value), 1, Math.max(1, Math.min(10, maxDuration)))
+                                                            )
+                                                        }
+                                                        className="w-full accent-[#2ed573]"
                                                     />
                                                 </div>
-                                                <div>
-                                                    <label className="text-sm text-gray-400 block mb-2">FPS: {fps}</label>
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-sm text-gray-400">FPS</label>
+                                                        <span className="px-3 py-1 text-sm rounded-lg bg-black/40 border border-white/10 text-white min-w-[68px] text-center">
+                                                            {fps} FPS
+                                                        </span>
+                                                    </div>
                                                     <input
                                                         type="range"
                                                         min="10"
                                                         max="30"
                                                         value={fps}
-                                                        onChange={(e) => setFps(Number(e.target.value))}
-                                                        className="w-full"
+                                                        onChange={(e) =>
+                                                            handleManualVideoSettingChange(
+                                                                setFps,
+                                                                clamp(Number(e.target.value), 10, 30)
+                                                            )
+                                                        }
+                                                        className="w-full accent-[#2ed573]"
                                                     />
                                                 </div>
-                                                <div>
-                                                    <label className="text-sm text-gray-400 block mb-2">Width: {scale}px</label>
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-sm text-gray-400">Width (px)</label>
+                                                        <span className="px-3 py-1 text-sm rounded-lg bg-black/40 border border-white/10 text-white min-w-[68px] text-center">
+                                                            {scale}px
+                                                        </span>
+                                                    </div>
                                                     <input
                                                         type="range"
                                                         min="320"
                                                         max="720"
                                                         step="80"
                                                         value={scale}
-                                                        onChange={(e) => setScale(Number(e.target.value))}
-                                                        className="w-full"
+                                                        onChange={(e) =>
+                                                            handleManualVideoSettingChange(
+                                                                setScale,
+                                                                normalizeScale(Number(e.target.value))
+                                                            )
+                                                        }
+                                                        className="w-full accent-[#2ed573]"
                                                     />
                                                 </div>
-                                                <div>
-                                                    <label className="text-sm text-gray-400 block mb-2">Quality: {quality <= 10 ? "High" : quality <= 20 ? "Medium" : "Low"}</label>
-                                                    <input
-                                                        type="range"
-                                                        min="5"
-                                                        max="25"
-                                                        value={quality}
-                                                        onChange={(e) => setQuality(Number(e.target.value))}
-                                                        className="w-full"
-                                                    />
+                                                <div className="space-y-2">
+                                                    <label className="text-sm text-gray-400 block">Quality</label>
+                                                    <div className="grid grid-cols-3 gap-2 rounded-xl bg-black/30 border border-white/10 p-1.5">
+                                                        {(["high", "medium", "low"] as QualityPreset[]).map((preset) => {
+                                                            const active = getQualityPreset(quality) === preset;
+                                                            return (
+                                                                <ActionButton
+                                                                    key={preset}
+                                                                    onClick={() =>
+                                                                        handleManualVideoSettingChange(
+                                                                            setQuality,
+                                                                            getQualityPresetValue(preset)
+                                                                        )
+                                                                    }
+                                                                    variant={active ? "primary" : "secondary"}
+                                                                    size="sm"
+                                                                    className={`py-2 rounded-lg text-sm capitalize ${active ? "text-[#2ed573] bg-[#2ed573]/20 border-[#2ed573]/40 hover:bg-[#2ed573]/20" : "text-gray-400 border-transparent hover:text-white hover:bg-white/5"}`}
+                                                                >
+                                                                    {preset}
+                                                                </ActionButton>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -783,36 +1018,47 @@ export default function ConverterPage() {
                                     <div className="flex gap-3">
                                         {!gifUrl ? (
                                             <>
-                                                <button
+                                                <ActionButton
                                                     onClick={convertToGif}
                                                     disabled={isLoading || !ffmpegLoaded}
-                                                    className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    variant="primary"
+                                                    size="lg"
+                                                    fullWidth
+                                                    className="flex-1"
                                                 >
                                                     {isLoading ? `Converting... ${progress}%` : "Convert to GIF"}
-                                                </button>
-                                                <button
+                                                </ActionButton>
+                                                <ActionButton
                                                     onClick={reset}
-                                                    className="px-6 py-4 rounded-xl glass border border-white/10 hover:border-red-500/50 transition-all"
+                                                    variant="secondary"
+                                                    size="lg"
+                                                    className="px-6"
                                                 >
                                                     Cancel
-                                                </button>
+                                                </ActionButton>
                                             </>
                                         ) : (
                                             <>
-                                                <button
+                                                <ActionButton
                                                     onClick={uploadToSupabase}
                                                     disabled={isUploading}
-                                                    className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50"
+                                                    variant="primary"
+                                                    size="lg"
+                                                    fullWidth
+                                                    className="flex-1"
                                                 >
                                                     {isUploading ? "Uploading..." : "📤 Upload to Storage"}
-                                                </button>
-                                                <button
+                                                </ActionButton>
+                                                <ActionButton
                                                     onClick={downloadGif}
                                                     disabled={isUploading}
-                                                    className="flex-1 py-4 rounded-xl bg-[#ff4757] hover:bg-[#ff6b81] font-medium transition-all disabled:opacity-50"
+                                                    variant="danger"
+                                                    size="lg"
+                                                    fullWidth
+                                                    className="flex-1"
                                                 >
                                                     📥 Download
-                                                </button>
+                                                </ActionButton>
                                             </>
                                         )}
                                     </div>
@@ -830,24 +1076,22 @@ export default function ConverterPage() {
                                     {/* Input Mode Toggle - Segmented Control */}
                                     <div className="flex justify-center mb-6">
                                         <div className="inline-flex rounded-xl bg-white/5 p-1 border border-white/10">
-                                            <button
+                                            <ActionButton
                                                 onClick={() => setIsUrlMode(false)}
-                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${!isUrlMode
-                                                    ? "bg-white/15 text-white shadow-sm"
-                                                    : "text-gray-400 hover:text-gray-300"
-                                                    }`}
+                                                variant={!isUrlMode ? "primary" : "secondary"}
+                                                size="sm"
+                                                className={`px-4 py-2 rounded-lg text-sm ${!isUrlMode ? "shadow-sm" : "text-gray-400 hover:text-gray-300"}`}
                                             >
                                                 📁 Upload File
-                                            </button>
-                                            <button
+                                            </ActionButton>
+                                            <ActionButton
                                                 onClick={() => setIsUrlMode(true)}
-                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isUrlMode
-                                                    ? "bg-white/15 text-white shadow-sm"
-                                                    : "text-gray-400 hover:text-gray-300"
-                                                    }`}
+                                                variant={isUrlMode ? "primary" : "secondary"}
+                                                size="sm"
+                                                className={`px-4 py-2 rounded-lg text-sm ${isUrlMode ? "shadow-sm" : "text-gray-400 hover:text-gray-300"}`}
                                             >
                                                 🔗 Import URL
-                                            </button>
+                                            </ActionButton>
                                         </div>
                                     </div>
 
@@ -892,13 +1136,14 @@ export default function ConverterPage() {
                                                     className="flex-1 px-4 py-3 rounded-xl bg-black/40 border border-white/20 text-white placeholder-gray-500 focus:border-[#2ed573]/50 focus:outline-none"
                                                     onKeyDown={(e) => e.key === 'Enter' && handleImageUrlImport()}
                                                 />
-                                                <button
+                                                <ActionButton
                                                     onClick={handleImageUrlImport}
                                                     disabled={isLoadingUrl || !urlInput.trim()}
-                                                    className="px-6 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    variant="primary"
+                                                    className="px-6 py-3"
                                                 >
                                                     {isLoadingUrl ? "..." : "Fetch"}
-                                                </button>
+                                                </ActionButton>
                                             </div>
                                             <p className="text-xs text-gray-500 mt-4 text-center">
                                                 ⚠️ Only direct image links work. Facebook/Instagram may block due to CORS.
@@ -929,33 +1174,27 @@ export default function ConverterPage() {
                                         <div className="glass rounded-2xl p-6">
                                             <h3 className="font-pixel text-sm text-[#2ed573] mb-4">CONVERT TO</h3>
                                             <div className="flex gap-3 mb-4">
-                                                <button
+                                                <ActionButton
                                                     onClick={() => setOutputFormat("png")}
-                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${outputFormat === "png"
-                                                        ? "bg-[#2ed573] text-white"
-                                                        : "glass border border-white/10"
-                                                        }`}
+                                                    variant={outputFormat === "png" ? "primary" : "secondary"}
+                                                    className="flex-1 py-3"
                                                 >
                                                     PNG
-                                                </button>
-                                                <button
+                                                </ActionButton>
+                                                <ActionButton
                                                     onClick={() => setOutputFormat("jpeg")}
-                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${outputFormat === "jpeg"
-                                                        ? "bg-[#2ed573] text-white"
-                                                        : "glass border border-white/10"
-                                                        }`}
+                                                    variant={outputFormat === "jpeg" ? "primary" : "secondary"}
+                                                    className="flex-1 py-3"
                                                 >
                                                     JPEG
-                                                </button>
-                                                <button
+                                                </ActionButton>
+                                                <ActionButton
                                                     onClick={() => setOutputFormat("webp")}
-                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${outputFormat === "webp"
-                                                        ? "bg-[#2ed573] text-white"
-                                                        : "glass border border-white/10"
-                                                        }`}
+                                                    variant={outputFormat === "webp" ? "primary" : "secondary"}
+                                                    className="flex-1 py-3"
                                                 >
                                                     WebP
-                                                </button>
+                                                </ActionButton>
                                             </div>
                                             {outputFormat !== "png" && (
                                                 <div>
@@ -980,36 +1219,47 @@ export default function ConverterPage() {
                                     <div className="flex gap-3">
                                         {!convertedImageUrl ? (
                                             <>
-                                                <button
+                                                <ActionButton
                                                     onClick={convertImage}
                                                     disabled={isConvertingImage}
-                                                    className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50"
+                                                    variant="primary"
+                                                    size="lg"
+                                                    fullWidth
+                                                    className="flex-1"
                                                 >
                                                     {isConvertingImage ? "Converting..." : "Convert Image"}
-                                                </button>
-                                                <button
+                                                </ActionButton>
+                                                <ActionButton
                                                     onClick={resetImage}
-                                                    className="px-6 py-4 rounded-xl glass border border-white/10 hover:border-red-500/50 transition-all"
+                                                    variant="secondary"
+                                                    size="lg"
+                                                    className="px-6"
                                                 >
                                                     Cancel
-                                                </button>
+                                                </ActionButton>
                                             </>
                                         ) : (
                                             <>
-                                                <button
+                                                <ActionButton
                                                     onClick={uploadImage}
                                                     disabled={isUploading}
-                                                    className="flex-1 py-4 rounded-xl bg-[#2ed573] hover:bg-[#26de81] font-medium transition-all disabled:opacity-50"
+                                                    variant="primary"
+                                                    size="lg"
+                                                    fullWidth
+                                                    className="flex-1"
                                                 >
                                                     {isUploading ? "Uploading..." : "📤 Upload to Storage"}
-                                                </button>
-                                                <button
+                                                </ActionButton>
+                                                <ActionButton
                                                     onClick={downloadImage}
                                                     disabled={isUploading}
-                                                    className="flex-1 py-4 rounded-xl bg-[#ff4757] hover:bg-[#ff6b81] font-medium transition-all disabled:opacity-50"
+                                                    variant="danger"
+                                                    size="lg"
+                                                    fullWidth
+                                                    className="flex-1"
                                                 >
                                                     📥 Download
-                                                </button>
+                                                </ActionButton>
                                             </>
                                         )}
                                     </div>
@@ -1033,12 +1283,13 @@ export default function ConverterPage() {
                         <div className="text-5xl mb-4 text-center">⚠️</div>
                         <h3 className="font-pixel text-lg text-red-400 mb-4 text-center">ERROR</h3>
                         <p className="text-gray-300 text-center mb-6">{errorMessage}</p>
-                        <button
+                        <ActionButton
                             onClick={() => setErrorMessage(null)}
-                            className="w-full py-3 bg-[#ff4757] hover:bg-[#ff6b81] rounded-xl font-medium transition-all"
+                            variant="danger"
+                            fullWidth
                         >
                             Close
-                        </button>
+                        </ActionButton>
                     </div>
                 </div>
             )}
