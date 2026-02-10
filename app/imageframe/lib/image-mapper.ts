@@ -16,6 +16,10 @@ export interface DbImage {
     uploader_email?: string;
     is_private?: boolean;
     is_nsfw?: boolean;
+    image_width?: number;
+    image_height?: number;
+    frame_width?: number;
+    frame_height?: number;
 }
 
 /**
@@ -37,6 +41,10 @@ export function mapDbImageToUploadedImage(img: DbImage): UploadedImage & { id: s
         uploaderEmail: img.uploader_email,
         is_private: img.is_private ?? false,
         is_nsfw: img.is_nsfw ?? false,
+        imageWidth: img.image_width,
+        imageHeight: img.image_height,
+        frameWidth: img.frame_width,
+        frameHeight: img.frame_height,
     };
 }
 
