@@ -323,8 +323,8 @@ export default function AdminPanel({
                             </div>
 
                             <div className="flex gap-3 mt-4 flex-shrink-0">
-                                <button onClick={() => copyUrl(adminSelectedImage.directUrl)} className="flex-1 py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all flex items-center justify-center gap-2">
-                                    {copied ? <><PixelCheck size={14} color="#fff" /> Copied!</> : <><PixelCopy size={14} color="#fff" /> Copy URL</>}
+                                <button onClick={() => copyUrl(adminSelectedImage.directUrl)} className="flex-1 py-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/50 text-sky-300 font-medium transition-all flex items-center justify-center gap-2">
+                                    {copied ? <><PixelCheck size={14} color="currentColor" /> Copied!</> : <><PixelCopy size={14} color="currentColor" /> Copy URL</>}
                                 </button>
                                 <button
                                     onClick={async () => {
