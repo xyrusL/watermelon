@@ -1,6 +1,6 @@
 import type { FrameDimensions } from "../types";
 
-export type FrameSizeSource = "editor" | "exact-ratio" | "scaled-ratio" | "approximated" | "fallback";
+export type FrameSizeSource = "editor" | "face-auto" | "exact-ratio" | "scaled-ratio" | "approximated" | "fallback";
 
 export interface FrameSizeSuggestion {
     dimensions: FrameDimensions;

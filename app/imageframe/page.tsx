@@ -47,6 +47,7 @@ import {
     suggestFrameSizeFromPixels,
     type FrameSizeSource,
 } from "./lib/imageframe-command";
+import { detectSingleFaceFrame } from "./lib/face-frame";
 
 // Types, constants, and utilities are now imported from separate files above
 
@@ -86,6 +87,7 @@ export default function ImageFramePage() {
     const [successModalCountdown, setSuccessModalCountdown] = useState(10);
     const [commandFrameSource, setCommandFrameSource] = useState<FrameSizeSource>("fallback");
     const [lastEditedFrameSize, setLastEditedFrameSize] = useState<FrameDimensions | null>(null);
+    const [autoFaceFrameSize, setAutoFaceFrameSize] = useState<FrameDimensions | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [gallery, setGallery] = useState<UploadedImage[]>([]);
@@ -423,11 +425,31 @@ export default function ImageFramePage() {
         setShowUploadSuccessModal(false);
         setCommandFrameSource("fallback");
         setLastEditedFrameSize(null);
+        setAutoFaceFrameSize(null);
         setCroppedPreview(null);
         const reader = new FileReader();
         reader.onload = (e) => setPreview(e.target?.result as string);
         reader.readAsDataURL(file);
     };
+
+    useEffect(() => {
+        if (!selectedFile || lastEditedFrameSize) return;
+
+        let cancelled = false;
+
+        const detectFaceFrame = async () => {
+            const detected = await detectSingleFaceFrame(selectedFile);
+            if (!cancelled) {
+                setAutoFaceFrameSize(detected?.dimensions || null);
+            }
+        };
+
+        void detectFaceFrame();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedFile, lastEditedFrameSize]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -544,12 +566,21 @@ export default function ImageFramePage() {
                 method: "POST",
                 body: formData,
                 headers: {
+                    'x-frame-source': lastEditedFrameSize
+                        ? 'editor'
+                        : autoFaceFrameSize
+                            ? 'face-auto'
+                            : '',
                     'x-uploader-name': username || 'Anonymous',
                     'x-uploader-email': user?.primaryEmailAddress?.emailAddress || '',
                     'x-is-private': isPrivate.toString(),
                     'x-is-nsfw': isNsfw.toString(),
-                    'x-frame-width': lastEditedFrameSize ? String(lastEditedFrameSize.width) : '',
-                    'x-frame-height': lastEditedFrameSize ? String(lastEditedFrameSize.height) : '',
+                    'x-frame-width': (lastEditedFrameSize || autoFaceFrameSize)
+                        ? String((lastEditedFrameSize || autoFaceFrameSize)!.width)
+                        : '',
+                    'x-frame-height': (lastEditedFrameSize || autoFaceFrameSize)
+                        ? String((lastEditedFrameSize || autoFaceFrameSize)!.height)
+                        : '',
                 },
             });
 
@@ -606,7 +637,7 @@ export default function ImageFramePage() {
             const apiFrame = Number.isFinite(apiFrameWidth) && Number.isFinite(apiFrameHeight)
                 ? { width: apiFrameWidth, height: apiFrameHeight }
                 : null;
-            const selectedFrame = apiFrame || lastEditedFrameSize || suggestedFrame.dimensions;
+            const selectedFrame = apiFrame || lastEditedFrameSize || autoFaceFrameSize || suggestedFrame.dimensions;
 
             const newImage: UploadedImage = {
                 url: data.url,
@@ -627,10 +658,12 @@ export default function ImageFramePage() {
 
             if (data.frameSource === "user") {
                 setCommandFrameSource("editor");
+            } else if (data.frameSource === "face-auto") {
+                setCommandFrameSource("face-auto");
             } else if (data.frameSource === "algorithm") {
                 setCommandFrameSource(suggestedFrame.source);
             } else {
-                setCommandFrameSource(lastEditedFrameSize ? "editor" : suggestedFrame.source);
+                setCommandFrameSource(lastEditedFrameSize ? "editor" : autoFaceFrameSize ? "face-auto" : suggestedFrame.source);
             }
             setUploadedImage(newImage);
             setShowUploadSuccessModal(true);
@@ -686,6 +719,7 @@ export default function ImageFramePage() {
         setShowUploadSuccessModal(false);
         setCommandFrameSource("fallback");
         setLastEditedFrameSize(null);
+        setAutoFaceFrameSize(null);
         setError(null);
         setCroppedPreview(null);
         setShowEditor(false);
@@ -1075,6 +1109,7 @@ export default function ImageFramePage() {
         : "";
     const frameSourceLabel: Record<FrameSizeSource, string> = {
         editor: "From editor selection",
+        "face-auto": "Auto face-focused frame",
         "exact-ratio": "Auto exact ratio",
         "scaled-ratio": "Auto scaled ratio",
         approximated: "Auto best-fit ratio",
@@ -1372,6 +1407,7 @@ export default function ImageFramePage() {
                     setPreview(previewUrl);
                     setCroppedPreview(previewUrl);
                     setLastEditedFrameSize(frameDimensions);
+                    setAutoFaceFrameSize(null);
                     setShowEditor(false);
                 }}
             />
