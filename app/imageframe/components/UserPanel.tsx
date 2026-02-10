@@ -17,6 +17,7 @@ import {
     PixelGlobe,
     PixelWarning,
 } from "./PixelIcons";
+import ActionButton from "../../components/ActionButton";
 
 import { UploadedImage } from "../types";
 import ImageDetailsModal from "./ImageDetailsModal";
@@ -260,16 +261,18 @@ export default function UserPanel({
                             <PixelUser size={28} color="#2ed573" />
                             <h2 className="font-pixel text-xl text-[#2ed573]">MY UPLOADS</h2>
                         </div>
-                        <button
+                        <ActionButton
                             onClick={() => {
                                 setShowUserPanel(false);
                                 setSelectedImage(null);
                                 onClose?.();
                             }}
-                            className="w-10 h-10 rounded-full glass hover:bg-red-500/20 transition-all flex items-center justify-center"
+                            variant="secondary"
+                            shape="pill"
+                            className="w-10 h-10 hover:bg-red-500/20 flex items-center justify-center p-0"
                         >
                             <PixelClose size={16} color="#ff4757" />
-                        </button>
+                        </ActionButton>
                     </div>
 
                     {/* Stats */}
@@ -308,12 +311,14 @@ export default function UserPanel({
                             <option value="public">Public</option>
                             <option value="private">Private</option>
                         </select>
-                        <button
+                        <ActionButton
                             onClick={() => fetchUserImages(false)}
-                            className="px-3 py-2 glass rounded-xl border border-white/10 hover:border-[#2ed573]/50 text-sm flex items-center justify-center"
+                            variant="secondary"
+                            size="sm"
+                            className="px-3 py-2 hover:border-[#2ed573]/50 text-sm flex items-center justify-center"
                         >
                             <PixelRefresh size={16} color="currentColor" />
-                        </button>
+                        </ActionButton>
                     </div>
 
                     {/* Image Grid */}
@@ -338,34 +343,38 @@ export default function UserPanel({
                                             {/* Status Toggles Container - Flex Column to prevent overlap */}
                                             <div className="absolute top-2 left-2 z-10 flex flex-col gap-1.5">
                                                 {/* Privacy Badge */}
-                                                <button
+                                                <ActionButton
                                                     onClick={(e) => {
                                                         e.stopPropagation(); // Prevent opening modal
                                                         toggleVisibility(imgId, img.is_private || false);
                                                     }}
-                                                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-lg backdrop-blur-md flex items-center gap-1.5 border border-white/10 ${img.is_private
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold shadow-lg backdrop-blur-md flex items-center gap-1.5 border-white/10 ${img.is_private
                                                         ? "bg-[#ffa502]/90 hover:bg-[#ffa502] text-white"
                                                         : "bg-[#2ed573]/90 hover:bg-[#2ed573] text-white"
                                                         }`}
                                                     title={img.is_private ? "Private - Click to make public" : "Public - Click to make private"}
                                                 >
                                                     {img.is_private ? <><PixelLock size={10} color="#fff" /> PRIVATE</> : <><PixelEye size={10} color="#fff" /> PUBLIC</>}
-                                                </button>
+                                                </ActionButton>
 
                                                 {/* NSFW Badge */}
-                                                <button
+                                                <ActionButton
                                                     onClick={(e) => {
                                                         e.stopPropagation(); // Prevent opening modal
                                                         toggleNsfw(imgId, img.is_nsfw || false);
                                                     }}
-                                                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-lg backdrop-blur-md flex items-center gap-1.5 border border-white/10 ${img.is_nsfw
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold shadow-lg backdrop-blur-md flex items-center gap-1.5 border-white/10 ${img.is_nsfw
                                                         ? "bg-[#ff4757]/90 hover:bg-[#ff4757] text-white"
                                                         : "bg-gray-500/90 hover:bg-gray-500 text-white"
                                                         }`}
                                                     title={img.is_nsfw ? "NSFW - Click to mark as safe" : "Safe - Click to mark as NSFW"}
                                                 >
                                                     {img.is_nsfw ? <><PixelWarning size={10} color="#fff" /> NSFW</> : <><PixelCheck size={10} color="#fff" /> SAFE</>}
-                                                </button>
+                                                </ActionButton>
                                             </div>
 
                                             {/* Info Button */}
@@ -424,12 +433,15 @@ export default function UserPanel({
 export function UserPanelButton({ isSignedIn, onClick }: { isSignedIn: boolean; onClick: () => void }) {
     if (!isSignedIn) return null;
     return (
-        <button
+        <ActionButton
             onClick={onClick}
-            className="px-4 py-2.5 bg-[#2ed573] hover:bg-[#26b85f] rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-2"
+            variant="primary"
+            shape="pill"
+            size="md"
+            className="px-4 py-2.5 text-sm hover:scale-105 flex items-center gap-2"
         >
             <PixelUser size={14} color="currentColor" />
             <span className="hidden sm:inline">My Uploads</span>
-        </button>
+        </ActionButton>
     );
 }

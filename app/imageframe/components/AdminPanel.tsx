@@ -14,6 +14,7 @@ import {
     PixelWarning,
     PixelShield,
 } from "./PixelIcons";
+import ActionButton from "../../components/ActionButton";
 
 // Types
 export interface UploadedImage {
@@ -285,28 +286,28 @@ export default function AdminPanel({
                         <h2 className="font-pixel text-xl text-[#ff4757]">ADMIN PANEL</h2>
                         <span className="bg-[#ff4757]/20 text-[#ff4757] text-xs px-2 py-1 rounded-full font-pixel">ADMIN</span>
                     </div>
-                    <button onClick={() => { setShowAdminPanel(false); setAdminSelectedImage(null); }} className="w-10 h-10 rounded-full glass hover:bg-red-500/20 transition-all flex items-center justify-center">
+                    <ActionButton onClick={() => { setShowAdminPanel(false); setAdminSelectedImage(null); }} variant="secondary" shape="pill" className="w-10 h-10 hover:bg-red-500/20 p-0">
                         <PixelClose size={16} color="#ff4757" />
-                    </button>
+                    </ActionButton>
                 </div>
 
                 {/* Tabs */}
                 <div className="flex gap-2 mb-4">
-                    <button onClick={() => setAdminTab("images")} className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${adminTab === "images" ? "bg-[#ff4757] text-white" : "glass border border-white/10 hover:border-[#ff4757]/50"}`}>
+                    <ActionButton onClick={() => setAdminTab("images")} variant={adminTab === "images" ? "danger" : "secondary"} className="px-4 py-2 flex items-center gap-2">
                         <PixelImage size={14} color="currentColor" /> Images ({adminStats?.totalImages || 0})
-                    </button>
-                    <button onClick={() => setAdminTab("members")} className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${adminTab === "members" ? "bg-[#2ed573] text-white" : "glass border border-white/10 hover:border-[#2ed573]/50"}`}>
+                    </ActionButton>
+                    <ActionButton onClick={() => setAdminTab("members")} variant={adminTab === "members" ? "primary" : "secondary"} className="px-4 py-2 flex items-center gap-2">
                         <PixelUser size={14} color="currentColor" /> Members ({membersList.length})
-                    </button>
+                    </ActionButton>
                 </div>
 
                 {/* Image Detail Modal */}
                 {adminSelectedImage && (
                     <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4" onClick={() => setAdminSelectedImage(null)}>
                         <div className="glass rounded-2xl p-6 max-w-md w-full relative flex flex-col max-h-[90vh] my-auto" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => setAdminSelectedImage(null)} className="absolute top-3 right-3 w-8 h-8 rounded-full glass hover:bg-red-500/20 flex items-center justify-center text-gray-400 hover:text-white transition-all z-10">
+                            <ActionButton onClick={() => setAdminSelectedImage(null)} variant="secondary" shape="pill" className="absolute top-3 right-3 w-8 h-8 hover:bg-red-500/20 text-gray-400 hover:text-white z-10 p-0">
                                 <PixelClose size={14} color="currentColor" />
-                            </button>
+                            </ActionButton>
 
                             <div className="flex-shrink-0 mb-4 bg-black/30 rounded-xl overflow-hidden flex items-center justify-center h-52">
                                 <img src={adminSelectedImage.directUrl} alt={adminSelectedImage.filename} className="max-w-full max-h-full object-contain" />
@@ -323,10 +324,10 @@ export default function AdminPanel({
                             </div>
 
                             <div className="flex gap-3 mt-4 flex-shrink-0">
-                                <button onClick={() => copyUrl(adminSelectedImage.directUrl)} className="flex-1 py-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/50 text-sky-300 font-medium transition-all flex items-center justify-center gap-2">
+                                <ActionButton onClick={() => copyUrl(adminSelectedImage.directUrl)} variant="secondary" fullWidth className="flex-1 py-3 bg-sky-500/20 hover:bg-sky-500/30 border-sky-400/50 text-sky-300 flex items-center justify-center gap-2">
                                     {copied ? <><PixelCheck size={14} color="currentColor" /> Copied!</> : <><PixelCopy size={14} color="currentColor" /> Copy URL</>}
-                                </button>
-                                <button
+                                </ActionButton>
+                                <ActionButton
                                     onClick={async () => {
                                         if (confirm("Are you sure you want to delete this image?")) {
                                             setIsDeleting(true);
@@ -361,10 +362,11 @@ export default function AdminPanel({
                                         }
                                     }}
                                     disabled={isDeleting}
-                                    className="px-4 py-3 rounded-xl bg-glass border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center"
+                                    variant="secondary"
+                                    className="px-4 py-3 border-red-500/30 text-red-400 hover:bg-red-500/10 flex items-center justify-center"
                                 >
                                     {isDeleting ? "..." : <PixelTrash size={16} color="currentColor" />}
-                                </button>
+                                </ActionButton>
                             </div>
                         </div>
                     </div>
@@ -387,7 +389,7 @@ export default function AdminPanel({
                         {selectedMember && (
                             <div className="flex items-center gap-3 mb-3 p-3 bg-[#2ed573]/10 border border-[#2ed573]/30 rounded-xl">
                                 <span className="text-[#2ed573] flex items-center gap-1"><PixelUser size={12} color="#2ed573" /> Viewing uploads from: <strong>{selectedMember.name}</strong></span>
-                                <button onClick={() => setSelectedMember(null)} className="ml-auto px-3 py-1.5 glass hover:bg-red-500/20 rounded-xl text-sm border border-white/10 flex items-center gap-1"><PixelClose size={12} color="currentColor" /> Clear Filter</button>
+                                <ActionButton onClick={() => setSelectedMember(null)} variant="secondary" size="sm" className="ml-auto px-3 py-1.5 hover:bg-red-500/20 flex items-center gap-1"><PixelClose size={12} color="currentColor" /> Clear Filter</ActionButton>
                             </div>
                         )}
 
@@ -399,21 +401,21 @@ export default function AdminPanel({
                                 <option value="size">Size</option>
                                 <option value="uploader">Uploader</option>
                             </select>
-                            <button onClick={selectAllImages} className="px-3 py-2 glass rounded-xl border border-white/10 hover:border-[#2ed573]/50 text-sm flex items-center gap-1">
+                            <ActionButton onClick={selectAllImages} variant="secondary" size="sm" className="px-3 py-2 hover:border-[#2ed573]/50 flex items-center gap-1">
                                 {selectedImages.size === filteredAdminImages.length && filteredAdminImages.length > 0 ? <><PixelCheck size={12} /> Deselect</> : "Select All"}
-                            </button>
-                            <button onClick={fetchAdminImages} className="px-3 py-2 glass rounded-xl border border-white/10 hover:border-[#ffa502]/50 text-sm flex items-center justify-center">
+                            </ActionButton>
+                            <ActionButton onClick={fetchAdminImages} variant="secondary" size="sm" className="px-3 py-2 hover:border-[#ffa502]/50 flex items-center justify-center">
                                 <PixelRefresh size={16} color="currentColor" />
-                            </button>
+                            </ActionButton>
                         </div>
 
                         {/* Bulk delete */}
                         {selectedImages.size > 0 && (
                             <div className="flex items-center gap-3 mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded-xl text-sm">
                                 <span className="text-red-400 flex items-center gap-1"><PixelWarning size={14} color="#f87171" /> {selectedImages.size} selected</span>
-                                <button onClick={bulkDeleteImages} disabled={isDeleting} className="ml-auto px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-xl font-medium text-sm disabled:opacity-50 flex items-center gap-1">
+                                <ActionButton onClick={bulkDeleteImages} disabled={isDeleting} variant="danger" size="sm" className="ml-auto px-3 py-1.5 flex items-center gap-1">
                                     {isDeleting ? "..." : <><PixelTrash size={14} color="#fff" /> Delete</>}
-                                </button>
+                                </ActionButton>
                             </div>
                         )}
 
@@ -487,9 +489,9 @@ export default function AdminPanel({
                                             <div className="text-center min-w-[90px]"><p className="text-xs text-gray-400">First upload</p><p className="text-xs text-white">{member.firstUpload ? formatDate(member.firstUpload) : "N/A"}</p></div>
                                         ) : null}
                                         {member.uploads ? (
-                                            <button onClick={() => { setSelectedMember({ name: member.name, email: member.email }); setAdminTab("images"); }} className="px-3 py-2 bg-[#ff4757] hover:bg-[#ff6b81] rounded-xl text-sm font-medium transition-all flex items-center gap-1">
+                                            <ActionButton onClick={() => { setSelectedMember({ name: member.name, email: member.email }); setAdminTab("images"); }} variant="danger" size="sm" className="px-3 py-2 flex items-center gap-1">
                                                 <PixelImage size={14} color="#fff" /> View
-                                            </button>
+                                            </ActionButton>
                                         ) : null}
                                     </div>
                                 ))}
@@ -506,9 +508,9 @@ export default function AdminPanel({
 export function AdminButton({ isAdmin, onClick }: { isAdmin: boolean; onClick: () => void }) {
     if (!isAdmin) return null;
     return (
-        <button onClick={onClick} className="px-4 py-2.5 bg-[#ff4757] hover:bg-[#ff6b81] rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-2">
+        <ActionButton onClick={onClick} variant="danger" shape="pill" size="md" className="px-4 py-2.5 hover:scale-105 flex items-center gap-2">
             <PixelShield size={14} color="currentColor" />
             <span className="hidden sm:inline">Admin</span>
-        </button>
+        </ActionButton>
     );
 }

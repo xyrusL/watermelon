@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Header from "../components/Header";
+import ActionButton from "../components/ActionButton";
 import { useState, useEffect } from "react";
 
 export default function MinecraftPage() {
@@ -134,13 +135,11 @@ export default function MinecraftPage() {
                                             </p>
                                         </div>
                                     </div>
-                                    <button
+                                    <ActionButton
                                         onClick={handleDownload}
                                         disabled={isCooldown}
-                                        className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-sm transition-all transform flex items-center justify-center gap-2 ${isCooldown
-                                            ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-                                            : "bg-[#ff4757] hover:bg-[#ff6b81] hover:scale-105 shadow-lg shadow-[#ff4757]/30"
-                                            }`}
+                                        variant={isCooldown ? "secondary" : "danger"}
+                                        className={`w-full sm:w-auto px-6 py-3 font-bold transform hover:scale-105 ${isCooldown ? "text-gray-400 border-gray-600 bg-gray-600 hover:bg-gray-600 hover:border-gray-600" : ""}`}
                                     >
                                         {isCooldown ? (
                                             <>
@@ -153,7 +152,7 @@ export default function MinecraftPage() {
                                                 Download APK
                                             </>
                                         )}
-                                    </button>
+                                    </ActionButton>
                                 </div>
                             </div>
                         </div>

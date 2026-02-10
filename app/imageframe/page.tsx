@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, useRef, useCallback, useEffect } from "react";
 import "react-image-crop/dist/ReactCrop.css";
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
+import ActionButton from "../components/ActionButton";
 import AdminPanel, { AdminButton } from "./components/AdminPanel";
 import UserPanel, { UserPanelButton } from "./components/UserPanel";
 import NotificationModal from "./components/NotificationModal";
@@ -1136,28 +1137,32 @@ export default function ImageFramePage() {
                                 <h2 className="font-pixel text-xl text-[#ff4757]">ADMIN PANEL</h2>
                                 <span className="bg-[#ff4757]/20 text-[#ff4757] text-xs px-2 py-1 rounded-full font-pixel">ADMIN</span>
                             </div>
-                            <button
+                            <ActionButton
                                 onClick={() => { setShowAdminPanel(false); setAdminSelectedImage(null); }}
-                                className="w-10 h-10 rounded-full glass hover:bg-red-500/20 transition-all flex items-center justify-center"
+                                variant="secondary"
+                                shape="pill"
+                                className="w-10 h-10 hover:bg-red-500/20 flex items-center justify-center p-0"
                             >
                                 <PixelClose size={16} color="#ff4757" />
-                            </button>
+                            </ActionButton>
                         </div>
 
                         {/* Tabs */}
                         <div className="flex gap-2 mb-4">
-                            <button
+                            <ActionButton
                                 onClick={() => setAdminTab("images")}
-                                className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${adminTab === "images" ? "bg-[#ff4757] text-white" : "glass border border-white/10 hover:border-[#ff4757]/50"}`}
+                                variant={adminTab === "images" ? "danger" : "secondary"}
+                                className="px-4 py-2 flex items-center gap-2"
                             >
                                 <PixelImage size={14} color="currentColor" /> Images ({adminStats?.totalImages || 0})
-                            </button>
-                            <button
+                            </ActionButton>
+                            <ActionButton
                                 onClick={() => setAdminTab("members")}
-                                className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${adminTab === "members" ? "bg-[#2ed573] text-white" : "glass border border-white/10 hover:border-[#2ed573]/50"}`}
+                                variant={adminTab === "members" ? "primary" : "secondary"}
+                                className="px-4 py-2 flex items-center gap-2"
                             >
                                 <PixelUser size={14} color="currentColor" /> Members ({membersList.length})
-                            </button>
+                            </ActionButton>
                         </div>
 
                         {/* Images Tab */}
@@ -1189,12 +1194,14 @@ export default function ImageFramePage() {
                                 {selectedMember && (
                                     <div className="flex items-center gap-3 mb-3 p-3 bg-[#2ed573]/10 border border-[#2ed573]/30 rounded-xl">
                                         <span className="text-[#2ed573] flex items-center gap-1"><PixelUser size={12} color="#2ed573" /> Viewing uploads from: <strong>{selectedMember.name}</strong></span>
-                                        <button
+                                        <ActionButton
                                             onClick={() => setSelectedMember(null)}
-                                            className="ml-auto px-3 py-1.5 glass hover:bg-red-500/20 rounded-xl text-sm border border-white/10 flex items-center gap-1"
+                                            variant="secondary"
+                                            size="sm"
+                                            className="ml-auto px-3 py-1.5 hover:bg-red-500/20 text-sm flex items-center gap-1"
                                         >
                                             <PixelClose size={12} color="currentColor" /> Clear Filter
-                                        </button>
+                                        </ActionButton>
                                     </div>
                                 )}
 
@@ -1206,21 +1213,21 @@ export default function ImageFramePage() {
                                         <option value="size">Size</option>
                                         <option value="uploader">Uploader</option>
                                     </select>
-                                    <button onClick={selectAllImages} className="px-3 py-2 glass rounded-xl border border-white/10 hover:border-[#2ed573]/50 text-sm flex items-center gap-1">
+                                    <ActionButton onClick={selectAllImages} variant="secondary" size="sm" className="px-3 py-2 hover:border-[#2ed573]/50 text-sm flex items-center gap-1">
                                         {selectedImages.size === filteredAdminImages.length && filteredAdminImages.length > 0 ? <><PixelCheck size={12} /> Deselect</> : "Select All"}
-                                    </button>
-                                    <button onClick={fetchAdminImages} className="px-3 py-2 glass rounded-xl border border-white/10 hover:border-[#ffa502]/50 text-sm flex items-center justify-center">
+                                    </ActionButton>
+                                    <ActionButton onClick={fetchAdminImages} variant="secondary" size="sm" className="px-3 py-2 hover:border-[#ffa502]/50 text-sm flex items-center justify-center">
                                         <PixelRefresh size={16} color="currentColor" />
-                                    </button>
+                                    </ActionButton>
                                 </div>
 
                                 {/* Bulk delete */}
                                 {selectedImages.size > 0 && (
                                     <div className="flex items-center gap-3 mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded-xl text-sm">
                                         <span className="text-red-400 flex items-center gap-1"><PixelWarning size={14} color="#f87171" /> {selectedImages.size} selected</span>
-                                        <button onClick={bulkDeleteImages} disabled={isDeleting} className="ml-auto px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-xl font-medium text-sm disabled:opacity-50 flex items-center gap-1">
+                                        <ActionButton onClick={bulkDeleteImages} disabled={isDeleting} variant="danger" size="sm" className="ml-auto px-3 py-1.5 text-sm flex items-center gap-1">
                                             {isDeleting ? "..." : <><PixelTrash size={14} color="#fff" /> Delete</>}
-                                        </button>
+                                        </ActionButton>
                                     </div>
                                 )}
 
@@ -1282,12 +1289,14 @@ export default function ImageFramePage() {
                                                     <p className="text-xs text-gray-400">First seen</p>
                                                     <p className="text-xs text-white">{member.firstUpload ? formatDate(member.firstUpload) : "N/A"}</p>
                                                 </div>
-                                                <button
+                                                <ActionButton
                                                     onClick={() => { setSelectedMember({ name: member.name, email: member.email }); setAdminTab("images"); }}
-                                                    className="px-3 py-2 bg-[#ff4757] hover:bg-[#ff6b81] rounded-xl text-sm font-medium transition-all flex items-center gap-1"
+                                                    variant="danger"
+                                                    size="sm"
+                                                    className="px-3 py-2 text-sm flex items-center gap-1"
                                                 >
                                                     <PixelImage size={14} color="#fff" /> View
-                                                </button>
+                                                </ActionButton>
                                             </div>
                                         ))}
                                     </div>
@@ -1303,12 +1312,15 @@ export default function ImageFramePage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
                     <div className="glass rounded-2xl p-6 max-w-md w-full border-2 border-[#ffa502]/30 relative">
                         {/* Close X Button */}
-                        <button
+                        <ActionButton
                             onClick={() => setShowLogoutConfirm(false)}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors text-xl"
+                            variant="secondary"
+                            size="sm"
+                            shape="pill"
+                            className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl w-8 h-8 p-0 border-transparent"
                         >
                             ✕
-                        </button>
+                        </ActionButton>
 
                         {/* Icon */}
                         <div className="text-center mb-4 mt-2">
@@ -1328,16 +1340,18 @@ export default function ImageFramePage() {
 
                         {/* Action Buttons */}
                         <div className="flex gap-3">
-                            <button
+                            <ActionButton
                                 onClick={() => setShowLogoutConfirm(false)}
-                                className="flex-1 py-3 rounded-xl glass border border-white/10 hover:border-white/30 transition-colors"
+                                variant="secondary"
+                                fullWidth
+                                className="flex-1 py-3 hover:border-white/30"
                             >
                                 Close
-                            </button>
+                            </ActionButton>
                             <SignInButton mode="modal">
-                                <button className="flex-1 py-3 bg-[#2ed573] hover:bg-[#26de81] rounded-xl font-medium transition-all cursor-pointer">
+                                <ActionButton variant="primary" fullWidth className="flex-1 py-3 cursor-pointer">
                                     Sign In Again
-                                </button>
+                                </ActionButton>
                             </SignInButton>
                         </div>
                     </div>
@@ -1454,13 +1468,15 @@ export default function ImageFramePage() {
             {showUploadSuccessModal && uploadedImage && (
                 <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
                     <div className="glass rounded-2xl p-4 sm:p-6 md:p-7 w-full max-w-xl relative border border-[#2ed573]/20 max-h-[90vh] overflow-y-auto">
-                        <button
+                        <ActionButton
                             onClick={resetUpload}
-                            className="absolute top-4 right-4 w-8 h-8 rounded-full glass border border-white/10 hover:border-red-500/50 hover:bg-red-500/10 transition-all flex items-center justify-center group"
+                            variant="secondary"
+                            shape="pill"
+                            className="absolute top-4 right-4 w-8 h-8 hover:border-red-500/50 hover:bg-red-500/10 flex items-center justify-center group p-0"
                             title="Close"
                         >
                             <PixelClose size={12} className="text-gray-400 group-hover:text-red-400 transition-colors" color="currentColor" />
-                        </button>
+                        </ActionButton>
 
                         <div className="mb-5 flex flex-col items-center text-center">
                             <div className="w-14 h-14 rounded-xl bg-[#2ed573]/15 border border-[#2ed573]/40 flex items-center justify-center shadow-[0_0_24px_rgba(46,213,115,0.25)] mb-3">
@@ -1529,13 +1545,15 @@ export default function ImageFramePage() {
                             <p className="text-xs text-gray-500 text-center mb-3">
                                 Auto closes in {successModalCountdown}s
                             </p>
-                            <button
+                            <ActionButton
                                 onClick={resetUpload}
-                                className="w-full py-4 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-medium transition-all hover:scale-[1.01] flex items-center justify-center gap-2"
+                                variant="primary"
+                                fullWidth
+                                className="py-4 hover:scale-[1.01] flex items-center justify-center gap-2"
                             >
                                 <PixelUpload size={14} color="#0b0f19" />
                                 Upload Another Image
-                            </button>
+                            </ActionButton>
                         </div>
                     </div>
                 </div>
@@ -1632,10 +1650,15 @@ export default function ImageFramePage() {
                                 </Link>
                                 <SignedOut>
                                     <SignInButton mode="modal">
-                                        <button className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 bg-[#2ed573] hover:bg-[#26de81] rounded-full text-sm font-medium transition-all hover:scale-105 cursor-pointer flex items-center gap-1 md:gap-2">
+                                        <ActionButton
+                                            variant="primary"
+                                            shape="pill"
+                                            size="md"
+                                            className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 hover:scale-105 cursor-pointer flex items-center gap-1 md:gap-2"
+                                        >
                                             <PixelKey size={14} color="currentColor" />
                                             <span className="hidden md:inline">Sign In</span>
-                                        </button>
+                                        </ActionButton>
                                     </SignInButton>
                                 </SignedOut>
                                 <SignedIn>
@@ -1664,19 +1687,23 @@ export default function ImageFramePage() {
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-medium text-gray-400">Uploader Name</h3>
                                     {!isEditingUsername ? (
-                                        <button
+                                        <ActionButton
                                             onClick={() => setIsEditingUsername(true)}
-                                            className="text-xs text-[#2ed573] hover:text-[#26de81] transition-colors flex items-center gap-1"
+                                            variant="secondary"
+                                            size="sm"
+                                            className="text-xs text-[#2ed573] hover:text-[#26de81] border-transparent p-0 flex items-center gap-1"
                                         >
                                             <Edit3 size={12} /> Edit
-                                        </button>
+                                        </ActionButton>
                                     ) : (
-                                        <button
+                                        <ActionButton
                                             onClick={handleSaveUsername}
-                                            className="text-xs text-[#2ed573] hover:text-[#26de81] transition-colors flex items-center gap-1"
+                                            variant="secondary"
+                                            size="sm"
+                                            className="text-xs text-[#2ed573] hover:text-[#26de81] border-transparent p-0 flex items-center gap-1"
                                         >
                                             <Save size={12} /> Save
-                                        </button>
+                                        </ActionButton>
                                     )}
                                 </div>
                                 {isEditingUsername ? (
@@ -1720,12 +1747,14 @@ export default function ImageFramePage() {
                                         </span>
                                     </div>
                                     <div className="w-px h-4 bg-white/20"></div>
-                                    <button
+                                    <ActionButton
                                         onClick={changeHost}
-                                        className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                                        variant="secondary"
+                                        size="sm"
+                                        className="text-xs text-gray-400 hover:text-white border-transparent p-0 flex items-center gap-1"
                                     >
                                         <PixelRefresh size={12} /> Change
-                                    </button>
+                                    </ActionButton>
                                 </div>
                             )}
                         </div>
@@ -1751,10 +1780,14 @@ export default function ImageFramePage() {
                                     </div>
                                     <div className="flex items-center justify-center gap-3 pt-4">
                                         <SignInButton mode="modal">
-                                            <button className="px-6 py-3 bg-[#2ed573] hover:bg-[#26de81] rounded-full font-medium transition-all hover:scale-105 flex items-center gap-2 cursor-pointer">
+                                            <ActionButton
+                                                variant="primary"
+                                                shape="pill"
+                                                className="px-6 py-3 hover:scale-105 flex items-center gap-2 cursor-pointer"
+                                            >
                                                 <PixelKey size={16} color="currentColor" />
                                                 <span>Continue to Clerk Sign In</span>
-                                            </button>
+                                            </ActionButton>
                                         </SignInButton>
                                     </div>
                                     <p className="text-xs text-gray-500">
@@ -1888,18 +1921,22 @@ export default function ImageFramePage() {
                                 {isSignedIn && (
                                     <div className="flex justify-center">
                                         <div className="glass p-1 rounded-xl flex">
-                                            <button
+                                            <ActionButton
                                                 onClick={() => setIsUrlMode(false)}
-                                                className={`px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${!isUrlMode ? "bg-[#2ed573] text-black font-medium" : "text-gray-400 hover:text-white"}`}
+                                                variant={!isUrlMode ? "primary" : "secondary"}
+                                                size="sm"
+                                                className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 ${!isUrlMode ? "text-black font-medium" : "text-gray-400 hover:text-white"}`}
                                             >
                                                 <PixelUpload size={14} color="currentColor" /> Upload File
-                                            </button>
-                                            <button
+                                            </ActionButton>
+                                            <ActionButton
                                                 onClick={() => setIsUrlMode(true)}
-                                                className={`px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${isUrlMode ? "bg-[#2ed573] text-black font-medium" : "text-gray-400 hover:text-white"}`}
+                                                variant={isUrlMode ? "primary" : "secondary"}
+                                                size="sm"
+                                                className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 ${isUrlMode ? "text-black font-medium" : "text-gray-400 hover:text-white"}`}
                                             >
                                                 <PixelExternalLink size={14} color="currentColor" /> Import URL
-                                            </button>
+                                            </ActionButton>
                                         </div>
                                     </div>
                                 )}
@@ -1924,17 +1961,18 @@ export default function ImageFramePage() {
                                                 className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:border-[#2ed573] outline-none transition-all"
                                                 onKeyDown={(e) => e.key === "Enter" && handleUrlUpload()}
                                             />
-                                            <button
+                                            <ActionButton
                                                 onClick={handleUrlUpload}
                                                 disabled={isUploading || !urlInput.trim()}
-                                                className="px-6 py-3 bg-[#2ed573] hover:bg-[#26de81] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-black transition-all flex items-center gap-2"
+                                                variant="primary"
+                                                className="px-6 py-3 font-bold text-black flex items-center gap-2"
                                             >
                                                 {isUploading ? (
                                                     <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                                                 ) : (
                                                     <>Import <PixelCheck size={14} /></>
                                                 )}
-                                            </button>
+                                            </ActionButton>
                                         </div>
                                         <p className="text-center text-xs text-gray-600 mt-4">
                                             Supported: .jpg, .png, .gif, .webp
@@ -1973,15 +2011,17 @@ export default function ImageFramePage() {
                                                 <p className="text-gray-500 text-xs">{formatFileSize(selectedFile?.size)}</p>
 
                                                 {/* Edit Button */}
-                                                <button
+                                                <ActionButton
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setShowEditor(true);
                                                     }}
-                                                    className="px-6 py-2 rounded-full bg-[#ff4757]/20 border border-[#ff4757]/50 text-[#ff4757] hover:bg-[#ff4757]/30 transition-all flex items-center gap-2 mx-auto"
+                                                    variant="secondary"
+                                                    shape="pill"
+                                                    className="px-6 py-2 bg-[#ff4757]/20 border-[#ff4757]/50 text-[#ff4757] hover:bg-[#ff4757]/30 flex items-center gap-2 mx-auto"
                                                 >
                                                     <PixelCropIcon size={14} color="#ff4757" /> Edit & Crop
-                                                </button>
+                                                </ActionButton>
                                             </div>
                                         ) : (
                                             <div className="py-8">
@@ -2029,8 +2069,9 @@ export default function ImageFramePage() {
                                                     {isPrivate ? 'Private' : 'Public'}
                                                 </span>
                                             </div>
-                                            <button
+                                            <ActionButton
                                                 onClick={() => setIsPrivate(!isPrivate)}
+                                                variant="secondary"
                                                 className={`
                                                     relative w-14 h-7 rounded-full transition-all duration-300
                                                     ${isPrivate ? 'bg-[#ff4757]/20 border-[#ff4757]/50' : 'bg-[#2ed573]/20 border-[#2ed573]/50'}
@@ -2043,7 +2084,7 @@ export default function ImageFramePage() {
                                                         ${isPrivate ? 'translate-x-7 bg-[#ff4757]' : 'translate-x-0 bg-[#2ed573]'}
                                                     `}
                                                 />
-                                            </button>
+                                            </ActionButton>
                                         </div>
                                         <p className="text-xs text-gray-500 mt-2">
                                             {isPrivate
@@ -2067,8 +2108,9 @@ export default function ImageFramePage() {
                                                     {isNsfw ? 'NSFW' : 'Safe'}
                                                 </span>
                                             </div>
-                                            <button
+                                            <ActionButton
                                                 onClick={() => setIsNsfw(!isNsfw)}
+                                                variant="secondary"
                                                 className={`
                                                     relative w-14 h-7 rounded-full transition-all duration-300
                                                     ${isNsfw ? 'bg-[#ff4757]/20 border-[#ff4757]/50' : 'bg-[#2ed573]/20 border-[#2ed573]/50'}
@@ -2081,7 +2123,7 @@ export default function ImageFramePage() {
                                                         ${isNsfw ? 'translate-x-7 bg-[#ff4757]' : 'translate-x-0 bg-[#2ed573]'}
                                                     `}
                                                 />
-                                            </button>
+                                            </ActionButton>
                                         </div>
                                         <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
                                             {isNsfw
@@ -2095,25 +2137,23 @@ export default function ImageFramePage() {
                                 {/* Action Buttons */}
                                 {selectedFile && (
                                     <div className="flex gap-4">
-                                        <button
+                                        <ActionButton
                                             onClick={resetUpload}
-                                            className="flex-1 py-4 rounded-xl glass border border-white/10 hover:border-white/30 transition-colors"
+                                            variant="secondary"
+                                            fullWidth
+                                            className="flex-1 py-4 hover:border-white/30"
                                         >
                                             Cancel
-                                        </button>
-                                        <button
+                                        </ActionButton>
+                                        <ActionButton
                                             onClick={uploadImage}
                                             disabled={isUploading}
-                                            className={`
-                        flex-1 py-4 rounded-xl font-medium transition-all
-                        ${isUploading
-                                                    ? "bg-gray-600 cursor-not-allowed"
-                                                    : "bg-[#ff4757] hover:bg-[#ff6b81] hover:scale-105"
-                                                }
-                      `}
+                                            variant="danger"
+                                            fullWidth
+                                            className={`flex-1 py-4 ${isUploading ? "bg-gray-600 border-gray-600 hover:bg-gray-600 cursor-not-allowed" : "hover:scale-105"}`}
                                         >
                                             {isUploading ? "Uploading..." : "Upload Image"}
-                                        </button>
+                                        </ActionButton>
                                     </div>
                                 )}
                             </div>
