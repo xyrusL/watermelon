@@ -21,7 +21,7 @@ import ActionButton from "../../components/ActionButton";
 
 import { UploadedImage } from "../types";
 import ImageDetailsModal from "./ImageDetailsModal";
-import { mapDbImagesToUploadedImages } from "../lib/image-mapper";
+import { mapDbImagesToUploadedImages, type DbImage } from "../lib/image-mapper";
 
 // Types - Use existing UploadedImage from types.ts
 // interface UserImage removed in favor of UploadedImage
@@ -31,6 +31,14 @@ interface UserStats {
     publicImages: number;
     privateImages: number;
     nsfwImages?: number;
+}
+
+interface UserImagesApiResponse {
+    success?: boolean;
+    images?: DbImage[];
+    stats?: UserStats;
+    error?: string;
+    message?: string;
 }
 
 interface UserPanelProps {
@@ -80,7 +88,7 @@ export default function UserPanel({
         if (!isPolling) setIsLoading(true);
         try {
             const response = await fetch('/api/user/images');
-            let data: any = null;
+            let data: UserImagesApiResponse | null = null;
             try {
                 data = await response.json();
             } catch {
@@ -98,10 +106,10 @@ export default function UserPanel({
                 return;
             }
 
-            if (data?.success) {
+            if (data?.success && Array.isArray(data.images)) {
                 const images = mapDbImagesToUploadedImages(data.images);
                 setUserImages(images);
-                setStats(data.stats);
+                setStats(data.stats || null);
                 lastUserImagesErrorRef.current = null;
             } else {
                 notifyUserImagesError(

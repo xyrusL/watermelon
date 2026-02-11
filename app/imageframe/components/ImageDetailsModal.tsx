@@ -1,5 +1,5 @@
 // Image Details Modal Component
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { UploadedImage } from "../types";
 import {
     PixelWarning,
@@ -51,12 +51,14 @@ export default function ImageDetailsModal({
     onToggleVisibility,
     onToggleNsfw,
 }: ImageDetailsModalProps) {
-    const [commandName, setCommandName] = useState(sanitizeImageFrameName(image?.filename || "image-frame"));
-
-    useEffect(() => {
-        if (!image) return;
-        setCommandName(sanitizeImageFrameName(image.filename));
-    }, [image]);
+    const imageKey = image?.id || image?.uploadedAt?.toString() || "image-frame";
+    const [commandDraft, setCommandDraft] = useState<{ key: string; value: string }>({
+        key: imageKey,
+        value: sanitizeImageFrameName(image?.filename || "image-frame"),
+    });
+    const commandName = commandDraft.key === imageKey
+        ? commandDraft.value
+        : sanitizeImageFrameName(image?.filename || "image-frame");
 
     const frameSuggestion = useMemo(() => {
         if (!image) {
@@ -111,11 +113,6 @@ export default function ImageDetailsModal({
                 <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-3 sm:gap-4 md:gap-5 h-full">
                     <div className="glass-dark rounded-xl p-3 border border-white/10">
                         <div className="bg-black/30 rounded-xl overflow-hidden flex items-center justify-center h-[220px] sm:h-[280px] md:h-[360px] relative">
-                            {image.is_nsfw && (
-                                <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-[#ff4757] to-[#ff6b81] text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 font-bold shadow-lg">
-                                    <PixelWarning size={10} color="#fff" /> NSFW
-                                </div>
-                            )}
                             <ActionButton
                                 onClick={() => window.open(ensureAbsoluteUrl(image.directUrl), "_blank", "noopener,noreferrer")}
                                 variant="secondary"
@@ -124,6 +121,18 @@ export default function ImageDetailsModal({
                             >
                                 <PixelExternalLink size={12} color="currentColor" />
                             </ActionButton>
+                            <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1 pointer-events-none">
+                                {image.is_nsfw && (
+                                    <div className="bg-gradient-to-r from-[#ff4757] to-[#ff6b81] text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 font-bold shadow-lg">
+                                        <PixelWarning size={10} color="#fff" /> NSFW
+                                    </div>
+                                )}
+                                {image.is_private && (
+                                    <div className="bg-gradient-to-r from-[#ffa502] to-[#ffb142] text-black text-xs px-2 py-1 rounded-full flex items-center gap-1 font-bold shadow-lg">
+                                        <PixelLock size={10} color="#111827" /> PRIVATE
+                                    </div>
+                                )}
+                            </div>
 
                             <img
                                 src={image.directUrl}
@@ -182,7 +191,7 @@ export default function ImageDetailsModal({
                                     <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-2">ImageFrame Command Name</p>
                                     <input
                                         value={commandName}
-                                        onChange={(e) => setCommandName(e.target.value)}
+                                        onChange={(e) => setCommandDraft({ key: imageKey, value: e.target.value })}
                                         placeholder="my-frame"
                                         className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-[#2ed573]/60 outline-none"
                                     />

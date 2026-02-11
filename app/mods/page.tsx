@@ -280,11 +280,11 @@ export default function ModsPage() {
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <span className="text-[#5f27cd] font-bold min-w-[20px]">4.</span>
-                                                <span>Click "Install Fabric" button on the version selection page</span>
+                                                <span>Click &quot;Install Fabric&quot; button on the version selection page</span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <span className="text-[#5f27cd] font-bold min-w-[20px]">5.</span>
-                                                <span>Wait for Fabric to install, then click "Play"</span>
+                                                <span>Wait for Fabric to install, then click &quot;Play&quot;</span>
                                             </li>
                                         </ol>
                                     </div>
@@ -299,7 +299,7 @@ export default function ModsPage() {
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <span className="text-[#ffa502] font-bold min-w-[20px]">2.</span>
-                                                <span>In SKLauncher, click "Folder" button (near Play button)</span>
+                                                <span>In SKLauncher, click &quot;Folder&quot; button (near Play button)</span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <span className="text-[#ffa502] font-bold min-w-[20px]">3.</span>
@@ -311,7 +311,7 @@ export default function ModsPage() {
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <span className="text-[#ffa502] font-bold min-w-[20px]">5.</span>
-                                                <span>Close the folder and click "Play" - mods will load automatically!</span>
+                                                <span>Close the folder and click &quot;Play&quot; - mods will load automatically!</span>
                                             </li>
                                         </ol>
                                         <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
@@ -364,7 +364,7 @@ export default function ModsPage() {
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <span className="text-[#5f27cd] font-bold min-w-[20px]">5.</span>
-                                                <span>Click "Install" and wait, then click "Play"</span>
+                                                <span>Click &quot;Install&quot; and wait, then click &quot;Play&quot;</span>
                                             </li>
                                         </ol>
                                     </div>
@@ -383,7 +383,7 @@ export default function ModsPage() {
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <span className="text-[#ffa502] font-bold min-w-[20px]">3.</span>
-                                                <span>Navigate to <code className="text-[#2ed573] px-1 bg-black/30 rounded">mods</code> folder (create it if it doesn't exist)</span>
+                                                <span>Navigate to <code className="text-[#2ed573] px-1 bg-black/30 rounded">mods</code> folder (create it if it doesn&apos;t exist)</span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <span className="text-[#ffa502] font-bold min-w-[20px]">4.</span>
@@ -596,7 +596,7 @@ export default function ModsPage() {
                                             </li>
                                             <li className="flex items-start gap-2">
                                                 <span className="text-yellow-500 mt-0.5">⚠️</span>
-                                                <span className="text-xs text-gray-400">Don't allocate more than 8GB or it can cause lag</span>
+                                                <span className="text-xs text-gray-400">Don&apos;t allocate more than 8GB or it can cause lag</span>
                                             </li>
                                         </ul>
                                     </div>

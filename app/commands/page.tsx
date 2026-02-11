@@ -199,7 +199,7 @@ export default function CommandsPage() {
                                 <span>💬</span> SOCIAL COMMANDS
                             </h2>
                             <div className="grid gap-4">
-                                {socialCommands.map((cmd: any) => (
+                                {socialCommands.map((cmd) => (
                                     <div
                                         key={cmd.command}
                                         className="glass rounded-xl p-5 hover:border-[#ff6b81]/50 transition-all group"

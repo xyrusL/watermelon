@@ -14,17 +14,21 @@ export default function MinecraftPage() {
     const [timeLeft, setTimeLeft] = useState(5);
 
     useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (isCooldown && timeLeft > 0) {
-            timer = setInterval(() => {
-                setTimeLeft((prev) => prev - 1);
-            }, 1000);
-        } else if (timeLeft === 0) {
-            setIsCooldown(false);
-            setTimeLeft(5);
-        }
+        if (!isCooldown) return;
+
+        const timer = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    setIsCooldown(false);
+                    return 5;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
         return () => clearInterval(timer);
-    }, [isCooldown, timeLeft]);
+    }, [isCooldown]);
 
     const handleDownload = () => {
         if (isCooldown) return;
@@ -159,7 +163,7 @@ export default function MinecraftPage() {
 
                         {/* Disclaimer */}
                         <p className="text-xs text-gray-500 mt-6 px-4">
-                            ⚠️ Make sure to enable "Install from Unknown Sources" in your Android settings before installing the APK.
+                            ⚠️ Make sure to enable &quot;Install from Unknown Sources&quot; in your Android settings before installing the APK.
                         </p>
                     </div>
                 </main>

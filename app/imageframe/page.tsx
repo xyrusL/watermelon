@@ -41,7 +41,7 @@ import { Edit3, Save, X, ChevronDown, ImageIcon, Scissors, Square, RectangleHori
 import type { UploadedImage, HostType, HostConfig, NotificationState, FrameDimensions } from "./types";
 import { HOSTS } from "./constants";
 import { ensureAbsoluteUrl, formatDate, formatFileSize } from "./utils";
-import { mapDbImagesToUploadedImages } from "./lib/image-mapper";
+import { mapDbImagesToUploadedImages, type DbImage } from "./lib/image-mapper";
 import {
     buildImageFrameCreateCommand,
     sanitizeImageFrameName,
@@ -62,6 +62,8 @@ const EXT_TO_MIME: Record<string, string> = {
 };
 const getExtFromName = (name: string) =>
     name.split(".").pop()?.toLowerCase() || "";
+const isGifFile = (file: File | null) =>
+    !!file && (file.type === "image/gif" || getExtFromName(file.name) === "gif");
 
 const loadImageDimensions = (src: string): Promise<FrameDimensions> =>
     new Promise((resolve, reject) => {
@@ -70,6 +72,13 @@ const loadImageDimensions = (src: string): Promise<FrameDimensions> =>
         img.onerror = () => reject(new Error("Failed to read image dimensions"));
         img.src = src;
     });
+
+interface RecentImagesApiResponse {
+    success?: boolean;
+    images?: DbImage[];
+    error?: string;
+    message?: string;
+}
 
 export default function ImageFramePage() {
     const { isSignedIn, isLoaded, user } = useUser();
@@ -87,6 +96,8 @@ export default function ImageFramePage() {
     const [showUploadSuccessModal, setShowUploadSuccessModal] = useState(false);
     const [successModalCountdown, setSuccessModalCountdown] = useState(10);
     const [commandFrameSource, setCommandFrameSource] = useState<FrameSizeSource>("fallback");
+    const [copiedDirectUrl, setCopiedDirectUrl] = useState(false);
+    const [copiedCommand, setCopiedCommand] = useState(false);
     const [lastEditedFrameSize, setLastEditedFrameSize] = useState<FrameDimensions | null>(null);
     const [autoFaceFrameSize, setAutoFaceFrameSize] = useState<FrameDimensions | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -135,6 +146,7 @@ export default function ImageFramePage() {
 
     // Image editor state
     const [showEditor, setShowEditor] = useState(false);
+    const [showFramePromptModal, setShowFramePromptModal] = useState(false);
     const [croppedPreview, setCroppedPreview] = useState<string | null>(null);
 
     // Visibility state
@@ -222,7 +234,7 @@ export default function ImageFramePage() {
 
         try {
             const response = await fetch('/api/supabase/recent');
-            let data: any = null;
+            let data: RecentImagesApiResponse | null = null;
             try {
                 data = await response.json();
             } catch {
@@ -236,7 +248,7 @@ export default function ImageFramePage() {
                 return;
             }
 
-            if (data?.success && data.images && requestId === latestGalleryRequestIdRef.current) {
+            if (data?.success && Array.isArray(data.images) && requestId === latestGalleryRequestIdRef.current) {
                 const images = mapDbImagesToUploadedImages(data.images);
                 setGallery(images);
                 lastGalleryApiErrorRef.current = null;
@@ -688,6 +700,19 @@ export default function ImageFramePage() {
         }
     };
 
+    const startUploadFlow = () => {
+        if (!selectedFile || !selectedHost || isUploading) return;
+
+        // Require an explicit user-selected frame first.
+        // Auto-suggested values are still available if the user chooses to skip.
+        if (!lastEditedFrameSize) {
+            setShowFramePromptModal(true);
+            return;
+        }
+
+        void uploadImage();
+    };
+
     const copyUrl = async (url: string) => {
         try {
             // Try modern clipboard API first (requires HTTPS)
@@ -713,11 +738,28 @@ export default function ImageFramePage() {
         }
     };
 
+    const copySuccessText = async (value: string, target: "url" | "command") => {
+        await copyUrl(value);
+        if (target === "url") {
+            setCopiedDirectUrl(true);
+            setCopiedCommand(false);
+            setTimeout(() => setCopiedDirectUrl(false), 2000);
+            return;
+        }
+
+        setCopiedCommand(true);
+        setCopiedDirectUrl(false);
+        setTimeout(() => setCopiedCommand(false), 2000);
+    };
+
     const resetUpload = () => {
         setSelectedFile(null);
         setPreview(null);
         setUploadedImage(null);
         setShowUploadSuccessModal(false);
+        setShowFramePromptModal(false);
+        setCopiedDirectUrl(false);
+        setCopiedCommand(false);
         setCommandFrameSource("fallback");
         setLastEditedFrameSize(null);
         setAutoFaceFrameSize(null);
@@ -1344,7 +1386,7 @@ export default function ImageFramePage() {
 
                         {/* Title */}
                         <h3 className="font-pixel text-lg mb-4 text-center text-[#ffa502]">
-                            YOU'VE LOGGED OUT
+                            YOU&apos;VE LOGGED OUT
                         </h3>
 
                         {/* Message */}
@@ -1464,7 +1506,7 @@ export default function ImageFramePage() {
                         <div className="flex justify-center mb-4"><PixelWarning size={48} color="#ffa502" /></div>
                         <h2 className="font-pixel text-lg text-red-400 mb-4">API ERROR</h2>
                         <p className="text-gray-300 mb-6">
-                            There's something wrong with the upload service. Please let the server admin know!
+                            There&apos;s something wrong with the upload service. Please let the server admin know!
                         </p>
                         <div className="glass p-3 rounded-lg mb-6">
                             <code className="text-red-400 text-sm">{apiError}</code>
@@ -1522,15 +1564,15 @@ export default function ImageFramePage() {
                         <div className="space-y-2">
                             <p className="text-sm text-gray-400">Direct URL (paste in Minecraft)</p>
                             <div
-                                onClick={() => copyUrl(directUploadUrl)}
+                                onClick={() => copySuccessText(directUploadUrl, "url")}
                                 className="glass p-4 rounded-xl cursor-pointer border border-white/10 hover:border-[#2ed573]/50 transition-all group"
                             >
                                 <code className="text-[#ff4757] text-sm break-all block">
                                     {directUploadUrl}
                                 </code>
-                                <p className={`text-xs mt-3 flex items-center justify-center gap-1.5 ${copied ? "text-[#2ed573]" : "text-gray-500 group-hover:text-gray-400"}`}>
-                                    {copied ? <PixelCheck size={11} color="#2ed573" /> : <PixelCopy size={11} color="currentColor" />}
-                                    {copied ? "Copied!" : "Click to copy"}
+                                <p className={`text-xs mt-3 flex items-center justify-center gap-1.5 ${copiedDirectUrl ? "text-[#2ed573]" : "text-gray-500 group-hover:text-gray-400"}`}>
+                                    {copiedDirectUrl ? <PixelCheck size={11} color="#2ed573" /> : <PixelCopy size={11} color="currentColor" />}
+                                    {copiedDirectUrl ? "Copied!" : "Click to copy"}
                                 </p>
                             </div>
                         </div>
@@ -1543,15 +1585,15 @@ export default function ImageFramePage() {
                                 </p>
                             </div>
                             <div
-                                onClick={() => copyUrl(imageFrameCreateCommand)}
+                                onClick={() => copySuccessText(imageFrameCreateCommand, "command")}
                                 className="glass p-4 rounded-xl cursor-pointer border border-white/10 hover:border-[#2ed573]/50 transition-all group"
                             >
                                 <code className="text-[#2ed573] text-sm break-all block">
                                     {imageFrameCreateCommand}
                                 </code>
-                                <p className={`text-xs mt-3 flex items-center justify-center gap-1.5 ${copied ? "text-[#2ed573]" : "text-gray-500 group-hover:text-gray-400"}`}>
-                                    {copied ? <PixelCheck size={11} color="#2ed573" /> : <PixelCopy size={11} color="currentColor" />}
-                                    {copied ? "Copied!" : "Click to copy command"}
+                                <p className={`text-xs mt-3 flex items-center justify-center gap-1.5 ${copiedCommand ? "text-[#2ed573]" : "text-gray-500 group-hover:text-gray-400"}`}>
+                                    {copiedCommand ? <PixelCheck size={11} color="#2ed573" /> : <PixelCopy size={11} color="currentColor" />}
+                                    {copiedCommand ? "Copied!" : "Click to copy command"}
                                 </p>
                             </div>
                         </div>
@@ -1604,6 +1646,61 @@ export default function ImageFramePage() {
                 </div>
             )}
 
+            {/* Frame Selection Prompt Modal */}
+            {showFramePromptModal && selectedFile && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm">
+                    <div className="glass rounded-2xl p-4 sm:p-6 w-full max-w-[calc(100vw-1.5rem)] sm:max-w-md md:max-w-lg border border-white/15 shadow-[0_20px_60px_rgba(0,0,0,0.45)] max-h-[88vh] overflow-y-auto">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <PixelInfo size={18} color="#ff4757" />
+                                <h3 className="font-pixel text-[13px] sm:text-sm text-[#ff4757] tracking-wide">SET FRAME SIZE FIRST</h3>
+                            </div>
+                            <ActionButton
+                                onClick={() => setShowFramePromptModal(false)}
+                                variant="secondary"
+                                className="w-8 h-8 sm:w-9 sm:h-9 p-0 border-white/20 hover:border-white/40 text-gray-400 hover:text-white flex items-center justify-center shrink-0"
+                                title="Close"
+                            >
+                                <PixelClose size={11} color="currentColor" />
+                            </ActionButton>
+                        </div>
+
+                        <p className="text-[13px] sm:text-sm text-gray-300 leading-relaxed mt-4">
+                            Frame size sets the <code className="text-[#2ed573] px-1">width × height</code> used in your
+                            <code className="text-[#2ed573] px-1 ml-1">/imageframe create</code> command.
+                            Choosing it now helps your image place correctly in Minecraft.
+                        </p>
+
+                        <div className="mt-5 sm:mt-6">
+                            <ActionButton
+                                onClick={() => {
+                                    setShowFramePromptModal(false);
+                                    setShowEditor(true);
+                                }}
+                                variant="danger"
+                                fullWidth
+                                className="py-3 sm:py-3.5 flex items-center justify-center gap-2 text-sm"
+                            >
+                                <PixelCropIcon size={14} color="currentColor" /> Open Editor
+                            </ActionButton>
+                        </div>
+
+                        <div className="mt-3 sm:mt-4 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowFramePromptModal(false);
+                                    void uploadImage();
+                                }}
+                                className="text-[10px] sm:text-[11px] text-gray-500 hover:text-gray-400 transition-colors underline underline-offset-2 text-right"
+                            >
+                                Upload without setting frame size
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Background */}
             <div className="fixed inset-0 z-0">
                 <Image
@@ -1621,12 +1718,12 @@ export default function ImageFramePage() {
                 {/* Header */}
                 <header className="py-3 px-4">
                     <div className="max-w-4xl mx-auto">
-                        <div className="glass rounded-2xl px-4 py-3 flex items-center justify-between">
+                        <div className="glass rounded-2xl px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                                 <img src="/watermelon.svg" alt="Watermelon" width={28} height={28} />
                                 <span className="font-pixel text-xs text-[#ff4757] hidden sm:block">WATERMELON</span>
                             </Link>
-                            <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-wrap justify-end">
+                            <div className="w-full sm:w-auto flex items-center gap-1 sm:gap-2 md:gap-3 flex-wrap justify-center sm:justify-end">
                                 <Link
                                     href="/about"
                                     className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#5f27cd]/50 rounded-full text-sm font-medium transition-all flex items-center gap-1 md:gap-2"
@@ -1637,6 +1734,16 @@ export default function ImageFramePage() {
                                         <rect x="7" y="8" width="2" height="4" fill="white" />
                                     </svg>
                                     <span className="hidden md:inline">About</span>
+                                </Link>
+                                <Link
+                                    href="/converter"
+                                    className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all flex items-center gap-1 md:gap-2"
+                                >
+                                    <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
+                                        <rect x="1" y="3" width="14" height="10" rx="1" fill="#ff4757" />
+                                        <polygon points="6,5 6,11 11,8" fill="white" />
+                                    </svg>
+                                    <span className="hidden md:inline">Converter</span>
                                 </Link>
                                 <Link
                                     href="/mods"
@@ -1650,18 +1757,6 @@ export default function ImageFramePage() {
                                         <rect x="9" y="6" width="2" height="2" fill="white" />
                                     </svg>
                                     <span className="hidden md:inline">Mods</span>
-                                </Link>
-                                <Link
-                                    href="/commands"
-                                    className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#2ed573]/50 rounded-full text-sm font-medium transition-all flex items-center gap-1 md:gap-2"
-                                >
-                                    <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
-                                        <rect x="2" y="2" width="12" height="12" rx="1" fill="#2ed573" />
-                                        <rect x="4" y="4" width="8" height="2" fill="white" />
-                                        <rect x="4" y="7" width="6" height="2" fill="white" />
-                                        <rect x="4" y="10" width="7" height="2" fill="white" />
-                                    </svg>
-                                    <span className="hidden md:inline">Commands</span>
                                 </Link>
                                 <SignedOut>
                                     <SignInButton mode="modal">
@@ -1788,9 +1883,9 @@ export default function ImageFramePage() {
                                             <span className="text-[#2ed573] font-medium flex items-center gap-2"><PixelInfo size={16} color="#2ed573" /> How it works:</span>
                                         </p>
                                         <p className="text-sm text-gray-300">
-                                            Click the button below to open Clerk's secure authentication.
+                                            Click the button below to open Clerk&apos;s secure authentication.
                                             You can <strong className="text-white">sign in with an existing account</strong> or <strong className="text-white">create a new account</strong> there.
-                                            After authentication, you'll be redirected back here to continue uploading.
+                                            After authentication, you&apos;ll be redirected back here to continue uploading.
                                         </p>
                                     </div>
                                     <div className="flex items-center justify-center gap-3 pt-4">
@@ -2035,8 +2130,13 @@ export default function ImageFramePage() {
                                                     shape="pill"
                                                     className="px-6 py-2 bg-[#ff4757]/20 border-[#ff4757]/50 text-[#ff4757] hover:bg-[#ff4757]/30 flex items-center gap-2 mx-auto"
                                                 >
-                                                    <PixelCropIcon size={14} color="#ff4757" /> Edit & Crop
+                                                    <PixelCropIcon size={14} color="#ff4757" /> {isGifFile(selectedFile) ? "Set Frame Size" : "Edit & Crop"}
                                                 </ActionButton>
+                                                {isGifFile(selectedFile) && (
+                                                    <p className="text-[11px] text-gray-400">
+                                                        GIF animation is preserved. Crop/transform is disabled for GIF files.
+                                                    </p>
+                                                )}
                                             </div>
                                         ) : (
                                             <div className="py-8">
@@ -2161,7 +2261,7 @@ export default function ImageFramePage() {
                                             Cancel
                                         </ActionButton>
                                         <ActionButton
-                                            onClick={uploadImage}
+                                            onClick={startUploadFlow}
                                             disabled={isUploading}
                                             variant="danger"
                                             fullWidth

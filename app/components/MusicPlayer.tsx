@@ -28,12 +28,30 @@ const songs: Song[] = [
 export default function MusicPlayer() {
     const [isOpen, setIsOpen] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [volume, setVolume] = useState(0.5);
+    const [volume, setVolume] = useState(() => {
+        if (typeof window === "undefined") return 0.5;
+
+        const savedVolume = localStorage.getItem("watermelon-music-volume");
+        const parsedVolume = savedVolume ? parseFloat(savedVolume) : NaN;
+
+        return Number.isFinite(parsedVolume) ? parsedVolume : 0.5;
+    });
     const [isMuted, setIsMuted] = useState(false);
-    const [showPrompt, setShowPrompt] = useState(true);
+    const [showPrompt, setShowPrompt] = useState(() => {
+        if (typeof window === "undefined") return true;
+        return localStorage.getItem("watermelon-music-enabled") !== "true";
+    });
     const [isLargeScreen, setIsLargeScreen] = useState(false);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [currentSongIndex, setCurrentSongIndex] = useState(0);
+    const [currentSongIndex, setCurrentSongIndex] = useState(() => {
+        if (typeof window === "undefined") return 0;
+
+        const savedSongIndex = localStorage.getItem("watermelon-music-song-index");
+        const parsedIndex = savedSongIndex ? parseInt(savedSongIndex, 10) : NaN;
+
+        return Number.isInteger(parsedIndex) && parsedIndex >= 0 && parsedIndex < songs.length
+            ? parsedIndex
+            : 0;
+    });
     const [showSongList, setShowSongList] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -51,30 +69,10 @@ export default function MusicPlayer() {
 
     // Load saved preferences on mount
     useEffect(() => {
-        const musicEnabled = localStorage.getItem("watermelon-music-enabled");
-        const savedVolume = localStorage.getItem("watermelon-music-volume");
         const savedTime = localStorage.getItem("watermelon-music-time");
-        const wasPlaying = localStorage.getItem("watermelon-music-playing");
-        const savedSongIndex = localStorage.getItem("watermelon-music-song-index");
 
-        if (musicEnabled === "true") {
-            setShowPrompt(false);
-        }
-        if (savedVolume) {
-            setVolume(parseFloat(savedVolume));
-        }
-        if (savedSongIndex) {
-            const index = parseInt(savedSongIndex);
-            if (index >= 0 && index < songs.length) {
-                setCurrentSongIndex(index);
-            }
-        }
         if (savedTime && audioRef.current) {
             audioRef.current.currentTime = parseFloat(savedTime);
-        }
-        // If was playing before refresh, show a "resume" indicator but don't auto-play (browser policy)
-        if (wasPlaying === "true") {
-            setCurrentTime(parseFloat(savedTime || "0"));
         }
     }, []);
 

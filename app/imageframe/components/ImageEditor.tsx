@@ -234,6 +234,17 @@ export default function ImageEditor({
     const applyCrop = async () => {
         if (!completedCrop || !imgRef.current || !canvasRef.current) return;
 
+        const originalName = originalFile?.name || "image.png";
+        const originalExt = originalName.split(".").pop()?.toLowerCase() || "";
+        const originalMime = originalFile?.type || MIME_BY_EXT[originalExt] || "";
+
+        // Keep animated GIFs in their original format.
+        // Canvas export does not preserve GIF animation and would silently convert to PNG.
+        if (originalMime === "image/gif" && originalFile) {
+            onApply(originalFile, imageSrc || URL.createObjectURL(originalFile), getCurrentFrameDimensions());
+            return;
+        }
+
         const image = imgRef.current;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext("2d");
@@ -293,9 +304,6 @@ export default function ImageEditor({
         );
         ctx.restore();
 
-        const originalName = originalFile?.name || "image.png";
-        const originalExt = originalName.split(".").pop()?.toLowerCase() || "";
-        const originalMime = originalFile?.type || MIME_BY_EXT[originalExt] || "";
         const outputType = CANVAS_SUPPORTED_MIME.has(originalMime)
             ? originalMime
             : "image/png";

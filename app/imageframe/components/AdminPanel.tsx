@@ -44,6 +44,15 @@ export interface Member {
     imageUrl?: string;
 }
 
+interface ClerkMemberResponse {
+    id?: string;
+    name?: string;
+    email?: string;
+    createdAt?: number;
+    role?: string;
+    imageUrl?: string;
+}
+
 interface AdminPanelProps {
     isAdmin: boolean;
     showAdminPanel: boolean;
@@ -89,10 +98,10 @@ export default function AdminPanel({
             const response = await fetch('/api/admin/members');
             const data = await response.json();
             if (data.success) {
-                const clerkMembers: Member[] = data.members.map((member: any) => ({
+                const clerkMembers: Member[] = data.members.map((member: ClerkMemberResponse) => ({
                     id: member.id,
-                    name: member.name,
-                    email: member.email,
+                    name: member.name || "Unknown",
+                    email: member.email || "",
                     createdAt: member.createdAt,
                     role: member.role,
                     imageUrl: member.imageUrl,

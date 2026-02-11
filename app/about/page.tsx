@@ -11,7 +11,7 @@ export default function AboutPage() {
     const [copiedUsername, setCopiedUsername] = useState(false);
     const [copiedPassword, setCopiedPassword] = useState(false);
     const [showHearts, setShowHearts] = useState(false);
-    const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
+    const [hearts, setHearts] = useState<{ id: number; x: number; y: number; delay: number }[]>([]);
     const messageRef = useRef<HTMLDivElement>(null);
     const hasTriggered = useRef(false);
 
@@ -46,6 +46,7 @@ export default function AboutPage() {
                                 id: Date.now() + i,
                                 x: Math.random() * 100,
                                 y: Math.random() * 100,
+                                delay: Math.random() * 0.5,
                             }));
                             setHearts(newHearts);
 
@@ -113,18 +114,18 @@ export default function AboutPage() {
                                         friendship, creativity, and countless Minecraft adventures ⛏️.
                                     </p>
                                     <p className="leading-relaxed">
-                                        From our first survival base 🏠 to elaborate builds and community projects, we've been
+                                        From our first survival base 🏠 to elaborate builds and community projects, we&apos;ve been
                                         through it all together. Late-night mining sessions 🌙, epic PvP battles ⚔️, ambitious
                                         redstone contraptions 🔴, and everything in between.
                                     </p>
                                     <p className="leading-relaxed">
-                                        Even though we've graduated and moved on to different paths 🛤️, Minecraft keeps us
+                                        Even though we&apos;ve graduated and moved on to different paths 🛤️, Minecraft keeps us
                                         connected. This server is our digital home 🏡 where we continue to create memories,
                                         share laughs 😄, and build together.
                                     </p>
                                     <div className="glass p-4 rounded-xl mt-6 border border-[#ff4757]/30">
                                         <p className="text-center text-white font-medium">
-                                            We're more than just a server - we're a family! 💚
+                                            We&apos;re more than just a server - we&apos;re a family! 💚
                                         </p>
                                     </div>
                                 </div>
@@ -150,7 +151,7 @@ export default function AboutPage() {
                                         </h3>
                                         <p className="text-sm text-gray-300 mb-4">
                                             If you try to join and the server is offline 🔌, you can start it manually!
-                                            Here's how:
+                                            Here&apos;s how:
                                         </p>
                                         <ol className="text-sm text-gray-300 space-y-2 mb-6">
                                             <li className="flex items-start gap-3">
@@ -163,7 +164,7 @@ export default function AboutPage() {
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <span className="text-[#ffa502] font-bold min-w-[20px]">3.</span>
-                                                <span>Click the green "Start" button</span>
+                                                <span>Click the green &quot;Start&quot; button</span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <span className="text-[#ffa502] font-bold min-w-[20px]">4.</span>
@@ -225,16 +226,16 @@ export default function AboutPage() {
                                 </h2>
                                 <div className="space-y-4 text-gray-300">
                                     <p className="leading-relaxed italic">
-                                        "To my amazing friends Yuii, Peach, and unknown0607 👥,
+                                        &quot;To my amazing friends Yuii, Peach, and unknown0607 👥,
                                     </p>
                                     <p className="leading-relaxed italic">
                                         Thank you for making this journey unforgettable ✨. From our late-night study sessions 📚
-                                        that turned into Minecraft marathons, to the builds we've created 🏗️ and the memories
-                                        we've made - you guys are the best.
+                                        that turned into Minecraft marathons, to the builds we&apos;ve created 🏗️ and the memories
+                                        we&apos;ve made - you guys are the best.
                                     </p>
                                     <p className="leading-relaxed italic">
-                                        This server wouldn't be the same without your creativity 🎨, humor 😂, and friendship 🤝.
-                                        Here's to many more adventures together in our blocky world!
+                                        This server wouldn&apos;t be the same without your creativity 🎨, humor 😂, and friendship 🤝.
+                                        Here&apos;s to many more adventures together in our blocky world!
                                     </p>
                                     <div className="flex items-center justify-end gap-3 mt-8">
                                         <span className="text-gray-400 italic">-</span>
@@ -255,7 +256,7 @@ export default function AboutPage() {
                                                 style={{
                                                     left: `${heart.x}%`,
                                                     top: `${heart.y}%`,
-                                                    animationDelay: `${Math.random() * 0.5}s`,
+                                                    animationDelay: `${heart.delay}s`,
                                                 }}
                                             >
                                                 <svg className="w-8 h-8 md:w-12 md:h-12" viewBox="0 0 100 100" fill="none">
@@ -331,9 +332,9 @@ export default function AboutPage() {
                                     JOIN OUR COMMUNITY!
                                 </h2>
                                 <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-                                    We're always happy to welcome new friends to Watermelon SMP 🍉! Whether you're
+                                    We&apos;re always happy to welcome new friends to Watermelon SMP 🍉! Whether you&apos;re
                                     a builder 👷, explorer 🗺️, redstone enthusiast 🔴, or just looking for a fun community
-                                    to play with 🎮 - there's a place for you here.
+                                    to play with 🎮 - there&apos;s a place for you here.
                                 </p>
                                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                                     <ActionLink href="/" variant="primary" size="lg" className="px-8 py-4 hover:scale-105">

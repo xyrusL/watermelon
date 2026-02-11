@@ -7,25 +7,11 @@ const getExtension = (name: string): string => {
     return trimmed.slice(dotIndex + 1).toLowerCase();
 };
 
-const sanitizeBaseName = (name: string): string => {
-    return name
-        .trim()
-        .toLowerCase()
-        .replace(/\.[^.]+$/, "")
-        .replace(/[^a-z0-9-_]+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "");
-};
-
 export const buildWatermelonFilename = (
     originalName: string,
     uniqueSuffix: string,
     fallbackExtension = "bin"
 ): string => {
     const ext = getExtension(originalName) || fallbackExtension.toLowerCase();
-    const base = sanitizeBaseName(originalName);
-    const hasPrefix = base.startsWith(`${DEFAULT_PREFIX}-`);
-    const prefix = hasPrefix ? "" : `${DEFAULT_PREFIX}-`;
-    return `${prefix}${uniqueSuffix}.${ext}`;
+    return `${DEFAULT_PREFIX}-${uniqueSuffix}.${ext}`;
 };
-
