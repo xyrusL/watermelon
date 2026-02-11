@@ -431,22 +431,32 @@ export default function AdminPanel({
                                         const imgId = img.id || img.uploadedAt.toString();
                                         const isSelected = selectedImages.has(imgId);
                                         return (
-                                            <div key={imgId} className={`relative rounded-xl overflow-hidden transition-all group ${isSelected ? "ring-2 ring-[#ff4757] scale-95" : ""}`}>
-                                                <div onClick={() => toggleImageSelection(imgId)} className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all ${isSelected ? "bg-[#ff4757]" : "bg-black/50 hover:bg-black/70"}`}>
+                                            <div key={imgId} className={`relative rounded-xl overflow-hidden transition-all group border border-white/10 bg-[#171b22]/70 hover:border-[#ff4757]/45 ${isSelected ? "ring-2 ring-[#ff4757] scale-[0.98]" : ""}`}>
+                                                <div onClick={() => toggleImageSelection(imgId)} className={`absolute top-2 left-2 z-10 w-7 h-7 rounded-full border flex items-center justify-center cursor-pointer transition-all ${isSelected ? "bg-[#ff4757] border-[#ff4757]" : "bg-black/35 border-white/20 hover:border-white/40"}`}>
                                                     {isSelected ? <PixelCheck size={12} color="#fff" /> : ""}
                                                 </div>
-                                                <div onClick={() => setAdminSelectedImage(img)} className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/50 hover:bg-[#2ed573] flex items-center justify-center cursor-pointer transition-all">
+                                                <div onClick={() => setAdminSelectedImage(img)} className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/35 border border-white/20 hover:border-[#2ed573]/60 hover:bg-[#2ed573]/25 flex items-center justify-center cursor-pointer transition-all">
                                                     <PixelInfo size={12} color="currentColor" />
                                                 </div>
                                                 {/* NSFW badge */}
                                                 {img.is_nsfw && (
-                                                    <div className="absolute top-2 right-10 z-10 px-2 py-1 rounded-full bg-[#ff4757] flex items-center gap-1">
-                                                        <PixelWarning size={10} color="#fff" />
-                                                        <span className="text-white text-xs font-bold">NSFW</span>
+                                                    <div className="absolute top-2 left-11 z-10 px-1.5 py-0.5 rounded-md bg-[#ff4757]/85 text-white text-[10px] font-bold border border-[#ff6b81]/40">
+                                                        NSFW
                                                     </div>
                                                 )}
-                                                <img src={img.directUrl} alt={img.filename} className={`w-full h-24 object-cover ${img.is_nsfw ? 'blur-sm' : ''}`} />
-                                                <div className="p-1.5 bg-black/40 flex items-center gap-1"><PixelUser size={10} color="#2ed573" /><p className="text-xs text-[#2ed573] truncate">{img.uploaderName || "Anon"}</p></div>
+                                                <img src={img.directUrl} alt={img.filename} className={`w-full h-28 object-cover ${img.is_nsfw ? 'blur-sm' : ''}`} />
+                                                <div className="p-2 bg-gradient-to-b from-black/25 to-black/45 border-t border-white/10">
+                                                    <p className="text-[11px] text-white truncate font-medium">{img.filename}</p>
+                                                    <div className="mt-1 flex items-center justify-between gap-1">
+                                                        <span className="text-[10px] text-[#2ed573] flex items-center gap-1 min-w-0">
+                                                            <PixelUser size={10} color="#2ed573" />
+                                                            <span className="truncate">{img.uploaderName || "Anon"}</span>
+                                                        </span>
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${img.is_private ? "text-[#ffa502] border-[#ffa502]/40 bg-[#ffa502]/10" : "text-[#2ed573] border-[#2ed573]/40 bg-[#2ed573]/10"}`}>
+                                                            {img.is_private ? "PRIVATE" : "PUBLIC"}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         );
                                     })}
