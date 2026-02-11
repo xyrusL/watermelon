@@ -508,15 +508,9 @@ export default function AdminPanel({
 export function AdminButton({ isAdmin, onClick }: { isAdmin: boolean; onClick: () => void }) {
     if (!isAdmin) return null;
     return (
-        <ActionButton
-            onClick={onClick}
-            variant="danger"
-            shape="pill"
-            size="md"
-            className="h-10 md:h-11 px-2 sm:px-3 md:px-4 py-2 md:py-2.5 leading-none hover:scale-105 flex items-center gap-1 md:gap-2"
-        >
+        <ActionButton onClick={onClick} variant="danger" shape="pill" size="md" className="px-4 py-2.5 hover:scale-105 flex items-center gap-2">
             <PixelShield size={14} color="currentColor" />
-            <span className="hidden md:inline leading-none">Admin</span>
+            <span className="hidden sm:inline">Admin</span>
         </ActionButton>
     );
 }
