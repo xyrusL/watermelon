@@ -348,7 +348,7 @@ export default function ImageEditor({
                         onClick={onClose}
                         variant="secondary"
                         shape="pill"
-                        className="w-8 h-8 hover:bg-red-500/20 flex items-center justify-center p-0"
+                        className="w-8 h-8 border-transparent hover:bg-red-500/20 flex items-center justify-center p-0"
                     >
                         <PixelClose size={14} color="#ff4757" />
                     </ActionButton>

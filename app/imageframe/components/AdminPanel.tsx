@@ -286,7 +286,7 @@ export default function AdminPanel({
                         <h2 className="font-pixel text-xl text-[#ff4757]">ADMIN PANEL</h2>
                         <span className="bg-[#ff4757]/20 text-[#ff4757] text-xs px-2 py-1 rounded-full font-pixel">ADMIN</span>
                     </div>
-                    <ActionButton onClick={() => { setShowAdminPanel(false); setAdminSelectedImage(null); }} variant="secondary" shape="pill" className="w-10 h-10 hover:bg-red-500/20 p-0">
+                    <ActionButton onClick={() => { setShowAdminPanel(false); setAdminSelectedImage(null); }} variant="secondary" shape="pill" className="w-10 h-10 border-transparent hover:bg-red-500/20 p-0">
                         <PixelClose size={16} color="#ff4757" />
                     </ActionButton>
                 </div>
@@ -305,7 +305,7 @@ export default function AdminPanel({
                 {adminSelectedImage && (
                     <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4" onClick={() => setAdminSelectedImage(null)}>
                         <div className="glass rounded-2xl p-6 max-w-md w-full relative flex flex-col max-h-[90vh] my-auto" onClick={(e) => e.stopPropagation()}>
-                            <ActionButton onClick={() => setAdminSelectedImage(null)} variant="secondary" shape="pill" className="absolute top-3 right-3 w-8 h-8 hover:bg-red-500/20 text-gray-400 hover:text-white z-10 p-0">
+                            <ActionButton onClick={() => setAdminSelectedImage(null)} variant="secondary" shape="pill" className="absolute top-3 right-3 w-8 h-8 border-transparent hover:bg-red-500/20 text-gray-400 hover:text-white z-10 p-0">
                                 <PixelClose size={14} color="currentColor" />
                             </ActionButton>
 
@@ -401,10 +401,10 @@ export default function AdminPanel({
                                 <option value="size">Size</option>
                                 <option value="uploader">Uploader</option>
                             </select>
-                            <ActionButton onClick={selectAllImages} variant="secondary" size="sm" className="px-3 py-2 hover:border-[#2ed573]/50 flex items-center gap-1">
+                            <ActionButton onClick={selectAllImages} variant="secondary" size="sm" className="px-3 py-2 glass-dark border-white/10 hover:border-[#2ed573]/50 flex items-center gap-1">
                                 {selectedImages.size === filteredAdminImages.length && filteredAdminImages.length > 0 ? <><PixelCheck size={12} /> Deselect</> : "Select All"}
                             </ActionButton>
-                            <ActionButton onClick={fetchAdminImages} variant="secondary" size="sm" className="px-3 py-2 hover:border-[#ffa502]/50 flex items-center justify-center">
+                            <ActionButton onClick={fetchAdminImages} variant="secondary" size="sm" className="px-3 py-2 glass-dark border-white/10 hover:border-[#ffa502]/50 flex items-center justify-center">
                                 <PixelRefresh size={16} color="currentColor" />
                             </ActionButton>
                         </div>

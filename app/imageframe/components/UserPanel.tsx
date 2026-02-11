@@ -269,7 +269,7 @@ export default function UserPanel({
                             }}
                             variant="secondary"
                             shape="pill"
-                            className="w-10 h-10 hover:bg-red-500/20 flex items-center justify-center p-0"
+                            className="w-10 h-10 border-transparent hover:bg-red-500/20 flex items-center justify-center p-0"
                         >
                             <PixelClose size={16} color="#ff4757" />
                         </ActionButton>

@@ -102,7 +102,7 @@ export default function ImageDetailsModal({
                     onClick={onClose}
                     variant="secondary"
                     shape="pill"
-                    className="absolute top-3 right-3 w-8 h-8 hover:bg-red-500/20 text-gray-400 hover:text-white z-10 p-0"
+                    className="absolute top-3 right-3 w-8 h-8 border-transparent hover:bg-red-500/20 text-gray-400 hover:text-white z-10 p-0"
                     title="Close"
                 >
                     <PixelClose size={12} className="text-gray-400 group-hover:text-red-400 transition-colors" />
@@ -119,7 +119,7 @@ export default function ImageDetailsModal({
                             <ActionButton
                                 onClick={() => window.open(ensureAbsoluteUrl(image.directUrl), "_blank", "noopener,noreferrer")}
                                 variant="secondary"
-                                className="absolute left-2 top-2 z-10 w-8 h-8 rounded-lg hover:border-[#2ed573]/60 hover:text-[#2ed573] text-gray-300 flex items-center justify-center p-0"
+                                className="absolute left-2 top-2 z-10 w-8 h-8 rounded-lg border-transparent hover:border-[#2ed573]/60 hover:text-[#2ed573] text-gray-300 flex items-center justify-center p-0"
                                 title="Open full image"
                             >
                                 <PixelExternalLink size={12} color="currentColor" />
@@ -195,14 +195,16 @@ export default function ImageDetailsModal({
                                     <ActionButton
                                         onClick={() => onCopyUrl(ensureAbsoluteUrl(image.directUrl))}
                                         variant="secondary"
-                                        className="py-2.5 bg-sky-500/20 hover:bg-sky-500/30 border-sky-400/50 text-sky-300 text-sm cursor-pointer flex items-center justify-center gap-2"
+                                        tone="info"
+                                        className="py-2.5 text-sm cursor-pointer flex items-center justify-center gap-2"
                                     >
                                         {copied ? <><PixelCheck size={14} color="currentColor" /> Copied!</> : <><PixelCopy size={14} color="currentColor" /> Copy URL</>}
                                     </ActionButton>
                                     <ActionButton
                                         onClick={() => onCopyUrl(imageFrameCommand)}
                                         variant="secondary"
-                                        className="py-2.5 bg-[#2ed573]/20 hover:bg-[#2ed573]/30 border-[#2ed573]/50 text-[#2ed573] text-sm cursor-pointer flex items-center justify-center gap-2"
+                                        tone="success"
+                                        className="py-2.5 text-sm cursor-pointer flex items-center justify-center gap-2"
                                     >
                                         <PixelCopy size={14} color="currentColor" /> Copy Command
                                     </ActionButton>

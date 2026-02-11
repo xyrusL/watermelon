@@ -1141,7 +1141,7 @@ export default function ImageFramePage() {
                                 onClick={() => { setShowAdminPanel(false); setAdminSelectedImage(null); }}
                                 variant="secondary"
                                 shape="pill"
-                                className="w-10 h-10 hover:bg-red-500/20 flex items-center justify-center p-0"
+                                className="w-10 h-10 border-transparent hover:bg-red-500/20 flex items-center justify-center p-0"
                             >
                                 <PixelClose size={16} color="#ff4757" />
                             </ActionButton>
@@ -1213,10 +1213,10 @@ export default function ImageFramePage() {
                                         <option value="size">Size</option>
                                         <option value="uploader">Uploader</option>
                                     </select>
-                                    <ActionButton onClick={selectAllImages} variant="secondary" size="sm" className="px-3 py-2 hover:border-[#2ed573]/50 text-sm flex items-center gap-1">
+                                    <ActionButton onClick={selectAllImages} variant="secondary" size="sm" className="px-3 py-2 glass-dark border-white/10 hover:border-[#2ed573]/50 text-sm flex items-center gap-1">
                                         {selectedImages.size === filteredAdminImages.length && filteredAdminImages.length > 0 ? <><PixelCheck size={12} /> Deselect</> : "Select All"}
                                     </ActionButton>
-                                    <ActionButton onClick={fetchAdminImages} variant="secondary" size="sm" className="px-3 py-2 hover:border-[#ffa502]/50 text-sm flex items-center justify-center">
+                                    <ActionButton onClick={fetchAdminImages} variant="secondary" size="sm" className="px-3 py-2 glass-dark border-white/10 hover:border-[#ffa502]/50 text-sm flex items-center justify-center">
                                         <PixelRefresh size={16} color="currentColor" />
                                     </ActionButton>
                                 </div>
@@ -1472,7 +1472,7 @@ export default function ImageFramePage() {
                             onClick={resetUpload}
                             variant="secondary"
                             shape="pill"
-                            className="absolute top-4 right-4 w-8 h-8 hover:border-red-500/50 hover:bg-red-500/10 flex items-center justify-center group p-0"
+                            className="absolute top-4 right-4 w-8 h-8 border-transparent hover:border-red-500/50 hover:bg-red-500/10 flex items-center justify-center group p-0"
                             title="Close"
                         >
                             <PixelClose size={12} className="text-gray-400 group-hover:text-red-400 transition-colors" color="currentColor" />
