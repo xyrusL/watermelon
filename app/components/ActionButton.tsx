@@ -44,13 +44,15 @@ export default function ActionButton({
     leftIcon,
     ...props
 }: ActionButtonProps) {
+    const isPrimitiveChild = typeof children === "string" || typeof children === "number";
+
     return (
         <button
             className={`${baseClass} ${shapeClassMap[shape]} ${sizeClassMap[size]} ${variantClassMap[variant]} ${fullWidth ? "w-full" : ""} ${className}`.trim()}
             {...props}
         >
             {leftIcon}
-            <span>{children}</span>
+            {isPrimitiveChild ? <span>{children}</span> : children}
         </button>
     );
 }

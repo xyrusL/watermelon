@@ -438,10 +438,10 @@ export function UserPanelButton({ isSignedIn, onClick }: { isSignedIn: boolean; 
             variant="primary"
             shape="pill"
             size="md"
-            className="px-4 py-2.5 text-sm hover:scale-105 flex items-center gap-2"
+            className="h-10 md:h-11 px-2 sm:px-3 md:px-4 py-2 md:py-2.5 text-sm leading-none hover:scale-105 flex items-center gap-1 md:gap-2"
         >
             <PixelUser size={14} color="currentColor" />
-            <span className="hidden sm:inline">My Uploads</span>
+            <span className="hidden md:inline leading-none">My Uploads</span>
         </ActionButton>
     );
 }
