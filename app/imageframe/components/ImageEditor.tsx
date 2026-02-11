@@ -9,6 +9,7 @@ import {
     PixelCheck,
     PixelRefresh,
 } from "./PixelIcons";
+import ActionButton from "../../components/ActionButton";
 import { FRAME_SIZES } from "../constants";
 import type { FrameSize, FrameDimensions } from "../types";
 import { RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Maximize } from "lucide-react";
@@ -343,12 +344,14 @@ export default function ImageEditor({
                     <h2 className="font-pixel text-lg text-[#ff4757] flex items-center gap-2">
                         <PixelCrop size={20} color="#ff4757" /> EDIT IMAGE
                     </h2>
-                    <button
+                    <ActionButton
                         onClick={onClose}
-                        className="w-8 h-8 rounded-full glass hover:bg-red-500/20 transition-all flex items-center justify-center"
+                        variant="secondary"
+                        shape="pill"
+                        className="w-8 h-8 hover:bg-red-500/20 flex items-center justify-center p-0"
                     >
                         <PixelClose size={14} color="#ff4757" />
-                    </button>
+                    </ActionButton>
                 </div>
 
                 {/* Main Content Area - Responsive Flex */}
@@ -406,20 +409,22 @@ export default function ImageEditor({
                                 {/* Preset Sizes */}
                                 <div className="grid grid-cols-4 gap-2 mb-3">
                                     {FRAME_SIZES.filter(s => s.name !== 'Free').map((size) => (
-                                        <button
+                                        <ActionButton
                                             key={size.name}
                                             onClick={() => {
                                                 setSelectedFrameSize(size);
                                                 setIsCustomMode(false);
                                             }}
-                                            className={`px-2 py-2 rounded-lg text-xs transition-all flex flex-col items-center justify-center gap-1 border ${!isCustomMode && selectedFrameSize.name === size.name
+                                            variant={!isCustomMode && selectedFrameSize.name === size.name ? "danger" : "secondary"}
+                                            size="sm"
+                                            className={`px-2 py-2 rounded-lg text-xs flex flex-col items-center justify-center gap-1 ${!isCustomMode && selectedFrameSize.name === size.name
                                                 ? "bg-[#ff4757] border-[#ff4757] text-white"
                                                 : "bg-white/5 border-white/10 hover:border-[#ff4757]/50 text-gray-300"
                                                 }`}
                                         >
                                             <span>{size.icon}</span>
                                             <span>{size.name}</span>
-                                        </button>
+                                        </ActionButton>
                                     ))}
                                 </div>
 
@@ -429,13 +434,15 @@ export default function ImageEditor({
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-xs text-gray-400">Custom Size</span>
                                         {isCustomMode && (
-                                            <button
+                                            <ActionButton
                                                 onClick={() => setIsCustomMode(false)}
-                                                className="text-[10px] text-[#2ed573] uppercase font-medium flex items-center gap-1 hover:text-[#ff4757] transition-colors"
+                                                variant="secondary"
+                                                size="sm"
+                                                className="text-[10px] text-[#2ed573] uppercase flex items-center gap-1 hover:text-[#ff4757] border-transparent p-0"
                                                 title="Switch back to preset"
                                             >
                                                 Active <span className="text-xs">✕</span>
-                                            </button>
+                                            </ActionButton>
                                         )}
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -529,23 +536,23 @@ export default function ImageEditor({
                                     <div className="bg-white/5 rounded-xl p-2 border border-white/10 flex flex-col items-center justify-center gap-2">
                                         <span className="text-[10px] text-gray-400 uppercase">Rotation</span>
                                         <div className="flex gap-2">
-                                            <button onClick={rotateCounterClockwise} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" title="-90°">
+                                            <ActionButton onClick={rotateCounterClockwise} variant="secondary" size="sm" className="p-1.5 rounded-lg hover:bg-white/10 border-transparent" title="-90°">
                                                 <RotateCcw size={16} />
-                                            </button>
-                                            <button onClick={rotateClockwise} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" title="+90°">
+                                            </ActionButton>
+                                            <ActionButton onClick={rotateClockwise} variant="secondary" size="sm" className="p-1.5 rounded-lg hover:bg-white/10 border-transparent" title="+90°">
                                                 <RotateCw size={16} />
-                                            </button>
+                                            </ActionButton>
                                         </div>
                                     </div>
                                     <div className="bg-white/5 rounded-xl p-2 border border-white/10 flex flex-col items-center justify-center gap-2">
                                         <span className="text-[10px] text-gray-400 uppercase">Flip</span>
                                         <div className="flex gap-2">
-                                            <button onClick={() => setFlipH(prev => !prev)} className={`p-1.5 rounded-lg transition-colors ${flipH ? 'text-[#2ed573] bg-[#2ed573]/20' : 'hover:bg-white/10'}`} title="Flip H">
+                                            <ActionButton onClick={() => setFlipH(prev => !prev)} variant="secondary" size="sm" className={`p-1.5 rounded-lg border-transparent ${flipH ? 'text-[#2ed573] bg-[#2ed573]/20' : 'hover:bg-white/10'}`} title="Flip H">
                                                 <FlipHorizontal size={16} />
-                                            </button>
-                                            <button onClick={() => setFlipV(prev => !prev)} className={`p-1.5 rounded-lg transition-colors ${flipV ? 'text-[#2ed573] bg-[#2ed573]/20' : 'hover:bg-white/10'}`} title="Flip V">
+                                            </ActionButton>
+                                            <ActionButton onClick={() => setFlipV(prev => !prev)} variant="secondary" size="sm" className={`p-1.5 rounded-lg border-transparent ${flipV ? 'text-[#2ed573] bg-[#2ed573]/20' : 'hover:bg-white/10'}`} title="Flip V">
                                                 <FlipVertical size={16} />
-                                            </button>
+                                            </ActionButton>
                                         </div>
                                     </div>
                                 </div>
@@ -553,18 +560,22 @@ export default function ImageEditor({
 
                             {/* Quick Actions */}
                             <div className="flex gap-2">
-                                <button
+                                <ActionButton
                                     onClick={autoFit}
-                                    className="flex-1 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#2ed573]/50 hover:bg-[#2ed573]/10 transition-all flex items-center justify-center gap-2 text-xs"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="flex-1 py-2 hover:border-[#2ed573]/50 hover:bg-[#2ed573]/10 flex items-center justify-center gap-2 text-xs"
                                 >
                                     <Maximize size={14} /> Auto-Fit
-                                </button>
-                                <button
+                                </ActionButton>
+                                <ActionButton
                                     onClick={resetTransforms}
-                                    className="flex-1 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#ff4757]/50 hover:bg-[#ff4757]/10 transition-all flex items-center justify-center gap-2 text-xs"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="flex-1 py-2 hover:border-[#ff4757]/50 hover:bg-[#ff4757]/10 flex items-center justify-center gap-2 text-xs"
                                 >
                                     <PixelRefresh size={14} color="currentColor" /> Reset
-                                </button>
+                                </ActionButton>
                             </div>
 
                         </div>
@@ -572,19 +583,23 @@ export default function ImageEditor({
                         {/* Footer Buttons - Fixed at bottom of sidebar */}
                         <div className="p-4 border-t border-white/10 bg-black/20 flex-shrink-0">
                             <div className="flex gap-3">
-                                <button
+                                <ActionButton
                                     onClick={onClose}
-                                    className="flex-1 py-3 rounded-xl glass border border-white/10 hover:border-white/30 transition-colors text-sm font-medium"
+                                    variant="secondary"
+                                    fullWidth
+                                    className="flex-1 py-3 hover:border-white/30 text-sm"
                                 >
                                     Cancel
-                                </button>
-                                <button
+                                </ActionButton>
+                                <ActionButton
                                     onClick={applyCrop}
                                     disabled={!completedCrop}
-                                    className="flex-[2] py-3 rounded-xl bg-[#2ed573] hover:bg-[#26b85f] font-bold text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-lg shadow-[#2ed573]/20 hover:shadow-[#2ed573]/40"
+                                    variant="primary"
+                                    fullWidth
+                                    className="flex-[2] py-3 font-bold text-black flex items-center justify-center gap-2 text-sm"
                                 >
                                     <PixelCheck size={16} /> Apply Changes
-                                </button>
+                                </ActionButton>
                             </div>
                         </div>
 

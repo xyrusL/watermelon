@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import Header from "../components/Header";
+import ActionButton from "../components/ActionButton";
+import ActionLink from "../components/ActionLink";
 
 const commands = [
     {
@@ -170,12 +172,14 @@ export default function CommandsPage() {
                                                     <code className="font-pixel text-sm text-[#ff4757]">
                                                         {cmd.command}
                                                     </code>
-                                                    <button
+                                                    <ActionButton
                                                         onClick={() => copyCommand(cmd.command.split(' ')[0])}
-                                                        className="opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded glass border border-white/10 hover:border-[#2ed573]/50 transition-all"
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="opacity-0 group-hover:opacity-100 px-2 py-1 hover:border-[#2ed573]/50"
                                                     >
                                                         {copiedCommand === cmd.command.split(' ')[0] ? "✓ Copied" : "Copy"}
-                                                    </button>
+                                                    </ActionButton>
                                                 </div>
                                                 <p className="text-gray-300 mb-3">{cmd.description}</p>
                                                 <div className="glass px-3 py-2 rounded-lg inline-block">
@@ -207,12 +211,14 @@ export default function CommandsPage() {
                                                     <code className="font-pixel text-sm text-[#ff4757]">
                                                         {cmd.command}
                                                     </code>
-                                                    <button
+                                                    <ActionButton
                                                         onClick={() => copyCommand(cmd.command.split(' ')[0])}
-                                                        className="opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded glass border border-white/10 hover:border-[#ff6b81]/50 transition-all"
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="opacity-0 group-hover:opacity-100 px-2 py-1 hover:border-[#ff6b81]/50"
                                                     >
                                                         {copiedCommand === cmd.command.split(' ')[0] ? "✓ Copied" : "Copy"}
-                                                    </button>
+                                                    </ActionButton>
                                                 </div>
                                                 <p className="text-gray-300 mb-3">{cmd.description}</p>
                                                 <div className="glass px-3 py-2 rounded-lg inline-block">
@@ -265,12 +271,14 @@ export default function CommandsPage() {
                                                     <code className="font-pixel text-sm text-[#ff4757]">
                                                         {cmd.command}
                                                     </code>
-                                                    <button
+                                                    <ActionButton
                                                         onClick={() => copyCommand(cmd.command.split(' ')[0])}
-                                                        className="opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded glass border border-white/10 hover:border-[#ffa502]/50 transition-all"
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="opacity-0 group-hover:opacity-100 px-2 py-1 hover:border-[#ffa502]/50"
                                                     >
                                                         {copiedCommand === cmd.command.split(' ')[0] ? "✓ Copied" : "Copy"}
-                                                    </button>
+                                                    </ActionButton>
                                                 </div>
                                                 <p className="text-gray-300 mb-3">{cmd.description}</p>
                                                 <div className="glass px-3 py-2 rounded-lg inline-block">
@@ -353,12 +361,9 @@ export default function CommandsPage() {
 
                         {/* Back Button */}
                         <div className="text-center">
-                            <Link
-                                href="/"
-                                className="inline-flex items-center gap-2 px-6 py-3 bg-[#2ed573] hover:bg-[#26b85f] rounded-xl font-medium transition-all hover:scale-105"
-                            >
+                            <ActionLink href="/" variant="primary" className="px-6 py-3 hover:scale-105">
                                 ← Back to Home
-                            </Link>
+                            </ActionLink>
                         </div>
                     </div>
                 </main>
