@@ -12,7 +12,6 @@ import {
     PixelEye,
     PixelExternalLink
 } from "./PixelIcons";
-import ActionButton from "../../components/ActionButton";
 import { formatDate, formatFileSize, ensureAbsoluteUrl } from "../utils";
 import {
     buildImageFrameCreateCommand,
@@ -98,15 +97,13 @@ export default function ImageDetailsModal({
                 className="glass rounded-2xl p-3 sm:p-4 md:p-6 max-w-4xl w-full relative max-h-[90vh] my-auto overflow-y-auto overflow-x-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
-                <ActionButton
+                <button
                     onClick={onClose}
-                    variant="secondary"
-                    shape="pill"
-                    className="absolute top-3 right-3 w-8 h-8 hover:bg-red-500/20 text-gray-400 hover:text-white z-10 p-0"
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full glass hover:bg-red-500/20 flex items-center justify-center text-gray-400 hover:text-white transition-all z-10"
                     title="Close"
                 >
                     <PixelClose size={12} className="text-gray-400 group-hover:text-red-400 transition-colors" />
-                </ActionButton>
+                </button>
 
                 <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-3 sm:gap-4 md:gap-5 h-full">
                     <div className="glass-dark rounded-xl p-3 border border-white/10">
@@ -116,14 +113,13 @@ export default function ImageDetailsModal({
                                     <PixelWarning size={10} color="#fff" /> NSFW
                                 </div>
                             )}
-                            <ActionButton
+                            <button
                                 onClick={() => window.open(ensureAbsoluteUrl(image.directUrl), "_blank", "noopener,noreferrer")}
-                                variant="secondary"
-                                className="absolute left-2 top-2 z-10 w-8 h-8 rounded-lg hover:border-[#2ed573]/60 hover:text-[#2ed573] text-gray-300 flex items-center justify-center p-0"
+                                className="absolute left-2 top-2 z-10 w-8 h-8 rounded-lg glass border border-white/10 hover:border-[#2ed573]/60 hover:text-[#2ed573] text-gray-300 transition-all flex items-center justify-center"
                                 title="Open full image"
                             >
                                 <PixelExternalLink size={12} color="currentColor" />
-                            </ActionButton>
+                            </button>
 
                             <img
                                 src={image.directUrl}
@@ -192,20 +188,18 @@ export default function ImageDetailsModal({
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    <ActionButton
+                                    <button
                                         onClick={() => onCopyUrl(ensureAbsoluteUrl(image.directUrl))}
-                                        variant="secondary"
-                                        className="py-2.5 bg-sky-500/20 hover:bg-sky-500/30 border-sky-400/50 text-sky-300 text-sm cursor-pointer flex items-center justify-center gap-2"
+                                        className="py-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/50 text-sky-300 font-medium text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
                                     >
                                         {copied ? <><PixelCheck size={14} color="currentColor" /> Copied!</> : <><PixelCopy size={14} color="currentColor" /> Copy URL</>}
-                                    </ActionButton>
-                                    <ActionButton
+                                    </button>
+                                    <button
                                         onClick={() => onCopyUrl(imageFrameCommand)}
-                                        variant="secondary"
-                                        className="py-2.5 bg-[#2ed573]/20 hover:bg-[#2ed573]/30 border-[#2ed573]/50 text-[#2ed573] text-sm cursor-pointer flex items-center justify-center gap-2"
+                                        className="py-2.5 rounded-xl bg-[#2ed573]/20 hover:bg-[#2ed573]/30 border border-[#2ed573]/50 text-[#2ed573] font-medium text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
                                     >
                                         <PixelCopy size={14} color="currentColor" /> Copy Command
-                                    </ActionButton>
+                                    </button>
                                 </div>
 
                                 {showOwnerControls && (
@@ -213,22 +207,20 @@ export default function ImageDetailsModal({
                                         <p className="text-[10px] uppercase tracking-wide text-[#2ed573]">User Controls</p>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                             {onToggleVisibility && imgId && (
-                                                <ActionButton
+                                                <button
                                                     onClick={() => onToggleVisibility(imgId, !!image.is_private)}
-                                                    variant="secondary"
-                                                    className={`py-2.5 text-sm cursor-pointer flex items-center justify-center gap-2 ${image.is_private
+                                                    className={`py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${image.is_private
                                                         ? "bg-[#2ed573]/20 hover:bg-[#2ed573]/30 text-[#2ed573] border border-[#2ed573]/50"
                                                         : "bg-[#ffa502]/20 hover:bg-[#ffa502]/30 text-[#ffa502] border border-[#ffa502]/50"
                                                         }`}
                                                 >
                                                     {image.is_private ? <><PixelEye size={14} color="currentColor" /> Public</> : <><PixelLock size={14} color="currentColor" /> Private</>}
-                                                </ActionButton>
+                                                </button>
                                             )}
                                             {onToggleNsfw && imgId && (
-                                                <ActionButton
+                                                <button
                                                     onClick={() => onToggleNsfw(imgId, !!image.is_nsfw)}
-                                                    variant="secondary"
-                                                    className={`py-2.5 text-sm cursor-pointer flex items-center justify-center gap-2 ${image.is_nsfw
+                                                    className={`py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${image.is_nsfw
                                                         ? "bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/50"
                                                         : "bg-gray-500/20 hover:bg-gray-500/30 text-gray-400 border border-gray-500/30"
                                                         }`}
@@ -236,7 +228,7 @@ export default function ImageDetailsModal({
                                                     {image.is_nsfw
                                                         ? <><PixelCheck size={14} color="currentColor" /> Safe</>
                                                         : <><PixelWarning size={14} color="currentColor" /> NSFW</>}
-                                                </ActionButton>
+                                                </button>
                                             )}
                                         </div>
                                     </div>
@@ -247,22 +239,20 @@ export default function ImageDetailsModal({
                                         <p className="text-[10px] uppercase tracking-wide text-red-400">Admin Controls</p>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                             {onToggleVisibility && imgId && (
-                                                <ActionButton
+                                                <button
                                                     onClick={() => onToggleVisibility(imgId, !!image.is_private)}
-                                                    variant="secondary"
-                                                    className={`py-2.5 text-sm cursor-pointer flex items-center justify-center gap-2 ${image.is_private
+                                                    className={`py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${image.is_private
                                                         ? "bg-[#2ed573]/20 hover:bg-[#2ed573]/30 text-[#2ed573] border border-[#2ed573]/50"
                                                         : "bg-[#ffa502]/20 hover:bg-[#ffa502]/30 text-[#ffa502] border border-[#ffa502]/50"
                                                         }`}
                                                 >
                                                     {image.is_private ? <><PixelEye size={14} color="currentColor" /> Public</> : <><PixelLock size={14} color="currentColor" /> Private</>}
-                                                </ActionButton>
+                                                </button>
                                             )}
                                             {onToggleNsfw && imgId && (
-                                                <ActionButton
+                                                <button
                                                     onClick={() => onToggleNsfw(imgId, !!image.is_nsfw)}
-                                                    variant="secondary"
-                                                    className={`py-2.5 text-sm cursor-pointer flex items-center justify-center gap-2 ${image.is_nsfw
+                                                    className={`py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${image.is_nsfw
                                                         ? "bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/50"
                                                         : "bg-gray-500/20 hover:bg-gray-500/30 text-gray-400 border border-gray-500/30"
                                                         }`}
@@ -270,17 +260,16 @@ export default function ImageDetailsModal({
                                                     {image.is_nsfw
                                                         ? <><PixelCheck size={14} color="currentColor" /> Safe</>
                                                         : <><PixelWarning size={14} color="currentColor" /> NSFW</>}
-                                                </ActionButton>
+                                                </button>
                                             )}
                                             {onDelete && onShowDeleteConfirm && (
-                                                <ActionButton
+                                                <button
                                                     onClick={() => onShowDeleteConfirm(true)}
-                                                    variant="secondary"
-                                                    className="py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30 cursor-pointer flex items-center justify-center"
+                                                    className="py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-all cursor-pointer flex items-center justify-center"
                                                     title="Delete Image"
                                                 >
                                                     <PixelTrash size={18} color="currentColor" />
-                                                </ActionButton>
+                                                </button>
                                             )}
                                         </div>
                                     </div>
@@ -295,24 +284,20 @@ export default function ImageDetailsModal({
                         ) : (
                             <div className="space-y-3">
                                 <p className="text-center text-gray-300 mb-2">Are you sure you want to delete this image?</p>
-                                <ActionButton
+                                <button
                                     onClick={onDelete}
                                     disabled={isDeleting}
-                                    variant="danger"
-                                    fullWidth
-                                    className={`cursor-pointer ${isDeleting ? "bg-gray-600 border-gray-600 hover:bg-gray-600" : ""}`}
+                                    className={`w-full py-3 rounded-xl font-medium transition-all cursor-pointer ${isDeleting ? "bg-gray-600" : "bg-red-500 hover:bg-red-600"}`}
                                 >
                                     {isDeleting ? "Deleting..." : "Yes, Delete"}
-                                </ActionButton>
-                                <ActionButton
+                                </button>
+                                <button
                                     onClick={() => onShowDeleteConfirm && onShowDeleteConfirm(false)}
                                     disabled={isDeleting}
-                                    variant="secondary"
-                                    fullWidth
-                                    className="hover:border-white/30 cursor-pointer"
+                                    className="w-full py-3 rounded-xl glass border border-white/10 hover:border-white/30 transition-colors cursor-pointer"
                                 >
                                     Cancel
-                                </ActionButton>
+                                </button>
                             </div>
                         )}
                     </div>

@@ -4,8 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import Header from "../components/Header";
-import ActionButton from "../components/ActionButton";
-import ActionLink from "../components/ActionLink";
 
 export default function AboutPage() {
     const [copiedUsername, setCopiedUsername] = useState(false);
@@ -178,14 +176,12 @@ export default function AboutPage() {
                                         <div className="glass p-4 rounded-lg mb-4">
                                             <div className="flex items-center justify-between mb-3">
                                                 <span className="text-xs text-gray-400">Username:</span>
-                                                <ActionButton
+                                                <button
                                                     onClick={() => copyToClipboard('chocolateCreamLang', 'username')}
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    className="hover:border-[#2ed573]/50"
+                                                    className="text-xs px-3 py-1 rounded glass border border-white/10 hover:border-[#2ed573]/50 transition-all"
                                                 >
                                                     {copiedUsername ? '✓ Copied' : 'Copy'}
-                                                </ActionButton>
+                                                </button>
                                             </div>
                                             <code className="text-sm text-[#2ed573] break-all">chocolateCreamLang</code>
                                         </div>
@@ -193,14 +189,12 @@ export default function AboutPage() {
                                         <div className="glass p-4 rounded-lg">
                                             <div className="flex items-center justify-between mb-3">
                                                 <span className="text-xs text-gray-400">Password:</span>
-                                                <ActionButton
+                                                <button
                                                     onClick={() => copyToClipboard('chochoco1234', 'password')}
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    className="hover:border-[#2ed573]/50"
+                                                    className="text-xs px-3 py-1 rounded glass border border-white/10 hover:border-[#2ed573]/50 transition-all"
                                                 >
                                                     {copiedPassword ? '✓ Copied' : 'Copy'}
-                                                </ActionButton>
+                                                </button>
                                             </div>
                                             <code className="text-sm text-[#2ed573] break-all">chochoco1234</code>
                                         </div>
@@ -336,9 +330,12 @@ export default function AboutPage() {
                                     to play with 🎮 - there's a place for you here.
                                 </p>
                                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                    <ActionLink href="/" variant="primary" size="lg" className="px-8 py-4 hover:scale-105">
+                                    <Link
+                                        href="/"
+                                        className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#2ed573] hover:bg-[#26b85f] rounded-xl font-medium transition-all hover:scale-105"
+                                    >
                                         <span>🏠</span> Back to Home
-                                    </ActionLink>
+                                    </Link>
                                     <Link
                                         href="/commands"
                                         className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#5f27cd] hover:bg-[#341f97] rounded-xl font-medium transition-all hover:scale-105"

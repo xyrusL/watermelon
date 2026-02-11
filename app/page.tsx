@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
-import ActionButton from "./components/ActionButton";
 
 const SERVER_IP = "watermelon.deze.me";
 
@@ -151,12 +150,7 @@ export default function Home() {
                 </Link>
                 <SignedOut>
                   <SignInButton mode="modal">
-                    <ActionButton
-                      variant="primary"
-                      shape="pill"
-                      size="md"
-                      className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 hover:scale-105 cursor-pointer flex items-center gap-1 md:gap-2"
-                    >
+                    <button className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 bg-[#2ed573] hover:bg-[#26de81] rounded-full text-sm font-medium transition-all hover:scale-105 cursor-pointer flex items-center gap-1 md:gap-2">
                       <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
                         <rect x="4" y="2" width="8" height="6" rx="1" fill="#1a1a1a" />
                         <rect x="6" y="6" width="4" height="4" fill="#1a1a1a" />
@@ -164,7 +158,7 @@ export default function Home() {
                         <rect x="7" y="10" width="2" height="3" fill="#1a1a1a" />
                       </svg>
                       <span className="hidden md:inline">Sign In</span>
-                    </ActionButton>
+                    </button>
                   </SignInButton>
                 </SignedOut>
                 <SignedIn>
@@ -205,10 +199,9 @@ export default function Home() {
 
           {/* Server IP */}
           <div className="flex flex-col items-center gap-4 mb-8 px-4">
-            <ActionButton
+            <button
               onClick={copyIP}
-              variant="secondary"
-              className="px-8 sm:px-10 py-4 animate-pulse-glow hover:scale-105 transition-transform cursor-pointer group w-auto"
+              className="glass px-8 sm:px-10 py-4 rounded-xl animate-pulse-glow hover:scale-105 transition-transform cursor-pointer group w-auto"
             >
               <p className="text-xs sm:text-sm text-gray-400 mb-1">Server IP</p>
               <p className="font-pixel text-sm sm:text-base md:text-lg lg:text-xl text-[#ff4757] group-hover:text-[#ff6b81] transition-colors whitespace-nowrap">
@@ -217,7 +210,7 @@ export default function Home() {
               <p className="text-xs text-gray-500 mt-2">
                 {copied ? "✓ Copied!" : "Click to copy"}
               </p>
-            </ActionButton>
+            </button>
 
             {/* Java Badge */}
             <div className="flex flex-col gap-3">

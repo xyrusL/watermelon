@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { UploadedImage } from "../types";
 import { PixelWarning, PixelLock, PixelUser, PixelEye } from "./PixelIcons";
-import ActionButton from "../../components/ActionButton";
 
 interface ImageGalleryProps {
     images: UploadedImage[];
@@ -173,19 +172,17 @@ export default function ImageGallery({
                             <option value="year" className="bg-[#1a1a1a]">Year</option>
                         </select>
                     </label>
-                    <ActionButton
+                    <button
                         type="button"
                         onClick={() => {
                             setNewReleaseOnly((prev) => !prev);
                             setCurrentPage(1);
                         }}
-                        variant="secondary"
-                        size="sm"
-                        className="h-9 px-3 rounded-lg text-sm border-white/10 text-gray-300 hover:text-white hover:border-white/25"
+                        className="h-9 px-3 rounded-lg glass border text-sm font-medium transition-all border-white/10 text-gray-300 hover:text-white hover:border-white/25"
                         style={newReleaseOnly ? getActiveStyle() : undefined}
                     >
                         New Release
-                    </ActionButton>
+                    </button>
                     <span className="text-xs text-gray-500 ml-auto mb-2">
                         {filteredImages.length} result{filteredImages.length === 1 ? "" : "s"} · {effectiveImagesPerPage}/page
                     </span>
@@ -233,11 +230,9 @@ export default function ImageGallery({
                                 )}
 
                                 {isNsfwImage && (
-                                    <ActionButton
+                                    <button
                                         onClick={(e) => onToggleNsfwReveal(img.uploadedAt, e)}
-                                        variant="secondary"
-                                        shape="pill"
-                                        className="absolute bottom-[42px] right-2 z-20 w-7 h-7 bg-black/70 hover:bg-[#ff4757] flex items-center justify-center border-white/20 p-0"
+                                        className="absolute bottom-[42px] right-2 z-20 w-7 h-7 rounded-full bg-black/70 hover:bg-[#ff4757] flex items-center justify-center transition-all border border-white/20"
                                         title={revealedNsfwImages.has(img.uploadedAt) ? "Hide NSFW content" : "Reveal NSFW content"}
                                     >
                                         {revealedNsfwImages.has(img.uploadedAt) ? (
@@ -245,7 +240,7 @@ export default function ImageGallery({
                                         ) : (
                                             <PixelEye size={14} color="#888" />
                                         )}
-                                    </ActionButton>
+                                    </button>
                                 )}
 
                                 <div className="relative w-full h-32 md:h-36">
@@ -281,15 +276,14 @@ export default function ImageGallery({
 
             {filteredImages.length > 0 && totalPages > 1 && (
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-                    <ActionButton
+                    <button
                         type="button"
                         onClick={() => setCurrentPage(Math.max(1, activePage - 1))}
                         disabled={activePage === 1}
-                        variant="secondary"
-                        className="min-w-12 h-11 px-4 border-white/10 text-sm text-gray-300 hover:text-white hover:border-white/25"
+                        className="min-w-12 h-11 px-4 rounded-xl glass border border-white/10 text-sm font-medium text-gray-300 hover:text-white hover:border-white/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         Prev
-                    </ActionButton>
+                    </button>
                     {pageItems.map((item, idx) => {
                         if (item === "ellipsis") {
                             return (
@@ -301,13 +295,12 @@ export default function ImageGallery({
 
                         const isActive = item === activePage;
                         return (
-                            <ActionButton
+                            <button
                                 key={item}
                                 type="button"
                                 onClick={() => setCurrentPage(item)}
                                 aria-current={isActive ? "page" : undefined}
-                                variant="secondary"
-                                className={`min-w-11 h-11 px-3 text-sm font-semibold ${isActive
+                                className={`min-w-11 h-11 px-3 rounded-xl glass border text-sm font-semibold transition-all ${isActive
                                     ? ""
                                     : "border-white/10 text-gray-300 hover:text-white hover:border-white/25"
                                     }`}
@@ -323,18 +316,17 @@ export default function ImageGallery({
                                 }
                             >
                                 {item}
-                            </ActionButton>
+                            </button>
                         );
                     })}
-                    <ActionButton
+                    <button
                         type="button"
                         onClick={() => setCurrentPage(Math.min(totalPages, activePage + 1))}
                         disabled={activePage === totalPages}
-                        variant="secondary"
-                        className="min-w-12 h-11 px-4 border-white/10 text-sm text-gray-300 hover:text-white hover:border-white/25"
+                        className="min-w-12 h-11 px-4 rounded-xl glass border border-white/10 text-sm font-medium text-gray-300 hover:text-white hover:border-white/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         Next
-                    </ActionButton>
+                    </button>
                 </div>
             )}
         </div>

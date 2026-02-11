@@ -1,7 +1,6 @@
 // Notification Modal Component
 import { NotificationState } from "../types";
 import { PixelWarning, PixelInfo, PixelCheck, PixelClose } from "./PixelIcons";
-import ActionButton from "../../components/ActionButton";
 
 interface NotificationModalProps {
     notification: NotificationState;
@@ -46,16 +45,16 @@ export default function NotificationModal({ notification, onClose }: Notificatio
                 )}
 
                 {/* Close Button */}
-                <ActionButton
+                <button
                     onClick={onClose}
-                    variant={notification.type === "error" ? "danger" : "primary"}
-                    fullWidth
-                    className={`${notification.type === "warning" ? "bg-yellow-500 hover:bg-yellow-600 border-yellow-500" :
-                        notification.type === "info" ? "bg-blue-500 hover:bg-blue-600 border-blue-500" : ""
+                    className={`w-full py-3 rounded-xl font-medium transition-all ${notification.type === "error" ? "bg-red-500 hover:bg-red-600" :
+                        notification.type === "warning" ? "bg-yellow-500 hover:bg-yellow-600" :
+                            notification.type === "success" ? "bg-[#2ed573] hover:bg-[#26b85f]" :
+                                "bg-blue-500 hover:bg-blue-600"
                         }`}
                 >
                     Got it
-                </ActionButton>
+                </button>
             </div>
         </div>
     );
