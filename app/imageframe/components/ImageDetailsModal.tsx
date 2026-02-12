@@ -24,12 +24,12 @@ interface ImageDetailsModalProps {
     image: UploadedImage | null;
     isAdmin?: boolean;
     isOwner?: boolean;
-    copied: boolean;
+    copiedTarget: "url" | "command" | null;
     showDeleteConfirm?: boolean;
     deleteSuccess?: boolean;
     isDeleting?: boolean;
     onClose: () => void;
-    onCopyUrl: (url: string) => void;
+    onCopyValue: (value: string, target: "url" | "command") => void;
     onDelete?: () => void;
     onShowDeleteConfirm?: (show: boolean) => void;
     onToggleVisibility?: (imageId: string, currentPrivate: boolean) => void;
@@ -40,12 +40,12 @@ export default function ImageDetailsModal({
     image,
     isAdmin = false,
     isOwner = false,
-    copied,
+    copiedTarget,
     showDeleteConfirm = false,
     deleteSuccess = false,
     isDeleting = false,
     onClose,
-    onCopyUrl,
+    onCopyValue,
     onDelete,
     onShowDeleteConfirm,
     onToggleVisibility,
@@ -202,20 +202,20 @@ export default function ImageDetailsModal({
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <ActionButton
-                                        onClick={() => onCopyUrl(ensureAbsoluteUrl(image.directUrl))}
+                                        onClick={() => onCopyValue(ensureAbsoluteUrl(image.directUrl), "url")}
                                         variant="secondary"
                                         tone="info"
                                         className="py-2.5 text-sm cursor-pointer flex items-center justify-center gap-2"
                                     >
-                                        {copied ? <><PixelCheck size={14} color="currentColor" /> Copied!</> : <><PixelCopy size={14} color="currentColor" /> Copy URL</>}
+                                        {copiedTarget === "url" ? <><PixelCheck size={14} color="currentColor" /> Copied!</> : <><PixelCopy size={14} color="currentColor" /> Copy URL</>}
                                     </ActionButton>
                                     <ActionButton
-                                        onClick={() => onCopyUrl(imageFrameCommand)}
+                                        onClick={() => onCopyValue(imageFrameCommand, "command")}
                                         variant="secondary"
                                         tone="success"
                                         className="py-2.5 text-sm cursor-pointer flex items-center justify-center gap-2"
                                     >
-                                        <PixelCopy size={14} color="currentColor" /> Copy Command
+                                        {copiedTarget === "command" ? <><PixelCheck size={14} color="currentColor" /> Copied!</> : <><PixelCopy size={14} color="currentColor" /> Copy Command</>}
                                     </ActionButton>
                                 </div>
 
