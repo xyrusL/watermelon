@@ -47,8 +47,8 @@ interface UserPanelProps {
     setShowUserPanel: (show: boolean) => void;
     formatDate: (timestamp: number) => string;
     formatFileSize: (bytes?: number) => string;
-    copyUrl: (url: string) => Promise<void>;
-    copied: boolean;
+    onCopyValue: (value: string, target: "url" | "command") => Promise<void>;
+    copiedTarget: "url" | "command" | null;
     showNotification: (type: "error" | "warning" | "success" | "info", title: string, message: string, details?: string) => void;
     onClose?: () => void;
     onImageUpdate?: () => void;
@@ -60,8 +60,8 @@ export default function UserPanel({
     setShowUserPanel,
     formatDate,
     formatFileSize,
-    copyUrl,
-    copied,
+    onCopyValue,
+    copiedTarget,
     showNotification,
     onClose,
     onImageUpdate,
@@ -424,11 +424,11 @@ export default function UserPanel({
                 image={selectedImage}
                 isAdmin={false}
                 isOwner={true}
-                copied={copied}
+                copiedTarget={copiedTarget}
                 onClose={() => {
                     setSelectedImage(null);
                 }}
-                onCopyUrl={copyUrl}
+                onCopyValue={onCopyValue}
                 onToggleVisibility={async (id, val) => {
                     const success = await toggleVisibility(id, val);
                     if (success) setSelectedImage(null);
