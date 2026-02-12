@@ -101,7 +101,7 @@ export default function ImageFramePage() {
     const [lastEditedFrameSize, setLastEditedFrameSize] = useState<FrameDimensions | null>(null);
     const [autoFaceFrameSize, setAutoFaceFrameSize] = useState<FrameDimensions | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
+    const [copiedTarget, setCopiedTarget] = useState<"url" | "command" | null>(null);
     const [gallery, setGallery] = useState<UploadedImage[]>([]);
     const [apiError, setApiError] = useState<string | null>(null);
     const [isCheckingApi, setIsCheckingApi] = useState(true);
@@ -445,6 +445,29 @@ export default function ImageFramePage() {
         reader.readAsDataURL(file);
     };
 
+    const clearSelectedPreview = () => {
+        setSelectedFile(null);
+        setPreview(null);
+        setUploadedImage(null);
+        setShowUploadSuccessModal(false);
+        setShowFramePromptModal(false);
+        setCopiedDirectUrl(false);
+        setCopiedCommand(false);
+        setCommandFrameSource("fallback");
+        setLastEditedFrameSize(null);
+        setAutoFaceFrameSize(null);
+        setError(null);
+        setCroppedPreview(null);
+        setShowEditor(false);
+        setIsPrivate(false);
+        setIsNsfw(false);
+        setIsUrlMode(false);
+        setUrlInput("");
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
     useEffect(() => {
         if (!selectedFile || lastEditedFrameSize) return;
 
@@ -597,36 +620,75 @@ export default function ImageFramePage() {
                 },
             });
 
-            const data = await response.json();
+            let data: Record<string, unknown> | null = null;
+            let nonJsonError = "";
+            const contentType = response.headers.get("content-type") || "";
+
+            if (contentType.includes("application/json")) {
+                try {
+                    data = await response.json();
+                } catch {
+                    data = null;
+                }
+            } else {
+                try {
+                    nonJsonError = (await response.text()).trim();
+                } catch {
+                    nonJsonError = "";
+                }
+            }
 
             if (!response.ok) {
+                const apiError = (typeof data?.error === "string" ? data.error : "")
+                    || (typeof data?.message === "string" ? data.message : "")
+                    || nonJsonError
+                    || `Upload failed with status ${response.status}`;
+
+                if (response.status === 413 || /request entity too large/i.test(apiError)) {
+                    showNotification(
+                        "error",
+                        "Upload Too Large for Server",
+                        "The request was rejected before the API route could parse it",
+                        `Host: ${hostConfig.name} • Try a smaller/compressed file, especially for GIFs.`
+                    );
+                    throw new Error("Request entity too large. Try a smaller file.");
+                }
+
                 // Handle different error scenarios
-                if (data.error?.includes("quota") || data.error?.includes("limit") || data.error?.includes("exceeded")) {
+                if (/quota|limit|exceeded/i.test(apiError)) {
                     showNotification(
                         "warning",
                         "Hosting Limit Reached",
                         `${hostConfig.name} has reached its upload limit`,
                         `Try switching to ${selectedHost === "imgbb" ? "Watermelon Storage" : "imgbb"} or try again later.`
                     );
-                } else if (data.error?.includes("API") || data.error?.includes("key") || data.error?.includes("token")) {
+                } else if (/api|key|token/i.test(apiError)) {
                     showNotification(
                         "error",
                         "API Error",
                         "There's an issue with the hosting service configuration",
-                        `${data.error || "Unknown API error"} • Try another hosting service.`
+                        `${apiError} • Try another hosting service.`
                     );
                 } else {
                     showNotification(
                         "error",
                         "Upload Failed",
-                        data.error || "An unknown error occurred",
+                        apiError || "An unknown error occurred",
                         `Host: ${hostConfig.name} • Try another hosting service or check your internet connection.`
                     );
                 }
-                throw new Error(data.error || "Upload failed");
+                throw new Error(apiError || "Upload failed");
             }
 
-            const directUrl = ensureAbsoluteUrl(data.directUrl);
+            if (!data) {
+                throw new Error("Upload response was not valid JSON.");
+            }
+
+            const rawDirectUrl = typeof data.directUrl === "string" ? data.directUrl : "";
+            if (!rawDirectUrl) {
+                throw new Error("Upload response missing direct URL.");
+            }
+            const directUrl = ensureAbsoluteUrl(rawDirectUrl);
 
             let imageDimensions: FrameDimensions | null = null;
             const apiImageWidth = Number.parseInt(String(data.imageWidth ?? ""), 10);
@@ -653,11 +715,11 @@ export default function ImageFramePage() {
             const selectedFrame = apiFrame || lastEditedFrameSize || autoFaceFrameSize || suggestedFrame.dimensions;
 
             const newImage: UploadedImage = {
-                url: data.url,
+                url: typeof data.url === "string" ? data.url : directUrl,
                 directUrl,
-                deleteUrl: data.deleteUrl,
-                thumbnail: data.thumbnail,
-                filename: data.filename,
+                deleteUrl: typeof data.deleteUrl === "string" ? data.deleteUrl : undefined,
+                thumbnail: typeof data.thumbnail === "string" ? data.thumbnail : undefined,
+                filename: typeof data.filename === "string" ? data.filename : selectedFile.name,
                 uploadedAt: Date.now(),
                 fileSize: selectedFile.size,
                 host: selectedHost,
@@ -731,11 +793,15 @@ export default function ImageFramePage() {
                 document.execCommand("copy");
                 document.body.removeChild(textArea);
             }
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
         } catch (err) {
             console.error("Failed to copy:", err);
         }
+    };
+
+    const copyValueWithFeedback = async (value: string, target: "url" | "command") => {
+        await copyUrl(value);
+        setCopiedTarget(target);
+        setTimeout(() => setCopiedTarget(null), 2000);
     };
 
     const copySuccessText = async (value: string, target: "url" | "command") => {
@@ -753,25 +819,7 @@ export default function ImageFramePage() {
     };
 
     const resetUpload = () => {
-        setSelectedFile(null);
-        setPreview(null);
-        setUploadedImage(null);
-        setShowUploadSuccessModal(false);
-        setShowFramePromptModal(false);
-        setCopiedDirectUrl(false);
-        setCopiedCommand(false);
-        setCommandFrameSource("fallback");
-        setLastEditedFrameSize(null);
-        setAutoFaceFrameSize(null);
-        setError(null);
-        setCroppedPreview(null);
-        setShowEditor(false);
-        setIsPrivate(false); // Reset to public
-        setIsNsfw(false); // Reset to not NSFW
-        setUrlInput("");
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
+        clearSelectedPreview();
     };
 
     useEffect(() => {
@@ -1420,7 +1468,7 @@ export default function ImageFramePage() {
             <ImageDetailsModal
                 image={adminSelectedImage}
                 isAdmin={isAdmin}
-                copied={copied}
+                copiedTarget={copiedTarget}
                 showDeleteConfirm={showDeleteConfirm}
                 deleteSuccess={deleteSuccess}
                 isDeleting={isDeleting}
@@ -1429,7 +1477,7 @@ export default function ImageFramePage() {
                     setShowDeleteConfirm(false);
                     setDeleteSuccess(false);
                 }}
-                onCopyUrl={copyUrl}
+                onCopyValue={copyValueWithFeedback}
                 onDelete={async () => {
                     if (!adminSelectedImage) return;
                     setIsDeleting(true);
@@ -1487,12 +1535,12 @@ export default function ImageFramePage() {
             <ImageDetailsModal
                 image={selectedGalleryImage}
                 isAdmin={isAdmin}
-                copied={copied}
+                copiedTarget={copiedTarget}
                 showDeleteConfirm={showDeleteConfirm}
                 deleteSuccess={deleteSuccess}
                 isDeleting={isDeleting}
                 onClose={closeImageDetails}
-                onCopyUrl={copyUrl}
+                onCopyValue={copyValueWithFeedback}
                 onDelete={deleteImage}
                 onShowDeleteConfirm={setShowDeleteConfirm}
                 onToggleVisibility={isAdmin ? toggleAdminVisibility : undefined}
@@ -2112,11 +2160,25 @@ export default function ImageFramePage() {
 
                                         {preview ? (
                                             <div className="space-y-4">
-                                                <img
-                                                    src={preview}
-                                                    alt="Preview"
-                                                    className="max-h-64 mx-auto rounded-lg"
-                                                />
+                                                <div className="relative w-fit mx-auto">
+                                                    <img
+                                                        src={preview}
+                                                        alt="Preview"
+                                                        className="max-h-64 mx-auto rounded-lg"
+                                                    />
+                                                    <ActionButton
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            clearSelectedPreview();
+                                                        }}
+                                                        variant="secondary"
+                                                        shape="pill"
+                                                        className="absolute top-2 left-2 w-8 h-8 p-0 border-transparent bg-black/55 hover:bg-red-500/25 text-gray-200 hover:text-red-300"
+                                                        title="Remove selected file"
+                                                    >
+                                                        <PixelClose size={12} color="currentColor" />
+                                                    </ActionButton>
+                                                </div>
                                                 <p className="text-gray-400 text-sm">{selectedFile?.name}</p>
                                                 <p className="text-gray-500 text-xs">{formatFileSize(selectedFile?.size)}</p>
 
@@ -2293,8 +2355,8 @@ export default function ImageFramePage() {
                     setShowUserPanel={setShowUserPanel}
                     formatDate={formatDate}
                     formatFileSize={formatFileSize}
-                    copyUrl={copyUrl}
-                    copied={copied}
+                    onCopyValue={copyValueWithFeedback}
+                    copiedTarget={copiedTarget}
                     showNotification={showNotification}
                     onImageUpdate={fetchRecentImages}
                 />
