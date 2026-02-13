@@ -2,14 +2,38 @@ import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs'
 import "./globals.css";
 import MusicPlayer from "./components/MusicPlayer";
+import CookieBanner from "./components/CookieBanner";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://watermelon.deze.me"),
+  alternates: {
+    canonical: "https://watermelon.deze.me",
+  },
   title: "Watermelon SMP | Minecraft Server",
-  description: "A cozy Minecraft server with custom plugins and endless adventures",
-  keywords: ["minecraft", "server", "smp", "java", "watermelon", "gaming"],
+  description:
+    "Watermelon SMP is a Filipino Minecraft server and pinoy SMP server with custom plugins, community gameplay, and survival adventures.",
+  keywords: [
+    "filipino minecraft server",
+    "minecraft server",
+    "pinoy smp server",
+    "watermelon smp",
+    "minecraft smp philippines",
+    "philippines minecraft server",
+  ],
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   openGraph: {
     title: "Watermelon SMP | Minecraft Server",
-    description: "A cozy Minecraft server with custom plugins and endless adventures",
+    description:
+      "Join Watermelon SMP, a Filipino Minecraft server and pinoy SMP server with custom plugins and friendly community gameplay.",
     type: "website",
     url: "https://watermelon.deze.me",
     siteName: "Watermelon SMP",
@@ -31,7 +55,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Watermelon SMP | Minecraft Server",
-    description: "A cozy Minecraft server with custom plugins and endless adventures",
+    description:
+      "Filipino Minecraft server and pinoy SMP server with custom plugins and survival adventures.",
     images: ["/minecraft-bg.jpg"],
   },
 };
@@ -46,6 +71,7 @@ export default function RootLayout({
       <html lang="en" suppressHydrationWarning>
         <body className="antialiased" suppressHydrationWarning>
           {children}
+          <CookieBanner />
           <MusicPlayer />
         </body>
       </html>
