@@ -231,22 +231,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Scroll Indicator */}
-          <div className="absolute bottom-8 animate-bounce">
-            <svg
-              className="w-6 h-6 text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 14l-7 7m0 0l-7-7m7 7V3"
-              />
-            </svg>
-          </div>
         </section>
 
         {/* Team Section */}
@@ -545,7 +529,12 @@ export default function Home() {
         {/* Features Section */}
         <section className="py-20 px-4 bg-gradient-to-b from-transparent to-[#1a1a1a]/50">
           <div className="max-w-4xl mx-auto">
-            <h2 className="font-pixel text-xl md:text-2xl text-center mb-4 text-[#2ed573]">
+            <h2
+              className="font-pixel text-xl md:text-2xl text-center mb-4 text-[#2ed573] inline-block w-full animate-[glow_2s_ease-in-out_infinite]"
+              style={{
+                textShadow: "0 0 10px rgba(46, 213, 115, 0.8), 0 0 20px rgba(46, 213, 115, 0.6), 0 0 30px rgba(46, 213, 115, 0.4)",
+              }}
+            >
               WHAT WE OFFER
             </h2>
             <p className="text-gray-400 text-center mb-12">
