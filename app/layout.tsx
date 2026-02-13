@@ -6,6 +6,11 @@ import CookieBanner from "./components/CookieBanner";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://watermelon.deze.me"),
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
   alternates: {
     canonical: "https://watermelon.deze.me",
   },
