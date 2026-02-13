@@ -90,6 +90,13 @@ const qolMods = [
         url: "https://modrinth.com/mod/appleskin",
     },
     {
+        name: "Inventory Profiles Next",
+        description: "Adds inventory sorting and management shortcuts",
+        benefit: "Quickly sort, move, and organize items with one click",
+        icon: "🧰",
+        url: "https://modrinth.com/mod/inventory-profiles-next",
+    },
+    {
         name: "Xaero's Minimap",
         description: "Clean minimap and world map",
         benefit: "Never get lost, mark waypoints easily",
