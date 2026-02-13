@@ -4,6 +4,65 @@ import sharp from "sharp";
 import { suggestFrameSizeFromPixels } from "@/app/imageframe/lib/imageframe-command";
 import { buildWatermelonFilename } from "@/app/api/_lib/filename";
 
+type GifOptimizationProfile = {
+    maxSide: number;
+    colors: number;
+    effort: number;
+    interFrameMaxError: number;
+    interPaletteMaxError: number;
+    dither: number;
+};
+
+const GIF_OPTIMIZATION_PROFILES: GifOptimizationProfile[] = [
+    { maxSide: 1600, colors: 192, effort: 8, interFrameMaxError: 4, interPaletteMaxError: 6, dither: 0.9 },
+    { maxSide: 1280, colors: 128, effort: 9, interFrameMaxError: 8, interPaletteMaxError: 12, dither: 0.8 },
+    { maxSide: 960, colors: 96, effort: 10, interFrameMaxError: 12, interPaletteMaxError: 20, dither: 0.7 },
+];
+
+const optimizeAnimatedGif = async (inputBuffer: Buffer): Promise<Buffer> => {
+    const metadata = await sharp(inputBuffer, { animated: true }).metadata();
+    const originalWidth = metadata.width || null;
+    const originalHeight = metadata.height || null;
+    const loop = metadata.loop;
+    const delay = metadata.delay;
+
+    let bestBuffer = inputBuffer;
+
+    for (const profile of GIF_OPTIMIZATION_PROFILES) {
+        const pipeline = sharp(inputBuffer, { animated: true });
+
+        if (originalWidth && originalHeight) {
+            const shouldResize = Math.max(originalWidth, originalHeight) > profile.maxSide;
+            if (shouldResize) {
+                pipeline.resize(profile.maxSide, profile.maxSide, {
+                    fit: "inside",
+                    withoutEnlargement: true,
+                });
+            }
+        }
+
+        const candidate = await pipeline
+            .gif({
+                reuse: true,
+                progressive: false,
+                effort: profile.effort,
+                colors: profile.colors,
+                dither: profile.dither,
+                interFrameMaxError: profile.interFrameMaxError,
+                interPaletteMaxError: profile.interPaletteMaxError,
+                loop,
+                delay,
+            })
+            .toBuffer();
+
+        if (candidate.length < bestBuffer.length) {
+            bestBuffer = candidate;
+        }
+    }
+
+    return bestBuffer;
+};
+
 export async function POST(request: NextRequest) {
     try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -18,6 +77,10 @@ export async function POST(request: NextRequest) {
 
         const formData = await request.formData();
         const file = formData.get("image") as File;
+        const requestedMaxSize = Number.parseInt(request.headers.get("x-target-max-size") || "", 10);
+        const maxOutputSizeBytes = Number.isFinite(requestedMaxSize) && requestedMaxSize > 0
+            ? requestedMaxSize
+            : 8 * 1024 * 1024;
 
         if (!file) {
             return NextResponse.json({
@@ -33,8 +96,7 @@ export async function POST(request: NextRequest) {
         const arrayBuffer = await file.arrayBuffer();
         let buffer: Buffer = Buffer.from(arrayBuffer);
 
-        // Determine extension and whether this is an animated GIF.
-        // GIFs must not be processed by Sharp because it can flatten animations.
+        // Determine extension and whether this is a GIF.
         const rawExt = file.name.split(".").pop() || "";
         const fileExt = rawExt.toLowerCase();
         const isGif = file.type === "image/gif" || fileExt === "gif";
@@ -96,6 +158,31 @@ export async function POST(request: NextRequest) {
         } else {
             // Ensure GIF uploads always carry the correct content type.
             contentType = "image/gif";
+            try {
+                const optimizedGif = await optimizeAnimatedGif(buffer);
+                if (optimizedGif.length < buffer.length) {
+                    buffer = optimizedGif;
+                }
+                console.log(
+                    `GIF optimized: ${file.size} bytes -> ${buffer.length} bytes (${(
+                        (1 - buffer.length / file.size) *
+                        100
+                    ).toFixed(1)}% reduction)`
+                );
+            } catch (optimizeError) {
+                console.warn("GIF optimization failed, using original:", optimizeError);
+            }
+        }
+
+        // Final hard limit after optimization/compression.
+        if (buffer.length > maxOutputSizeBytes) {
+            return NextResponse.json({
+                success: false,
+                error: `File is still too large after compression (${(buffer.length / (1024 * 1024)).toFixed(2)}MB). Max allowed is ${(maxOutputSizeBytes / (1024 * 1024)).toFixed(0)}MB.`,
+                originalSizeBytes: file.size,
+                compressedSizeBytes: buffer.length,
+                maxSizeBytes: maxOutputSizeBytes,
+            }, { status: 413 });
         }
 
         // Generate unique filename
@@ -198,6 +285,7 @@ export async function POST(request: NextRequest) {
             deleteUrl: filePath, // Store the path for deletion
             thumbnail: directPublicUrl,
             filename: fileName,
+            fileSize: buffer.length,
             imageWidth,
             imageHeight,
             frameWidth,
