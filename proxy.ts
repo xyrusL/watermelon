@@ -1,6 +1,19 @@
-import { clerkMiddleware } from '@clerk/nextjs/server'
+import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
-export default clerkMiddleware()
+const CANONICAL_HOST = "watermelon.deze.me";
+const LEGACY_HOSTS = new Set(["deze.me", "www.deze.me"]);
+
+export default clerkMiddleware((auth, req) => {
+  const host = req.headers.get("host") || "";
+
+  if (LEGACY_HOSTS.has(host)) {
+    const url = req.nextUrl.clone();
+    url.protocol = "https";
+    url.host = CANONICAL_HOST;
+    return NextResponse.redirect(url, 308);
+  }
+});
 
 export const config = {
   matcher: [
@@ -9,4 +22,4 @@ export const config = {
     // Always run for API routes
     '/(api|trpc)(.*)',
   ],
-}
+};
