@@ -17,9 +17,14 @@ const GIF_OPTIMIZATION_PROFILES: GifOptimizationProfile[] = [
     { maxSide: 1600, colors: 192, effort: 8, interFrameMaxError: 4, interPaletteMaxError: 6, dither: 0.9 },
     { maxSide: 1280, colors: 128, effort: 9, interFrameMaxError: 8, interPaletteMaxError: 12, dither: 0.8 },
     { maxSide: 960, colors: 96, effort: 10, interFrameMaxError: 12, interPaletteMaxError: 20, dither: 0.7 },
+    { maxSide: 800, colors: 80, effort: 10, interFrameMaxError: 16, interPaletteMaxError: 28, dither: 0.55 },
+    { maxSide: 640, colors: 64, effort: 10, interFrameMaxError: 20, interPaletteMaxError: 36, dither: 0.45 },
 ];
 
-const optimizeAnimatedGif = async (inputBuffer: Buffer): Promise<Buffer> => {
+const optimizeAnimatedGif = async (
+    inputBuffer: Buffer,
+    maxOutputSizeBytes?: number
+): Promise<Buffer> => {
     const metadata = await sharp(inputBuffer, { animated: true }).metadata();
     const originalWidth = metadata.width || null;
     const originalHeight = metadata.height || null;
@@ -55,6 +60,16 @@ const optimizeAnimatedGif = async (inputBuffer: Buffer): Promise<Buffer> => {
             })
             .toBuffer();
 
+        // Profiles are ordered from highest quality to most aggressive.
+        // Return the first candidate that satisfies the target size.
+        if (
+            Number.isFinite(maxOutputSizeBytes) &&
+            (maxOutputSizeBytes as number) > 0 &&
+            candidate.length <= (maxOutputSizeBytes as number)
+        ) {
+            return candidate.length < inputBuffer.length ? candidate : inputBuffer;
+        }
+
         if (candidate.length < bestBuffer.length) {
             bestBuffer = candidate;
         }
@@ -88,6 +103,14 @@ export async function POST(request: NextRequest) {
                 error: "No image file provided"
             }, { status: 400 });
         }
+
+        console.info("[SupabaseUpload] request_received", {
+            fileName: file.name,
+            fileType: file.type || "unknown",
+            fileSize: file.size,
+            requestedMaxSize,
+            maxOutputSizeBytes,
+        });
 
         // Initialize Supabase client
         const supabase = createClient(supabaseUrl, supabaseKey);
@@ -151,6 +174,14 @@ export async function POST(request: NextRequest) {
                         100
                     ).toFixed(1)}% reduction)`
                 );
+                console.info("[SupabaseUpload] optimize_result", {
+                    fileName: file.name,
+                    isGif,
+                    beforeBytes: file.size,
+                    afterBytes: buffer.length,
+                    contentType,
+                    detectedFormat: metadata.format || "unknown",
+                });
             } catch (optimizeError) {
                 console.warn("Image optimization failed, using original:", optimizeError);
                 // If optimization fails, use original buffer
@@ -159,7 +190,7 @@ export async function POST(request: NextRequest) {
             // Ensure GIF uploads always carry the correct content type.
             contentType = "image/gif";
             try {
-                const optimizedGif = await optimizeAnimatedGif(buffer);
+                const optimizedGif = await optimizeAnimatedGif(buffer, maxOutputSizeBytes);
                 if (optimizedGif.length < buffer.length) {
                     buffer = optimizedGif;
                 }
@@ -169,6 +200,13 @@ export async function POST(request: NextRequest) {
                         100
                     ).toFixed(1)}% reduction)`
                 );
+                console.info("[SupabaseUpload] optimize_result", {
+                    fileName: file.name,
+                    isGif,
+                    beforeBytes: file.size,
+                    afterBytes: buffer.length,
+                    contentType,
+                });
             } catch (optimizeError) {
                 console.warn("GIF optimization failed, using original:", optimizeError);
             }
@@ -176,6 +214,12 @@ export async function POST(request: NextRequest) {
 
         // Final hard limit after optimization/compression.
         if (buffer.length > maxOutputSizeBytes) {
+            console.warn("[SupabaseUpload] rejected_after_optimization", {
+                fileName: file.name,
+                finalBytes: buffer.length,
+                maxOutputSizeBytes,
+                originalBytes: file.size,
+            });
             return NextResponse.json({
                 success: false,
                 error: `File is still too large after compression (${(buffer.length / (1024 * 1024)).toFixed(2)}MB). Max allowed is ${(maxOutputSizeBytes / (1024 * 1024)).toFixed(0)}MB.`,
@@ -238,6 +282,13 @@ export async function POST(request: NextRequest) {
         let frameSource: "user" | "face-auto" | "algorithm" | "fallback" = "fallback";
         const requestedFrameSource = request.headers.get("x-frame-source");
 
+        console.info("[SupabaseUpload] frame_inputs", {
+            requestedFrameSource: requestedFrameSource || "none",
+            parsedFrameWidth,
+            parsedFrameHeight,
+            hasUserFrame,
+        });
+
         if (hasUserFrame) {
             frameWidth = parsedFrameWidth;
             frameHeight = parsedFrameHeight;
@@ -248,6 +299,16 @@ export async function POST(request: NextRequest) {
             frameHeight = suggested.dimensions.height;
             frameSource = "algorithm";
         }
+
+        console.info("[SupabaseUpload] frame_resolved", {
+            imageWidth,
+            imageHeight,
+            frameWidth,
+            frameHeight,
+            frameSource,
+            isPrivate,
+            isNsfw,
+        });
 
         // Save image metadata to database for admin tracking
         try {
