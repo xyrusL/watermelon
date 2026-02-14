@@ -12,7 +12,7 @@ export default function NotificationModal({ notification, onClose }: Notificatio
     if (!notification.show) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80" onClick={onClose}>
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80" onClick={onClose}>
             <div className="glass rounded-2xl p-6 max-w-md w-full border-2 border-white/10" onClick={(e) => e.stopPropagation()}>
                 {/* Icon */}
                 <div className="text-center mb-4 flex justify-center">
