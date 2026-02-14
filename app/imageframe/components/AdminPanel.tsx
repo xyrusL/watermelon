@@ -228,7 +228,9 @@ export default function AdminPanel({
 
             const data = await response.json();
             if (data.success) {
-                showNotification("success", "Bulk Delete Complete", `Deleted ${deletedCount} image(s)`);
+                const deleteTitle = deletedCount === 1 ? "Delete Complete" : "Bulk Delete Complete";
+                const deleteMessage = deletedCount === 1 ? "Deleted 1 image" : `Deleted ${deletedCount} images`;
+                showNotification("success", deleteTitle, deleteMessage);
                 if (onImageDeleted) onImageDeleted();
             } else {
                 // Revert on failure
