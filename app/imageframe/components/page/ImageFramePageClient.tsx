@@ -97,10 +97,9 @@ export default function ImageFramePageClient() {
     const [uploadCurrentSize, setUploadCurrentSize] = useState<number | null>(null);
     const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null);
     const [showUploadSuccessModal, setShowUploadSuccessModal] = useState(false);
-    const [successModalCountdown, setSuccessModalCountdown] = useState(10);
+    const [successModalCountdown, setSuccessModalCountdown] = useState(15);
+    const [successOutputMode, setSuccessOutputMode] = useState<"url" | "command">("url");
     const [commandFrameSource, setCommandFrameSource] = useState<FrameSizeSource>("fallback");
-    const [copiedDirectUrl, setCopiedDirectUrl] = useState(false);
-    const [copiedCommand, setCopiedCommand] = useState(false);
     const [lastEditedFrameSize, setLastEditedFrameSize] = useState<FrameDimensions | null>(null);
     const [autoFaceFrameSize, setAutoFaceFrameSize] = useState<FrameDimensions | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -179,6 +178,9 @@ export default function ImageFramePageClient() {
     const isGalleryFetchInFlightRef = useRef(false);
     const lastGalleryApiErrorRef = useRef<string | null>(null);
     const logoutModalTimeoutRef = useRef<number | null>(null);
+    const debugStateLog = (event: string, data?: Record<string, unknown>) => {
+        console.log("[ImageFrameState]", event, data || {});
+    };
 
     // Show notification helper
     const showNotification = (
@@ -236,6 +238,10 @@ export default function ImageFramePageClient() {
         const requestId = ++latestGalleryRequestIdRef.current;
 
         try {
+            debugStateLog("gallery_fetch_started", {
+                requestId,
+                inFlight: isGalleryFetchInFlightRef.current,
+            });
             const response = await fetch('/api/supabase/recent');
             let data: RecentImagesApiResponse | null = null;
             try {
@@ -255,6 +261,10 @@ export default function ImageFramePageClient() {
                 const images = mapDbImagesToUploadedImages(data.images);
                 setGallery(images);
                 lastGalleryApiErrorRef.current = null;
+                debugStateLog("gallery_fetch_success", {
+                    requestId,
+                    imageCount: images.length,
+                });
             } else if (data && !data.success) {
                 notifyGalleryApiError(
                     data.error || "Gallery API returned an error",
@@ -263,6 +273,10 @@ export default function ImageFramePageClient() {
             }
         } catch (err) {
             console.warn('Failed to fetch recent images:', err);
+            debugStateLog("gallery_fetch_failed", {
+                requestId,
+                error: err instanceof Error ? err.message : "unknown_error",
+            });
             notifyGalleryApiError(
                 err instanceof Error ? err.message : "Network error while fetching gallery",
                 "Endpoint: /api/supabase/recent"
@@ -454,8 +468,8 @@ export default function ImageFramePageClient() {
         setUploadedImage(null);
         setShowUploadSuccessModal(false);
         setShowFramePromptModal(false);
-        setCopiedDirectUrl(false);
-        setCopiedCommand(false);
+        setCopiedTarget(null);
+        setSuccessOutputMode("url");
         setCommandFrameSource("fallback");
         setLastEditedFrameSize(null);
         setAutoFaceFrameSize(null);
@@ -582,6 +596,16 @@ export default function ImageFramePageClient() {
         if (!selectedFile || !selectedHost) return;
 
         const hostConfig = HOSTS[selectedHost];
+        debugStateLog("upload_started", {
+            host: selectedHost,
+            fileName: selectedFile.name,
+            fileSize: selectedFile.size,
+            isGif: isGifFile(selectedFile),
+            isPrivate,
+            isNsfw,
+            hasEditedFrame: !!lastEditedFrameSize,
+            hasAutoFaceFrame: !!autoFaceFrameSize,
+        });
 
         // Check file size.
         // For Supabase, allow oversized originals so backend can attempt compression first.
@@ -669,6 +693,14 @@ export default function ImageFramePageClient() {
                 const compressedSizeBytes = Number.parseInt(String(data?.compressedSizeBytes ?? ""), 10);
                 const maxSizeBytes = Number.parseInt(String(data?.maxSizeBytes ?? ""), 10);
                 const hasCompressionLimitPayload = Number.isFinite(compressedSizeBytes) && Number.isFinite(maxSizeBytes);
+                debugStateLog("upload_failed", {
+                    status: response.status,
+                    host: selectedHost,
+                    apiError,
+                    compressedSizeBytes: Number.isFinite(compressedSizeBytes) ? compressedSizeBytes : null,
+                    maxSizeBytes: Number.isFinite(maxSizeBytes) ? maxSizeBytes : null,
+                    hasCompressionLimitPayload,
+                });
 
                 if (response.status === 413 || /request entity too large/i.test(apiError)) {
                     if (hasCompressionLimitPayload || /compress|compressed|still too large|below/i.test(apiError)) {
@@ -758,10 +790,20 @@ export default function ImageFramePageClient() {
                 : null;
             const selectedFrame = apiFrame || lastEditedFrameSize || autoFaceFrameSize || suggestedFrame.dimensions;
             const apiFileSize = Number.parseInt(String(data.fileSize ?? ""), 10);
+            const originalFileSize = selectedFile.size;
             const uploadedFileSize = Number.isFinite(apiFileSize) && apiFileSize > 0
                 ? apiFileSize
                 : selectedFile.size;
             setUploadCurrentSize(uploadedFileSize);
+            debugStateLog("upload_response_parsed", {
+                host: selectedHost,
+                originalSize: originalFileSize,
+                uploadedSize: uploadedFileSize,
+                hasApiFrame: !!apiFrame,
+                usedLastEditedFrame: !!lastEditedFrameSize,
+                usedAutoFaceFrame: !!autoFaceFrameSize,
+                frameSource: typeof data.frameSource === "string" ? data.frameSource : "unknown",
+            });
 
             setUploadProgress(100);
             await new Promise((resolve) => window.setTimeout(resolve, 700));
@@ -801,13 +843,20 @@ export default function ImageFramePageClient() {
             localStorage.setItem("watermelon-gallery", JSON.stringify(updatedGallery));
 
             // Show success notification
+            const sizeDetails = uploadedFileSize < originalFileSize
+                ? `Original: ${formatFileSize(originalFileSize)} -> Final: ${formatFileSize(uploadedFileSize)}`
+                : `Final size: ${formatFileSize(uploadedFileSize)}`;
             showNotification(
                 "success",
                 "Upload Successful! 🎉",
                 "Your image has been uploaded and is ready to use",
-                `Host: ${hostConfig.name} • Size: ${formatFileSize(uploadedFileSize)}`
+                `Host: ${hostConfig.name} • ${sizeDetails}`
             );
         } catch (err) {
+            debugStateLog("upload_catch", {
+                host: selectedHost,
+                error: err instanceof Error ? err.message : "unknown_error",
+            });
             setError(err instanceof Error ? err.message : "Upload failed");
         } finally {
             setIsUploading(false);
@@ -859,20 +908,6 @@ export default function ImageFramePageClient() {
         setTimeout(() => setCopiedTarget(null), 2000);
     };
 
-    const copySuccessText = async (value: string, target: "url" | "command") => {
-        await copyUrl(value);
-        if (target === "url") {
-            setCopiedDirectUrl(true);
-            setCopiedCommand(false);
-            setTimeout(() => setCopiedDirectUrl(false), 2000);
-            return;
-        }
-
-        setCopiedCommand(true);
-        setCopiedDirectUrl(false);
-        setTimeout(() => setCopiedCommand(false), 2000);
-    };
-
     const resetUpload = () => {
         clearSelectedPreview();
     };
@@ -880,14 +915,17 @@ export default function ImageFramePageClient() {
     useEffect(() => {
         if (!showUploadSuccessModal || !uploadedImage) return;
 
-        setSuccessModalCountdown(10);
+        setSuccessModalCountdown(15);
         const countdownTimer = window.setInterval(() => {
             setSuccessModalCountdown((prev) => Math.max(prev - 1, 0));
         }, 1000);
 
         const hideTimer = window.setTimeout(() => {
             resetUpload();
-        }, 10000);
+        }, 15000);
+
+        setSuccessOutputMode("url");
+        setCopiedTarget(null);
 
         return () => {
             window.clearTimeout(hideTimer);
@@ -1190,7 +1228,10 @@ export default function ImageFramePageClient() {
 
             const data = await response.json();
             if (data.success) {
-                showNotification("success", "Bulk Delete Complete", `Deleted ${selectedImages.size} image(s)`);
+                const deletedCount = selectedImages.size;
+                const deleteTitle = deletedCount === 1 ? "Delete Complete" : "Bulk Delete Complete";
+                const deleteMessage = deletedCount === 1 ? "Deleted 1 image" : `Deleted ${deletedCount} images`;
+                showNotification("success", deleteTitle, deleteMessage);
                 setSelectedImages(new Set());
                 fetchAdminImages(); // Refresh the list
                 fetchRecentImages(); // Refresh the main gallery
@@ -1279,6 +1320,9 @@ export default function ImageFramePageClient() {
         approximated: "Auto best-fit ratio",
         fallback: "Fallback 1×1",
     };
+    const successOutputValue = successOutputMode === "url" ? directUploadUrl : imageFrameCreateCommand;
+    const isSuccessValueCopied = copiedTarget === successOutputMode;
+    const uploadSizeLabel = uploadedImage?.fileSize ? formatFileSize(uploadedImage.fileSize) : null;
 
     return (
         <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
@@ -1645,7 +1689,7 @@ export default function ImageFramePageClient() {
             {/* Upload Success Modal */}
             {showUploadSuccessModal && uploadedImage && (
                 <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-                    <div className="glass rounded-2xl p-4 sm:p-5 lg:p-6 w-full max-w-5xl relative border border-[#2ed573]/20 max-h-[90vh] overflow-y-auto">
+                    <div className="glass rounded-2xl p-4 sm:p-5 w-full max-w-3xl relative border border-[#2ed573]/20 max-h-[88vh] overflow-y-auto">
                         <ActionButton
                             onClick={resetUpload}
                             variant="secondary"
@@ -1657,88 +1701,91 @@ export default function ImageFramePageClient() {
                         </ActionButton>
 
                         <div className="mb-4 flex flex-col items-center text-center">
-                            <div className="w-12 h-12 rounded-xl bg-[#2ed573]/15 border border-[#2ed573]/40 flex items-center justify-center shadow-[0_0_24px_rgba(46,213,115,0.25)] mb-2.5">
-                                <PixelCheck size={30} color="#2ed573" />
+                            <div className="w-11 h-11 rounded-xl bg-[#2ed573]/12 border border-[#2ed573]/35 flex items-center justify-center shadow-[0_0_20px_rgba(46,213,115,0.22)] mb-2">
+                                <PixelCheck size={26} color="#2ed573" />
                             </div>
-                            <p className="text-[#2ed573] font-semibold text-lg sm:text-xl">Upload Successful!</p>
-                            <p className="text-xs text-gray-400 mt-1">Image is live and ready for Minecraft use</p>
+                            <p className="text-[#2ed573] font-semibold text-2xl leading-tight">Upload Successful!</p>
+                            <p className="text-sm text-gray-400 mt-1">Uploaded and ready to use.</p>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 lg:gap-5 items-start">
-                            <div className="space-y-3">
-                                <div className="glass-dark rounded-xl p-3 border border-white/10">
-                                    <div className="h-[220px] sm:h-[260px] lg:h-[320px] rounded-lg border border-white/10 bg-black/30 overflow-hidden flex items-center justify-center">
-                                        <img
-                                            src={uploadedImage.directUrl}
-                                            alt="Uploaded"
-                                            className="max-h-full max-w-full object-contain"
-                                        />
+                        <div className="space-y-4">
+                            <div className="glass-dark rounded-xl p-3 border border-white/10">
+                                <div className="flex items-center justify-between gap-2 mb-3">
+                                    <p className="text-sm text-gray-300">Use in Minecraft</p>
+                                    <div className="inline-flex items-center rounded-lg bg-black/35 border border-white/10 p-0.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSuccessOutputMode("url")}
+                                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                                successOutputMode === "url"
+                                                    ? "bg-[#2ed573]/20 text-[#7dffb0]"
+                                                    : "text-gray-400 hover:text-gray-200"
+                                            }`}
+                                        >
+                                            URL
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSuccessOutputMode("command")}
+                                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                                successOutputMode === "command"
+                                                    ? "bg-[#2ed573]/20 text-[#7dffb0]"
+                                                    : "text-gray-400 hover:text-gray-200"
+                                            }`}
+                                        >
+                                            Command
+                                        </button>
                                     </div>
                                 </div>
 
-                                {uploadedImage.uploaderName && (
-                                    <div className="glass-dark rounded-xl p-3 border border-[#2ed573]/20">
-                                        <p className="text-xs uppercase tracking-wide text-gray-500">Uploaded by</p>
-                                        <p className="text-[#2ed573] font-medium flex items-center justify-center gap-2 mt-1">
-                                            <PixelUser size={14} color="#2ed573" />
-                                            <span className="truncate">{uploadedImage.uploaderName}</span>
+                                <div className="glass rounded-xl p-3 border border-white/10">
+                                    <code className={`text-sm break-all block ${successOutputMode === "url" ? "text-[#ff4757]" : "text-[#2ed573]"}`}>
+                                        {successOutputValue}
+                                    </code>
+                                    <div className="mt-2.5 flex items-center justify-between gap-2">
+                                        <p className="text-[11px] text-gray-500">
+                                            {successOutputMode === "url"
+                                                ? "Direct URL"
+                                                : `${uploadFrameWidth}×${uploadFrameHeight} frames • ${frameSourceLabel[commandFrameSource]}`}
                                         </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => copyValueWithFeedback(successOutputValue, successOutputMode)}
+                                            className={`inline-flex items-center gap-1.5 text-xs transition-colors ${
+                                                isSuccessValueCopied ? "text-[#2ed573]" : "text-gray-400 hover:text-gray-200"
+                                            }`}
+                                        >
+                                            {isSuccessValueCopied ? <PixelCheck size={11} color="#2ed573" /> : <PixelCopy size={11} color="currentColor" />}
+                                            {isSuccessValueCopied ? "Copied" : "Copy"}
+                                        </button>
                                     </div>
-                                )}
+                                </div>
+
+                                <div className="mt-3 flex items-center gap-2">
+                                    <div className="w-14 h-14 rounded-lg overflow-hidden border border-white/10 bg-black/30 shrink-0">
+                                        <img src={uploadedImage.directUrl} alt="Uploaded preview" className="h-full w-full object-cover" />
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                        {uploadedImage.filename}
+                                        {uploadSizeLabel ? ` • ${uploadSizeLabel}` : ""}
+                                    </p>
+                                </div>
                             </div>
 
-                            <div className="space-y-3">
-                                <div className="space-y-2">
-                                    <p className="text-sm text-gray-400">Direct URL (paste in Minecraft)</p>
-                                    <div
-                                        onClick={() => copySuccessText(directUploadUrl, "url")}
-                                        className="glass p-3.5 rounded-xl cursor-pointer border border-white/10 hover:border-[#2ed573]/50 transition-all group"
-                                    >
-                                        <code className="text-[#ff4757] text-sm break-all block">
-                                            {directUploadUrl}
-                                        </code>
-                                        <p className={`text-xs mt-3 flex items-center justify-center gap-1.5 ${copiedDirectUrl ? "text-[#2ed573]" : "text-gray-500 group-hover:text-gray-400"}`}>
-                                            {copiedDirectUrl ? <PixelCheck size={11} color="#2ed573" /> : <PixelCopy size={11} color="currentColor" />}
-                                            {copiedDirectUrl ? "Copied!" : "Click to copy"}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                                        <p className="text-sm text-gray-400">Command (/imageframe create)</p>
-                                        <p className="text-[10px] text-gray-500">
-                                            {uploadFrameWidth}×{uploadFrameHeight} frames • {frameSourceLabel[commandFrameSource]}
-                                        </p>
-                                    </div>
-                                    <div
-                                        onClick={() => copySuccessText(imageFrameCreateCommand, "command")}
-                                        className="glass p-3.5 rounded-xl cursor-pointer border border-white/10 hover:border-[#2ed573]/50 transition-all group"
-                                    >
-                                        <code className="text-[#2ed573] text-sm break-all block">
-                                            {imageFrameCreateCommand}
-                                        </code>
-                                        <p className={`text-xs mt-3 flex items-center justify-center gap-1.5 ${copiedCommand ? "text-[#2ed573]" : "text-gray-500 group-hover:text-gray-400"}`}>
-                                            {copiedCommand ? <PixelCheck size={11} color="#2ed573" /> : <PixelCopy size={11} color="currentColor" />}
-                                            {copiedCommand ? "Copied!" : "Click to copy command"}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="pt-1">
-                                    <p className="text-xs text-gray-500 text-center mb-3">
-                                        Auto closes in {successModalCountdown}s
-                                    </p>
-                                    <ActionButton
-                                        onClick={resetUpload}
-                                        variant="primary"
-                                        fullWidth
-                                        className="py-3.5 hover:scale-[1.01] flex items-center justify-center gap-2"
-                                    >
-                                        <PixelUpload size={14} color="#0b0f19" />
-                                        Upload Another Image
-                                    </ActionButton>
-                                </div>
+                            <ActionButton
+                                onClick={resetUpload}
+                                variant="primary"
+                                fullWidth
+                                autoFocus
+                                className="py-3 hover:scale-[1.01] flex items-center justify-center gap-2"
+                            >
+                                <PixelUpload size={14} color="#0b0f19" />
+                                Upload Another Image
+                            </ActionButton>
+                            <div className="flex justify-center">
+                                <p className="text-xs text-gray-500">
+                                    Auto closes in {successModalCountdown}s
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -1770,10 +1817,8 @@ export default function ImageFramePageClient() {
                         </p>
                         <p className="text-xs text-gray-500">
                             {uploadStage === "optimizing"
-                                ? `Step 1 of 2 • Original ${selectedFile ? formatFileSize(selectedFile.size) : ""}`
-                                : uploadCurrentSize
-                                    ? `Step 2 of 2 • Optimized ${formatFileSize(uploadCurrentSize)}`
-                                    : `Step 2 of 2 • Uploading + validating ${selectedHost ? HOSTS[selectedHost].maxSizeLabel : "size limit"}...`}
+                                ? `Step 1 of 2 • Preparing file${selectedFile ? ` (${formatFileSize(selectedFile.size)})` : ""}`
+                                : `Step 2 of 2 • Uploading and checking size limit...`}
                         </p>
                         <p className="text-sm text-[#ff4757] font-semibold mt-2">
                             {Math.round(uploadProgress)}%
