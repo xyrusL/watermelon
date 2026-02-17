@@ -24,6 +24,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        if (!isAdmin) {
+            return NextResponse.json(
+                { success: false, error: "Forbidden - Admin access required for permanent delete" },
+                { status: 403 }
+            );
+        }
+
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -47,10 +54,10 @@ export async function POST(request: NextRequest) {
 
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        // Fetch the record to verify ownership (or admin)
+        // Fetch the record to verify it exists
         const lookupQuery = supabase
             .from('images')
-            .select('id, uploader_email')
+            .select('id')
             .limit(1);
 
         const { data: imageRecord, error: fetchError } = normalizedFilePath
@@ -61,13 +68,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { success: false, error: "Record not found" },
                 { status: 404 }
-            );
-        }
-
-        if (!isAdmin && imageRecord.uploader_email !== userEmail) {
-            return NextResponse.json(
-                { success: false, error: "Forbidden - You can only delete your own images" },
-                { status: 403 }
             );
         }
 

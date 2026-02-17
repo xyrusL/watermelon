@@ -183,6 +183,15 @@ export default function ImageDetailsModal({
                                     {image.host === "supabase" ? "WATERMELON" : "IMGBB"}
                                 </span>
                             </div>
+
+                            {isAdmin && (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-400">Status</span>
+                                    <span className={image.userDeletedAt ? "text-[#ff6b81] font-semibold" : "text-[#2ed573] font-semibold"}>
+                                        {image.userDeletedAt ? "SOFT DELETED BY USER" : "ACTIVE"}
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         {!showDeleteConfirm ? (
@@ -222,7 +231,7 @@ export default function ImageDetailsModal({
                                 {showOwnerControls && (
                                     <div className="glass-dark rounded-xl p-3 border border-[#2ed573]/20 space-y-2">
                                         <p className="text-[10px] uppercase tracking-wide text-[#2ed573]">User Controls</p>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                             {onToggleVisibility && imgId && (
                                                 <ActionButton
                                                     onClick={() => onToggleVisibility(imgId, !!image.is_private)}
@@ -247,6 +256,16 @@ export default function ImageDetailsModal({
                                                     {image.is_nsfw
                                                         ? <><PixelCheck size={14} color="currentColor" /> Safe</>
                                                         : <><PixelWarning size={14} color="currentColor" /> NSFW</>}
+                                                </ActionButton>
+                                            )}
+                                            {onDelete && onShowDeleteConfirm && (
+                                                <ActionButton
+                                                    onClick={() => onShowDeleteConfirm(true)}
+                                                    variant="secondary"
+                                                    className="py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30 cursor-pointer flex items-center justify-center"
+                                                    title="Remove from my account"
+                                                >
+                                                    <PixelTrash size={18} color="currentColor" />
                                                 </ActionButton>
                                             )}
                                         </div>
@@ -305,7 +324,11 @@ export default function ImageDetailsModal({
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                <p className="text-center text-gray-300 mb-2">Are you sure you want to delete this image?</p>
+                                <p className="text-center text-gray-300 mb-2">
+                                    {showOwnerControls
+                                        ? "Remove this image?"
+                                        : "Are you sure you want to delete this image?"}
+                                </p>
                                 <ActionButton
                                     onClick={onDelete}
                                     disabled={isDeleting}
@@ -313,7 +336,7 @@ export default function ImageDetailsModal({
                                     fullWidth
                                     className={`cursor-pointer ${isDeleting ? "bg-gray-600 border-gray-600 hover:bg-gray-600" : ""}`}
                                 >
-                                    {isDeleting ? "Deleting..." : "Yes, Delete"}
+                                    {isDeleting ? "Deleting..." : (showOwnerControls ? "Yes, Remove" : "Yes, Delete")}
                                 </ActionButton>
                                 <ActionButton
                                     onClick={() => onShowDeleteConfirm && onShowDeleteConfirm(false)}

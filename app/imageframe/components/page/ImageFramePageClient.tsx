@@ -124,7 +124,7 @@ export default function ImageFramePageClient() {
     const [adminImages, setAdminImages] = useState<UploadedImage[]>([]);
     const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
     const [isLoadingAdmin, setIsLoadingAdmin] = useState(false);
-    const [adminStats, setAdminStats] = useState<{ totalImages: number } | null>(null);
+    const [adminStats, setAdminStats] = useState<{ totalImages: number; softDeletedImages?: number } | null>(null);
     const [filterText, setFilterText] = useState("");
     const [sortBy, setSortBy] = useState<"date" | "size" | "uploader">("date");
     const [adminTab, setAdminTab] = useState<"images" | "members">("images");
@@ -1377,7 +1377,7 @@ export default function ImageFramePageClient() {
                             <>
                                 {/* Stats */}
                                 {adminStats && (
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
                                         <div className="glass-dark p-3 rounded-xl text-center">
                                             <p className="text-xl font-bold text-[#2ed573]">{adminStats.totalImages}</p>
                                             <p className="text-xs text-gray-400">Total Images</p>
@@ -1385,6 +1385,10 @@ export default function ImageFramePageClient() {
                                         <div className="glass-dark p-3 rounded-xl text-center">
                                             <p className="text-xl font-bold text-[#ffa502]">{membersList.length}</p>
                                             <p className="text-xs text-gray-400">Uploaders</p>
+                                        </div>
+                                        <div className="glass-dark p-3 rounded-xl text-center">
+                                            <p className="text-xl font-bold text-[#ff6b81]">{adminStats.softDeletedImages || 0}</p>
+                                            <p className="text-xs text-gray-400">Soft Deleted</p>
                                         </div>
                                         <div className="glass-dark p-3 rounded-xl text-center">
                                             <p className="text-xl font-bold text-[#ff4757]">{selectedImages.size}</p>
@@ -1463,6 +1467,11 @@ export default function ImageFramePageClient() {
                                                         {img.is_nsfw && (
                                                             <div className="absolute top-2 left-11 z-10 px-1.5 py-0.5 rounded-md bg-[#ff4757]/85 text-white text-[10px] font-bold border border-[#ff6b81]/40">
                                                                 NSFW
+                                                            </div>
+                                                        )}
+                                                        {!!img.userDeletedAt && (
+                                                            <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded-md bg-[#ff6b81]/90 text-white text-[10px] font-bold border border-[#ff8ea1]/40">
+                                                                SOFT DELETED BY USER
                                                             </div>
                                                         )}
                                                         <img src={img.directUrl} alt={img.filename} className={`w-full h-28 object-cover ${img.is_nsfw ? "blur-sm" : ""}`} />

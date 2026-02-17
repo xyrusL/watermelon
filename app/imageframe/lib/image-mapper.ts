@@ -20,6 +20,8 @@ export interface DbImage {
     image_height?: number;
     frame_width?: number;
     frame_height?: number;
+    user_deleted_at?: string | null;
+    user_deleted_by_email?: string | null;
 }
 
 /**
@@ -45,6 +47,8 @@ export function mapDbImageToUploadedImage(img: DbImage): UploadedImage & { id: s
         imageHeight: img.image_height,
         frameWidth: img.frame_width,
         frameHeight: img.frame_height,
+        userDeletedAt: img.user_deleted_at ? new Date(img.user_deleted_at).getTime() : undefined,
+        userDeletedByEmail: img.user_deleted_by_email ?? undefined,
     };
 }
 

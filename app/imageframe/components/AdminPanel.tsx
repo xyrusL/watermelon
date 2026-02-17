@@ -31,6 +31,8 @@ export interface UploadedImage {
     id?: string;
     is_private?: boolean;
     is_nsfw?: boolean;
+    user_deleted_at?: number;
+    user_deleted_by_email?: string;
 }
 
 export interface Member {
@@ -82,7 +84,7 @@ export default function AdminPanel({
     const [adminImages, setAdminImages] = useState<UploadedImage[]>([]);
     const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
     const [isLoadingAdmin, setIsLoadingAdmin] = useState(false);
-    const [adminStats, setAdminStats] = useState<{ totalImages: number } | null>(null);
+    const [adminStats, setAdminStats] = useState<{ totalImages: number; softDeletedImages?: number } | null>(null);
     const [filterText, setFilterText] = useState("");
     const [sortBy, setSortBy] = useState<"date" | "size" | "uploader">("date");
     const [adminTab, setAdminTab] = useState<"images" | "members">("images");
@@ -161,6 +163,8 @@ export default function AdminPanel({
                     id: string;
                     is_private?: boolean;
                     is_nsfw?: boolean;
+                    user_deleted_at?: string | null;
+                    user_deleted_by_email?: string | null;
                 }) => ({
                     url: img.url,
                     directUrl: img.url,
@@ -174,6 +178,8 @@ export default function AdminPanel({
                     id: img.id,
                     is_private: img.is_private || false,
                     is_nsfw: img.is_nsfw || false,
+                    user_deleted_at: img.user_deleted_at ? new Date(img.user_deleted_at).getTime() : undefined,
+                    user_deleted_by_email: img.user_deleted_by_email || undefined,
                 }));
                 setAdminImages(images);
                 setAdminStats(data.stats);
@@ -332,6 +338,10 @@ export default function AdminPanel({
                                 <div className="flex justify-between items-center"><span className="text-gray-400">Email</span><span className="text-white truncate ml-4 max-w-[180px] text-right">{adminSelectedImage.uploaderEmail || "N/A"}</span></div>
                                 <div className="flex justify-between items-center"><span className="text-gray-400">Uploaded</span><span className="text-white">{formatDate(adminSelectedImage.uploadedAt)}</span></div>
                                 <div className="flex justify-between items-center"><span className="text-gray-400">Size</span><span className="text-white">{formatFileSize(adminSelectedImage.fileSize)}</span></div>
+                                <div className="flex justify-between items-center"><span className="text-gray-400">Status</span><span className={adminSelectedImage.user_deleted_at ? "text-[#ff6b81] font-semibold" : "text-[#2ed573] font-semibold"}>{adminSelectedImage.user_deleted_at ? "SOFT DELETED BY USER" : "ACTIVE"}</span></div>
+                                {adminSelectedImage.user_deleted_at && (
+                                    <div className="flex justify-between items-center"><span className="text-gray-400">Soft Deleted At</span><span className="text-white">{formatDate(adminSelectedImage.user_deleted_at)}</span></div>
+                                )}
                             </div>
 
                             <div className="flex gap-3 mt-4 flex-shrink-0">
@@ -388,9 +398,10 @@ export default function AdminPanel({
                     <>
                         {/* Stats */}
                         {adminStats && (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
                                 <div className="glass-dark p-3 rounded-xl text-center"><p className="text-xl font-bold text-[#2ed573]">{adminStats.totalImages}</p><p className="text-xs text-gray-400">Total Images</p></div>
                                 <div className="glass-dark p-3 rounded-xl text-center"><p className="text-xl font-bold text-[#ffa502]">{membersList.length}</p><p className="text-xs text-gray-400">Uploaders</p></div>
+                                <div className="glass-dark p-3 rounded-xl text-center"><p className="text-xl font-bold text-[#ff6b81]">{adminStats.softDeletedImages || 0}</p><p className="text-xs text-gray-400">Soft Deleted</p></div>
                                 <div className="glass-dark p-3 rounded-xl text-center"><p className="text-xl font-bold text-[#ff4757]">{selectedImages.size}</p><p className="text-xs text-gray-400">Selected</p></div>
                                 <div className="glass-dark p-3 rounded-xl text-center"><p className="text-xl font-bold text-white">{formatFileSize(adminImages.reduce((acc, img) => acc + (img.fileSize || 0), 0))}</p><p className="text-xs text-gray-400">Total Size</p></div>
                             </div>
@@ -453,6 +464,11 @@ export default function AdminPanel({
                                                 {img.is_nsfw && (
                                                     <div className="absolute top-2 left-11 z-10 px-1.5 py-0.5 rounded-md bg-[#ff4757]/85 text-white text-[10px] font-bold border border-[#ff6b81]/40">
                                                         NSFW
+                                                    </div>
+                                                )}
+                                                {!!img.user_deleted_at && (
+                                                    <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded-md bg-[#ff6b81]/90 text-white text-[10px] font-bold border border-[#ff8ea1]/40">
+                                                        SOFT DELETED BY USER
                                                     </div>
                                                 )}
                                                 <img src={img.directUrl} alt={img.filename} className={`w-full h-28 object-cover ${img.is_nsfw ? 'blur-sm' : ''}`} />

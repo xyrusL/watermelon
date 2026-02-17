@@ -66,7 +66,8 @@ export async function GET(request: NextRequest) {
             success: true,
             images: images || [],
             stats: {
-                totalImages: images?.length || 0
+                totalImages: images?.length || 0,
+                softDeletedImages: images?.filter(img => !!img.user_deleted_at).length || 0,
             }
         });
 

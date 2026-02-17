@@ -17,6 +17,8 @@ export interface UploadedImage {
     imageHeight?: number;
     frameWidth?: number;
     frameHeight?: number;
+    userDeletedAt?: number;
+    userDeletedByEmail?: string;
 }
 
 export type HostType = "imgbb" | "supabase";

@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         let query = supabase
             .from('images')
             .select('*')
+            .is('user_deleted_at', null)
             .order('uploaded_at', { ascending: false })
             .limit(20);
 

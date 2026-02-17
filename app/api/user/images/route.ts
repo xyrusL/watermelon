@@ -39,11 +39,12 @@ export async function GET(request: NextRequest) {
 
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        // Fetch user's images (both public and private)
+        // Fetch user's active images (both public and private, excluding soft-deleted)
         const { data: images, error } = await supabase
             .from('images')
             .select('*')
             .eq('uploader_email', userEmail)
+            .is('user_deleted_at', null)
             .order('uploaded_at', { ascending: false });
 
         if (error) {
