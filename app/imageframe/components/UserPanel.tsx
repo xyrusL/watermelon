@@ -4,18 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import {
     PixelLoader,
     PixelLock,
-    PixelUnlock,
     PixelUser,
     PixelImage,
-    PixelCheck,
     PixelClose,
-    PixelCopy,
-    PixelRefresh,
-    PixelSearch,
     PixelInfo,
     PixelEye,
-    PixelGlobe,
+    PixelRefresh,
     PixelWarning,
+    PixelCheck,
 } from "./PixelIcons";
 import ActionButton from "../../components/ActionButton";
 
@@ -70,6 +66,9 @@ export default function UserPanel({
     const [isLoading, setIsLoading] = useState(false);
     const [stats, setStats] = useState<UserStats | null>(null);
     const [selectedImage, setSelectedImage] = useState<UploadedImage | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteSuccess, setDeleteSuccess] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [filterText, setFilterText] = useState("");
     const [filterVisibility, setFilterVisibility] = useState<"all" | "public" | "private">("all");
     const lastUserImagesErrorRef = useRef<string | null>(null);
@@ -231,6 +230,40 @@ export default function UserPanel({
             console.error("NSFW update error:", err);
             showNotification("error", "Error", "An error occurred while updating NSFW status");
             return false;
+        }
+    };
+
+    const softDeleteImage = async (imageId: string): Promise<boolean> => {
+        setIsDeleting(true);
+        try {
+            const response = await fetch('/api/user/soft-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageId }),
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setUserImages(prev => prev.filter(img => (img.id || img.uploadedAt.toString()) !== imageId));
+                setDeleteSuccess(true);
+                onImageUpdate?.();
+                showNotification("success", "Removed", data.message || "Image removed from your uploads");
+                setTimeout(() => {
+                    setSelectedImage(null);
+                    setShowDeleteConfirm(false);
+                    setDeleteSuccess(false);
+                }, 1200);
+                return true;
+            }
+
+            showNotification("error", "Delete Failed", data.error || "Failed to remove image");
+            return false;
+        } catch (err) {
+            console.error("Soft delete error:", err);
+            showNotification("error", "Delete Failed", "An error occurred while removing image");
+            return false;
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -427,8 +460,19 @@ export default function UserPanel({
                 copiedTarget={copiedTarget}
                 onClose={() => {
                     setSelectedImage(null);
+                    setShowDeleteConfirm(false);
+                    setDeleteSuccess(false);
                 }}
                 onCopyValue={onCopyValue}
+                showDeleteConfirm={showDeleteConfirm}
+                deleteSuccess={deleteSuccess}
+                isDeleting={isDeleting}
+                onDelete={() => {
+                    if (!selectedImage) return;
+                    const imageId = selectedImage.id || selectedImage.uploadedAt.toString();
+                    softDeleteImage(imageId);
+                }}
+                onShowDeleteConfirm={setShowDeleteConfirm}
                 onToggleVisibility={async (id, val) => {
                     const success = await toggleVisibility(id, val);
                     if (success) setSelectedImage(null);
