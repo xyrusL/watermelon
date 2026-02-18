@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs'
 import "./globals.css";
-import MusicPlayer from "./components/MusicPlayer";
-import CookieBanner from "./components/CookieBanner";
+import ClientEnhancements from "./components/ClientEnhancements";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://watermelon.deze.me"),
@@ -76,8 +75,7 @@ export default function RootLayout({
       <html lang="en" suppressHydrationWarning>
         <body className="antialiased" suppressHydrationWarning>
           {children}
-          <CookieBanner />
-          <MusicPlayer />
+          <ClientEnhancements />
         </body>
       </html>
     </ClerkProvider>
