@@ -77,7 +77,6 @@ export default function AboutPage() {
                     alt="Background"
                     fill
                     className="object-cover opacity-30"
-                    priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-[#0d0d0d]/70 via-transparent to-[#0d0d0d]" />
             </div>
@@ -252,7 +251,7 @@ export default function AboutPage() {
                                         {hearts.map((heart) => (
                                             <div
                                                 key={heart.id}
-                                                className="absolute animate-[float-hearts_5s_ease-out_forwards]"
+                                                className="absolute animate-[float-hearts_5s_ease-out_forwards] animation-will-change"
                                                 style={{
                                                     left: `${heart.x}%`,
                                                     top: `${heart.y}%`,
@@ -272,7 +271,7 @@ export default function AboutPage() {
                                             </div>
                                         ))}
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="text-center animate-[scale-bounce_1s_ease-out]">
+                                            <div className="text-center animate-[scale-bounce_1s_ease-out] animation-will-change">
                                                 <p className="text-4xl md:text-6xl font-pixel text-[#ff6b81] mb-4" style={{
                                                     textShadow: '0 0 20px rgba(255, 107, 129, 0.8), 0 0 40px rgba(255, 107, 129, 0.6)',
                                                 }}>
@@ -288,39 +287,6 @@ export default function AboutPage() {
                                     </div>
                                 )}
 
-                                <style jsx>{`
-                                    @keyframes float-hearts {
-                                        0% {
-                                            transform: translateY(0) scale(0) rotate(0deg);
-                                            opacity: 0;
-                                        }
-                                        10% {
-                                            opacity: 1;
-                                            transform: translateY(-20px) scale(1) rotate(10deg);
-                                        }
-                                        50% {
-                                            transform: translateY(-100px) scale(1.2) rotate(-10deg);
-                                            opacity: 1;
-                                        }
-                                        100% {
-                                            transform: translateY(-200px) scale(0.5) rotate(20deg);
-                                            opacity: 0;
-                                        }
-                                    }
-                                    @keyframes scale-bounce {
-                                        0% {
-                                            transform: scale(0);
-                                            opacity: 0;
-                                        }
-                                        50% {
-                                            transform: scale(1.2);
-                                        }
-                                        100% {
-                                            transform: scale(1);
-                                            opacity: 1;
-                                        }
-                                    }
-                                `}</style>
                             </div>
                         </section>
 
