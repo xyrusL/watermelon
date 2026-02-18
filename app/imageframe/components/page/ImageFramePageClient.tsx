@@ -1908,7 +1908,6 @@ export default function ImageFramePageClient() {
                     alt="Background"
                     fill
                     className="object-cover opacity-30"
-                    priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-[#0d0d0d]/70 via-transparent to-[#0d0d0d]" />
             </div>
