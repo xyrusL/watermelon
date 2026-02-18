@@ -50,7 +50,6 @@ export default function MinecraftPage() {
                     alt="Watermelon Minecraft Background"
                     fill
                     className="object-cover opacity-50"
-                    priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-[#0d0d0d]/30 via-[#0d0d0d]/60 to-[#0d0d0d]" />
             </div>
