@@ -722,7 +722,6 @@ export default function ConverterPage() {
                     alt="Background"
                     fill
                     className="object-cover opacity-40"
-                    priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0d0d0d]/50 to-[#0d0d0d]" />
             </div>
