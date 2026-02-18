@@ -60,11 +60,23 @@ export default function MusicPlayer() {
     // Check screen size - only show on tablets, PCs, and smart TVs (768px+)
     useEffect(() => {
         const checkScreenSize = () => {
-            setIsLargeScreen(window.innerWidth >= 768);
+            const isCurrentlyLarge = window.innerWidth >= 768;
+            setIsLargeScreen((prev) => (prev === isCurrentlyLarge ? prev : isCurrentlyLarge));
         };
+
+        let resizeTimeout: number | undefined;
+        const handleResize = () => {
+            window.clearTimeout(resizeTimeout);
+            resizeTimeout = window.setTimeout(checkScreenSize, 150);
+        };
+
         checkScreenSize();
-        window.addEventListener("resize", checkScreenSize);
-        return () => window.removeEventListener("resize", checkScreenSize);
+        window.addEventListener("resize", handleResize);
+
+        return () => {
+            window.clearTimeout(resizeTimeout);
+            window.removeEventListener("resize", handleResize);
+        };
     }, []);
 
     // Load saved preferences on mount
