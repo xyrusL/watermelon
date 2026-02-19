@@ -3,11 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useEffect, Dispatch, SetStateAction } from "react";
-import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
+import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import Header from "../components/Header";
 import ActionButton from "../components/ActionButton";
+import AuthRequiredCard from "../components/AuthRequiredCard";
 
 // Force dynamic rendering - FFmpeg only works in browser
 export const dynamic = 'force-dynamic';
@@ -229,9 +230,15 @@ export default function ConverterPage() {
         };
     }, [videoPreview, gifUrl, imagePreview, convertedImageUrl]);
 
-    // Load FFmpeg
+    // Load FFmpeg only when it can actually be used
     useEffect(() => {
-        if (typeof window === 'undefined' || !ffmpegRef.current) return;
+        if (
+            typeof window === 'undefined' ||
+            !ffmpegRef.current ||
+            !isSignedIn ||
+            converterType !== "video" ||
+            ffmpegLoaded
+        ) return;
 
         const loadFFmpeg = async () => {
             const ffmpeg = ffmpegRef.current!;
@@ -287,7 +294,7 @@ export default function ConverterPage() {
         };
 
         loadFFmpeg();
-    }, []);
+    }, [isSignedIn, converterType, ffmpegLoaded]);
 
     const handleVideoSelect = (file: File) => {
         if (!file.type.startsWith("video/")) {
@@ -769,22 +776,17 @@ export default function ConverterPage() {
                                 </ActionButton>
                             </div>
 
-                            {!ffmpegLoaded && converterType === "video" && (
+                            {!ffmpegLoaded && converterType === "video" && isSignedIn && (
                                 <p className="text-yellow-400 text-sm mt-2">⚡ Loading converter engine...</p>
                             )}
                         </div>
 
                         {!isSignedIn ? (
-                            <div className="glass rounded-2xl p-8 border-2 border-[#ffa502]/30 text-center">
-                                <div className="text-5xl mb-4">🔒</div>
-                                <h2 className="font-pixel text-xl text-[#ffa502] mb-4">SIGN IN REQUIRED</h2>
-                                <p className="text-gray-300 mb-6">Please sign in to use the converter</p>
-                                <SignInButton mode="modal">
-                                    <ActionButton variant="primary" shape="pill" className="px-6 py-3">
-                                        Sign In
-                                    </ActionButton>
-                                </SignInButton>
-                            </div>
+                            <AuthRequiredCard
+                                description="To use the converter, you need to authenticate first"
+                                postAuthAction="continue converting files"
+                                className="mb-8"
+                            />
                         ) : converterType === "video" ? (
                             // VIDEO TO GIF CONVERTER
                             !videoFile ? (
