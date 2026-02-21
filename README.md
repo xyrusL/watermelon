@@ -1,101 +1,89 @@
-# 🍉 Watermelon Minecraft Server
+# 🍉 Watermelon SMP
 
-A modern web platform for the Watermelon Minecraft SMP community. Built with Next.js and featuring a pixel-perfect design inspired by Minecraft aesthetics.
+Welcome to **Watermelon** — a cozy Minecraft SMP server with its own website. This is the official site for our community, packed with server info, tools, and fun features for our players.
 
-## 🎮 Features
+---
 
-- **Server Information** - Display server IP, status, and player count
-- **Team Showcase** - Meet the server team members and administrators
-- **Commands Guide** - Complete list of available server commands
-- **Mods & Plugins** - Browse installed modifications and plugins
-- **User Authentication** - Sign in with Clerk for personalized features
-- **Image Frames** - Create custom Minecraft-style image frames
-- **Responsive Design** - Glass-morphism UI that works on all devices
+## 🎮 About the Server
 
-## 🖼️ ImageFrame Highlights
+Watermelon is a **Java Edition SMP** server (compatible with 1.8+) running on **Hard mode** — because real survivors don't play it safe. Brutal mobs, unforgiving hunger, high-stakes combat, and maximum danger around every corner. Not for the faint of heart, but absolutely worth it.
 
-- **Smart frame suggestion** - Automatically maps image ratio to Minecraft frame sizes.
-- **Face-guided auto frame** - When no manual crop is set, face detection can guide frame-size selection (full image remains primary signal).
-- **Manual editor override** - Editor crop/frame selection always overrides auto suggestions.
-- **Consistent file naming** - Upload APIs normalize filenames to `watermelon-*` format.
-- **Gallery filtering + pagination** - Built-in sort/range/new-release filters with responsive per-page scaling by screen size.
-- **Upload success modal workflow** - Command copy, direct URL copy, and auto-close countdown in a dedicated modal.
+---
 
-## 🚀 Live Server
+## ✨ Website Features
 
-**Server IP:** `watermelon.deze.me`
+### 🏠 Home & Server Info
+The landing page shows the server IP (click to copy!), server status, and everything you need to jump in and start playing.
 
-Join our survival multiplayer experience with friends!
+### 👥 Meet the Crew
+Each team member has their own card showcasing who keeps this server alive — from the builders to the admins.
 
-## 💻 Tech Stack
+### 📜 Commands Guide
+A full list of all available in-game commands so you're never left guessing.
 
-- **Framework:** Next.js 16 (App Router)
-- **Styling:** Tailwind CSS 4
-- **Authentication:** Clerk
-- **Database:** Supabase
-- **Language:** TypeScript
-- **Image Processing:** Sharp, React Image Crop
+### 🔧 Mods & Plugins
+Browse all the custom mods and plugins installed on the server.
 
-## 🛠️ Development
+### 🖼️ Image Frame Creator
+Create and customize **Minecraft-style image frames** right from the browser:
+- Smart frame suggestions based on image ratio
+- Face detection for auto frame sizing
+- Manual crop editor with full override control
+- Gallery with filtering, sorting, and pagination
+- Upload modal with command copy and direct URL sharing
 
-```bash
-# Install dependencies
-npm install
+### 🎬 Converter
+A built-in browser tool for signed-in users:
+- **Video → GIF** — Convert video clips to GIF with custom FPS, scale, quality, and duration controls. Smart settings are suggested automatically based on your video.
+- **Image Format Converter** — Convert images between PNG, JPEG, and WebP formats.
+- Import from local files or directly from a URL.
 
-# Run development server
-npm run dev
+### 📱 Minecraft PE Download
+Not on Java? Grab a **Minecraft Pocket Edition APK** for Android straight from the site.
 
-# Build for production
-npm run build
+### 🔐 User Authentication
+Sign in with **Clerk** to access member-only features like the converter and image uploader.
 
-# Start production server
-npm start
-```
+---
 
-### ImageFrame data setup (Supabase)
+## 👥 The Crew
 
-If your `images` table does not yet have frame/image dimension fields:
+| Name | Role |
+|---|---|
+| Yuii | Minecraft Expert |
+| Peach | Adventurer |
+| Jepot | Server Admin |
+| unknown0607 | Gamer |
 
-```bash
-# Apply SQL in Supabase SQL Editor
-supabase_add_frame_dimensions.sql
+---
 
-# Optional: backfill existing rows
-npm run backfill:frames
-```
+## ⚙️ Tech Stack
 
-Open [http://localhost:3000](http://localhost:3000) to view the site.
+| Tool | Purpose |
+|---|---|
+| Next.js 16 | Framework & routing |
+| React 19 | UI library |
+| TypeScript | Type-safe code |
+| Tailwind CSS 4 | Styling |
+| Clerk | Authentication |
+| Supabase | Database & file storage |
+| Sharp | Server-side image processing |
+| FFmpeg (WASM) | In-browser video to GIF conversion |
 
-## 📁 Project Structure
+---
 
-```
-watermelon/
-├── app/
-│   ├── about/          # About page
-│   ├── api/            # API routes
-│   ├── commands/       # Commands guide
-│   ├── imageframe/     # Image frame creator
-│   └── mods/           # Mods showcase
-├── public/             # Static assets
-├── scripts/            # Utility scripts (e.g. frame backfill)
-└── supabase_add_*.sql  # SQL migrations
-```
+## 🤝 Contributing
 
-## 👥 Team
+Want to help improve the site? Contributions are welcome! You can fork this repo and open a pull request with your changes. Please read the [License](./LICENSE) before contributing.
 
-- **Yuii** - Minecraft Expert
-- **Peach** - Adventurer
-- **Jepot** - Server Admin
-- **unknown0607** - Ideas Guy
+> ⚠️ This project is for the Watermelon SMP community. Forking to run your own version is **not permitted**. See the license for details.
 
-## 🎨 Design Features
+---
 
-- Custom pixel font styling
-- Glass-morphism effects
-- Minecraft-themed UI elements
-- Smooth animations and transitions
-- Dark mode optimized
+## 📄 License
 
-## 📝 License
+This project uses a custom community license — contributions are welcome, but self-hosting or redistributing your own version is not allowed. See [LICENSE](./LICENSE) for the full terms.
 
-Private project for the Watermelon SMP community.
+---
+
+*© 2026 Watermelon SMP*
