@@ -82,7 +82,7 @@ Want to help improve the site? Contributions are welcome! You can fork this repo
 
 ## 📄 License
 
-This project uses a custom community license — contributions are welcome, but self-hosting or redistributing your own version is not allowed. See [LICENSE](./LICENSE) for the full terms.
+This project is licensed under the **GNU General Public License v3.0**. You're free to fork and build on it — but any modified version must also be open source under GPL v3 and must credit the original Watermelon SMP project. See [LICENSE](./LICENSE) for the full terms.
 
 ---
 
