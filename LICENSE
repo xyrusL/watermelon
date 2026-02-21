@@ -1,97 +1,24 @@
-                    GNU GENERAL PUBLIC LICENSE
-                       Version 3, 29 June 2007
+Watermelon SMP Community License
+Copyright (c) 2026 Watermelon SMP
 
- Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
- Everyone is permitted to copy and distribute verbatim copies
- of this license document, but changing it is not allowed.
+Permission is hereby granted to any person to view, read, and contribute
+improvements to this source code (via pull requests or suggestions), subject
+to the following conditions:
 
-                            Preamble
+1. CONTRIBUTIONS WELCOME — You may fork this repository solely for the purpose
+   of submitting contributions (pull requests) back to the original project.
 
-  The GNU General Public License is a free, copyleft license for
-software and other kinds of works.
+2. NO SELF-HOSTING — You may NOT deploy, host, or run your own version of this
+   project or any substantial portion of it, whether publicly or privately,
+   without explicit written permission from the original author.
 
-  When we speak of free software, we are referring to freedom, not
-price. Our General Public Licenses are designed to make sure that you
-have the freedom to share and change all versions of a program--to
-make sure it remains free software for all its users.
+3. NO REDISTRIBUTION — You may NOT redistribute, republish, or repackage this
+   software or its source code as your own project.
 
-  To protect your rights, we need to prevent others from denying you
-these rights or asking you to surrender the rights. Therefore, you have
-certain responsibilities if you distribute copies of the software, or if
-you modify it: responsibilities to respect the freedom of others.
+4. NO COMMERCIAL USE — This software may not be used for commercial purposes.
 
-  For example, if you distribute copies of such a program, whether
-gratis or for a fee, you must pass on to the same freedoms to the
-recipients. You must make sure that they, too, receive or can get the
-source code. And you must show them these terms so they know their rights.
+5. ATTRIBUTION — Any contributions or references to this project must give
+   appropriate credit to the original Watermelon SMP project.
 
-  Developers that use the GNU GPL protect your rights with two steps:
-(1) assert copyright on the software, and (2) offer you this License
-giving you legal permission to copy, distribute and/or modify it.
-
-  For the developers' and authors' protection, the GPL clearly explains
-that there is no warranty for this free software.
-
-TERMS AND CONDITIONS
-
-  0. Definitions.
-
-  "This License" refers to version 3 of the GNU General Public License.
-
-  "The Program" refers to any copyrightable work licensed under this License.
-
-  1. Source Code.
-  The "source code" for a work means the preferred form of the work for
-making modifications to it.
-
-  2. Basic Permissions.
-  You may copy and distribute verbatim copies of the Program's source code
-as you receive it. You may convey modified versions under the terms of
-this License, provided that you also convey the source code of those
-modified versions under this License and that you prominently state in
-the modified files that you changed the files and give a relevant date,
-and that you give all recipients a copy of this License along with the
-Program, and preserve all copyright notices.
-
-  3. Protecting Users' Legal Rights From Anti-Circumvention Law.
-  No covered work shall be deemed part of an effective technological
-measure under any applicable law.
-
-  4. Conveying Verbatim Copies.
-  You may convey verbatim copies of the Program's source code as you
-receive it, provided that you retain all copyright notices.
-
-  5. Conveying Modified Source Versions.
-  You may convey a work based on the Program under the terms of this
-License, provided that you also release the modified work under this
-same License (GPL v3), give prominent credit to the original project,
-and include a copy of this License.
-
-  6. No Surrender of Others' Freedom.
-  You may not impose any further restrictions on the exercise of the
-rights granted or affirmed under this License.
-
-  7. Disclaimer of Warranty.
-  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
-APPLICABLE LAW. THE COPYRIGHT HOLDERS PROVIDE THE PROGRAM "AS IS"
-WITHOUT WARRANTY OF ANY KIND.
-
-  8. Limitation of Liability.
-  IN NO EVENT SHALL ANY COPYRIGHT HOLDER BE LIABLE FOR ANY DAMAGES
-ARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM.
-
----
-
-Copyright (C) 2026 Watermelon SMP
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, version 3.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. THE AUTHORS
+ARE NOT LIABLE FOR ANY DAMAGES ARISING FROM THE USE OF THIS SOFTWARE.
