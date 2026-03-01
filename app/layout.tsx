@@ -10,9 +10,6 @@ export const metadata: Metadata = {
     shortcut: "/icon.svg",
     apple: "/icon.svg",
   },
-  alternates: {
-    canonical: "https://watermelon.deze.me",
-  },
   title: "Watermelon SMP | Minecraft Server",
   description:
     "Watermelon SMP is a Filipino Minecraft server and pinoy SMP server with custom plugins, community gameplay, and survival adventures.",
@@ -49,7 +46,7 @@ export const metadata: Metadata = {
         alt: "Watermelon SMP Logo",
       },
       {
-        url: "/minecraft-bg.jpg",
+        url: "/minecraft-bg.png",
         width: 1920,
         height: 1080,
         alt: "Watermelon SMP Background",
@@ -61,7 +58,7 @@ export const metadata: Metadata = {
     title: "Watermelon SMP | Minecraft Server",
     description:
       "Filipino Minecraft server and pinoy SMP server with custom plugins and survival adventures.",
-    images: ["/minecraft-bg.jpg"],
+    images: ["/minecraft-bg.png"],
   },
 };
 
