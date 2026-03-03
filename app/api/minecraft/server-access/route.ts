@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
-
-const COMMUNITY_ROLES = new Set(["admin", "member", "moderator"]);
+import { auth } from "@clerk/nextjs/server";
 
 export async function GET() {
     try {
@@ -11,17 +9,6 @@ export async function GET() {
             return NextResponse.json(
                 { success: false, error: "Authentication required" },
                 { status: 401 }
-            );
-        }
-
-        const client = await clerkClient();
-        const user = await client.users.getUser(userId);
-        const role = String(user.publicMetadata?.role || "user").toLowerCase();
-
-        if (!COMMUNITY_ROLES.has(role)) {
-            return NextResponse.json(
-                { success: false, error: "Community membership required" },
-                { status: 403 }
             );
         }
 

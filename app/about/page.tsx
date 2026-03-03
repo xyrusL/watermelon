@@ -14,10 +14,8 @@ type ServerCredentials = {
     password: string;
 };
 
-const COMMUNITY_ROLES = new Set(["admin", "member", "moderator"]);
-
 export default function AboutPage() {
-    const { user, isLoaded, isSignedIn } = useUser();
+    const { isLoaded, isSignedIn } = useUser();
     const [copiedUsername, setCopiedUsername] = useState(false);
     const [copiedPassword, setCopiedPassword] = useState(false);
     const [credentials, setCredentials] = useState<ServerCredentials | null>(null);
@@ -27,11 +25,6 @@ export default function AboutPage() {
     const [hearts, setHearts] = useState<{ id: number; x: number; y: number; delay: number }[]>([]);
     const messageRef = useRef<HTMLDivElement>(null);
     const hasTriggered = useRef(false);
-    const userRole = typeof user?.publicMetadata?.role === "string"
-        ? user.publicMetadata.role.toLowerCase()
-        : "";
-    const hasCommunityAccess = Boolean(isSignedIn && COMMUNITY_ROLES.has(userRole));
-
     const copyToClipboard = async (text: string, type: 'username' | 'password') => {
         try {
             await navigator.clipboard.writeText(text);
@@ -86,7 +79,7 @@ export default function AboutPage() {
     }, []);
 
     useEffect(() => {
-        if (!isLoaded || !isSignedIn || !hasCommunityAccess) {
+        if (!isLoaded || !isSignedIn) {
             setCredentials(null);
             setCredentialsLoading(false);
             setCredentialsError(null);
@@ -131,7 +124,7 @@ export default function AboutPage() {
         loadCredentials();
 
         return () => controller.abort();
-    }, [isLoaded, isSignedIn, hasCommunityAccess]);
+    }, [isLoaded, isSignedIn]);
 
     return (
         <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
@@ -219,9 +212,9 @@ export default function AboutPage() {
                                     <SignedIn>
                                         {!isLoaded ? (
                                             <div className="glass p-6 rounded-xl border border-[#ffa502]/40">
-                                                <p className="text-sm text-gray-300">Checking your community access...</p>
+                                                <p className="text-sm text-gray-300">Loading your server access...</p>
                                             </div>
-                                        ) : hasCommunityAccess ? (
+                                        ) : (
                                             <div className="glass p-6 rounded-xl border border-[#ff4757]/30">
                                                 <h3 className="font-pixel text-sm text-[#ff4757] mb-4 flex items-center gap-2">
                                                     <span>⚠️</span> SERVER OFFLINE?
@@ -298,20 +291,10 @@ export default function AboutPage() {
                                                         </div>
 
                                                         <p className="text-xs text-gray-500 mt-4">
-                                                            🔒 Credentials are only visible to approved community members.
+                                                            🔒 Credentials are only visible to signed-in users.
                                                         </p>
                                                     </>
                                                 )}
-                                            </div>
-                                        ) : (
-                                            <div className="glass p-6 rounded-xl border border-[#ff4757]/30">
-                                                <h3 className="font-pixel text-sm text-[#ff4757] mb-4 flex items-center gap-2">
-                                                    <span>🔒</span> COMMUNITY ACCESS ONLY
-                                                </h3>
-                                                <p className="text-sm text-gray-300">
-                                                    You&apos;re signed in, but this section is restricted to approved Watermelon SMP
-                                                    community members. Ask an admin to set your role to member.
-                                                </p>
                                             </div>
                                         )}
                                     </SignedIn>
