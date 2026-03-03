@@ -3,17 +3,34 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
+import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import Header from "../components/Header";
 import ActionButton from "../components/ActionButton";
 import ActionLink from "../components/ActionLink";
+import AuthRequiredCard from "../components/AuthRequiredCard";
+
+type ServerCredentials = {
+    username: string;
+    password: string;
+};
+
+const COMMUNITY_ROLES = new Set(["admin", "member", "moderator"]);
 
 export default function AboutPage() {
+    const { user, isLoaded, isSignedIn } = useUser();
     const [copiedUsername, setCopiedUsername] = useState(false);
     const [copiedPassword, setCopiedPassword] = useState(false);
+    const [credentials, setCredentials] = useState<ServerCredentials | null>(null);
+    const [credentialsLoading, setCredentialsLoading] = useState(false);
+    const [credentialsError, setCredentialsError] = useState<string | null>(null);
     const [showHearts, setShowHearts] = useState(false);
     const [hearts, setHearts] = useState<{ id: number; x: number; y: number; delay: number }[]>([]);
     const messageRef = useRef<HTMLDivElement>(null);
     const hasTriggered = useRef(false);
+    const userRole = typeof user?.publicMetadata?.role === "string"
+        ? user.publicMetadata.role.toLowerCase()
+        : "";
+    const hasCommunityAccess = Boolean(isSignedIn && COMMUNITY_ROLES.has(userRole));
 
     const copyToClipboard = async (text: string, type: 'username' | 'password') => {
         try {
@@ -67,6 +84,54 @@ export default function AboutPage() {
 
         return () => observer.disconnect();
     }, []);
+
+    useEffect(() => {
+        if (!isLoaded || !isSignedIn || !hasCommunityAccess) {
+            setCredentials(null);
+            setCredentialsLoading(false);
+            setCredentialsError(null);
+            return;
+        }
+
+        const controller = new AbortController();
+
+        const loadCredentials = async () => {
+            setCredentialsLoading(true);
+            setCredentialsError(null);
+
+            try {
+                const response = await fetch("/api/minecraft/server-access", {
+                    method: "GET",
+                    signal: controller.signal,
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || "Unable to load server credentials");
+                }
+
+                setCredentials({
+                    username: data.username,
+                    password: data.password,
+                });
+            } catch (error) {
+                if ((error as Error).name === "AbortError") {
+                    return;
+                }
+
+                setCredentials(null);
+                setCredentialsError(
+                    error instanceof Error ? error.message : "Unable to load server credentials"
+                );
+            } finally {
+                setCredentialsLoading(false);
+            }
+        };
+
+        loadCredentials();
+
+        return () => controller.abort();
+    }, [isLoaded, isSignedIn, hasCommunityAccess]);
 
     return (
         <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
@@ -144,71 +209,112 @@ export default function AboutPage() {
                                         to save resources.
                                     </p>
 
-                                    <div className="glass p-6 rounded-xl border border-[#ff4757]/30">
-                                        <h3 className="font-pixel text-sm text-[#ff4757] mb-4 flex items-center gap-2">
-                                            <span>⚠️</span> SERVER OFFLINE?
-                                        </h3>
-                                        <p className="text-sm text-gray-300 mb-4">
-                                            If you try to join and the server is offline 🔌, you can start it manually!
-                                            Here&apos;s how:
-                                        </p>
-                                        <ol className="text-sm text-gray-300 space-y-2 mb-6">
-                                            <li className="flex items-start gap-3">
-                                                <span className="text-[#ffa502] font-bold min-w-[20px]">1.</span>
-                                                <span>Go to <a href="https://aternos.org/" target="_blank" rel="noopener noreferrer" className="link-primary">aternos.org</a></span>
-                                            </li>
-                                            <li className="flex items-start gap-3">
-                                                <span className="text-[#ffa502] font-bold min-w-[20px]">2.</span>
-                                                <span>Log in using the credentials below</span>
-                                            </li>
-                                            <li className="flex items-start gap-3">
-                                                <span className="text-[#ffa502] font-bold min-w-[20px]">3.</span>
-                                                <span>Click the green &quot;Start&quot; button</span>
-                                            </li>
-                                            <li className="flex items-start gap-3">
-                                                <span className="text-[#ffa502] font-bold min-w-[20px]">4.</span>
-                                                <span>Wait 2-5 minutes for the server to start</span>
-                                            </li>
-                                            <li className="flex items-start gap-3">
-                                                <span className="text-[#ffa502] font-bold min-w-[20px]">5.</span>
-                                                <span>Join and have fun!</span>
-                                            </li>
-                                        </ol>
+                                    <SignedOut>
+                                        <AuthRequiredCard
+                                            description="Sign in first to view private server-start access details."
+                                            postAuthAction="check the server hosting credentials"
+                                        />
+                                    </SignedOut>
 
-                                        <div className="glass p-4 rounded-lg mb-4">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className="text-xs text-gray-400">Username:</span>
-                                                <ActionButton
-                                                    onClick={() => copyToClipboard('chocolateCreamLang', 'username')}
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    className="hover:border-[#2ed573]/50"
-                                                >
-                                                    {copiedUsername ? '✓ Copied' : 'Copy'}
-                                                </ActionButton>
+                                    <SignedIn>
+                                        {!isLoaded ? (
+                                            <div className="glass p-6 rounded-xl border border-[#ffa502]/40">
+                                                <p className="text-sm text-gray-300">Checking your community access...</p>
                                             </div>
-                                            <code className="text-sm text-[#2ed573] break-all">chocolateCreamLang</code>
-                                        </div>
+                                        ) : hasCommunityAccess ? (
+                                            <div className="glass p-6 rounded-xl border border-[#ff4757]/30">
+                                                <h3 className="font-pixel text-sm text-[#ff4757] mb-4 flex items-center gap-2">
+                                                    <span>⚠️</span> SERVER OFFLINE?
+                                                </h3>
+                                                <p className="text-sm text-gray-300 mb-4">
+                                                    If you try to join and the server is offline 🔌, you can start it manually!
+                                                    Here&apos;s how:
+                                                </p>
+                                                <ol className="text-sm text-gray-300 space-y-2 mb-6">
+                                                    <li className="flex items-start gap-3">
+                                                        <span className="text-[#ffa502] font-bold min-w-[20px]">1.</span>
+                                                        <span>Go to <a href="https://aternos.org/" target="_blank" rel="noopener noreferrer" className="link-primary">aternos.org</a></span>
+                                                    </li>
+                                                    <li className="flex items-start gap-3">
+                                                        <span className="text-[#ffa502] font-bold min-w-[20px]">2.</span>
+                                                        <span>Log in using the credentials below</span>
+                                                    </li>
+                                                    <li className="flex items-start gap-3">
+                                                        <span className="text-[#ffa502] font-bold min-w-[20px]">3.</span>
+                                                        <span>Click the green &quot;Start&quot; button</span>
+                                                    </li>
+                                                    <li className="flex items-start gap-3">
+                                                        <span className="text-[#ffa502] font-bold min-w-[20px]">4.</span>
+                                                        <span>Wait 2-5 minutes for the server to start</span>
+                                                    </li>
+                                                    <li className="flex items-start gap-3">
+                                                        <span className="text-[#ffa502] font-bold min-w-[20px]">5.</span>
+                                                        <span>Join and have fun!</span>
+                                                    </li>
+                                                </ol>
 
-                                        <div className="glass p-4 rounded-lg">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className="text-xs text-gray-400">Password:</span>
-                                                <ActionButton
-                                                    onClick={() => copyToClipboard('chochoco1234', 'password')}
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    className="hover:border-[#2ed573]/50"
-                                                >
-                                                    {copiedPassword ? '✓ Copied' : 'Copy'}
-                                                </ActionButton>
+                                                {credentialsLoading && (
+                                                    <div className="glass p-4 rounded-lg border border-[#ffa502]/40 mb-4">
+                                                        <p className="text-sm text-gray-300">Loading server credentials...</p>
+                                                    </div>
+                                                )}
+
+                                                {credentialsError && (
+                                                    <div className="glass p-4 rounded-lg border border-[#ff4757]/40 mb-4">
+                                                        <p className="text-sm text-[#ff6b81]">{credentialsError}</p>
+                                                    </div>
+                                                )}
+
+                                                {credentials && (
+                                                    <>
+                                                        <div className="glass p-4 rounded-lg mb-4">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <span className="text-xs text-gray-400">Username:</span>
+                                                                <ActionButton
+                                                                    onClick={() => copyToClipboard(credentials.username, "username")}
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    className="hover:border-[#2ed573]/50"
+                                                                >
+                                                                    {copiedUsername ? "✓ Copied" : "Copy"}
+                                                                </ActionButton>
+                                                            </div>
+                                                            <code className="text-sm text-[#2ed573] break-all">{credentials.username}</code>
+                                                        </div>
+
+                                                        <div className="glass p-4 rounded-lg">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <span className="text-xs text-gray-400">Password:</span>
+                                                                <ActionButton
+                                                                    onClick={() => copyToClipboard(credentials.password, "password")}
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    className="hover:border-[#2ed573]/50"
+                                                                >
+                                                                    {copiedPassword ? "✓ Copied" : "Copy"}
+                                                                </ActionButton>
+                                                            </div>
+                                                            <code className="text-sm text-[#2ed573] break-all">{credentials.password}</code>
+                                                        </div>
+
+                                                        <p className="text-xs text-gray-500 mt-4">
+                                                            🔒 Credentials are only visible to approved community members.
+                                                        </p>
+                                                    </>
+                                                )}
                                             </div>
-                                            <code className="text-sm text-[#2ed573] break-all">chochoco1234</code>
-                                        </div>
-
-                                        <p className="text-xs text-gray-500 mt-4">
-                                            💡 Feel free to use these credentials to start the server anytime!
-                                        </p>
-                                    </div>
+                                        ) : (
+                                            <div className="glass p-6 rounded-xl border border-[#ff4757]/30">
+                                                <h3 className="font-pixel text-sm text-[#ff4757] mb-4 flex items-center gap-2">
+                                                    <span>🔒</span> COMMUNITY ACCESS ONLY
+                                                </h3>
+                                                <p className="text-sm text-gray-300">
+                                                    You&apos;re signed in, but this section is restricted to approved Watermelon SMP
+                                                    community members. Ask an admin to set your role to member.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </SignedIn>
                                 </div>
                             </div>
                         </section>
