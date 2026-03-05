@@ -14,13 +14,15 @@ type ServerCredentials = {
     password: string;
 };
 
+const SERVER_CREDENTIALS: ServerCredentials = {
+    username: "chocolateCreamLang",
+    password: "chochoco1234",
+};
+
 export default function AboutPage() {
     const { isLoaded, isSignedIn } = useUser();
     const [copiedUsername, setCopiedUsername] = useState(false);
     const [copiedPassword, setCopiedPassword] = useState(false);
-    const [credentials, setCredentials] = useState<ServerCredentials | null>(null);
-    const [credentialsLoading, setCredentialsLoading] = useState(false);
-    const [credentialsError, setCredentialsError] = useState<string | null>(null);
     const [showHearts, setShowHearts] = useState(false);
     const [hearts, setHearts] = useState<{ id: number; x: number; y: number; delay: number }[]>([]);
     const messageRef = useRef<HTMLDivElement>(null);
@@ -77,54 +79,6 @@ export default function AboutPage() {
 
         return () => observer.disconnect();
     }, []);
-
-    useEffect(() => {
-        if (!isLoaded || !isSignedIn) {
-            setCredentials(null);
-            setCredentialsLoading(false);
-            setCredentialsError(null);
-            return;
-        }
-
-        const controller = new AbortController();
-
-        const loadCredentials = async () => {
-            setCredentialsLoading(true);
-            setCredentialsError(null);
-
-            try {
-                const response = await fetch("/api/minecraft/server-access", {
-                    method: "GET",
-                    signal: controller.signal,
-                });
-                const data = await response.json();
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || "Unable to load server credentials");
-                }
-
-                setCredentials({
-                    username: data.username,
-                    password: data.password,
-                });
-            } catch (error) {
-                if ((error as Error).name === "AbortError") {
-                    return;
-                }
-
-                setCredentials(null);
-                setCredentialsError(
-                    error instanceof Error ? error.message : "Unable to load server credentials"
-                );
-            } finally {
-                setCredentialsLoading(false);
-            }
-        };
-
-        loadCredentials();
-
-        return () => controller.abort();
-    }, [isLoaded, isSignedIn]);
 
     return (
         <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
@@ -246,25 +200,13 @@ export default function AboutPage() {
                                                     </li>
                                                 </ol>
 
-                                                {credentialsLoading && (
-                                                    <div className="glass p-4 rounded-lg border border-[#ffa502]/40 mb-4">
-                                                        <p className="text-sm text-gray-300">Loading server credentials...</p>
-                                                    </div>
-                                                )}
-
-                                                {credentialsError && (
-                                                    <div className="glass p-4 rounded-lg border border-[#ff4757]/40 mb-4">
-                                                        <p className="text-sm text-[#ff6b81]">{credentialsError}</p>
-                                                    </div>
-                                                )}
-
-                                                {credentials && (
+                                                {isSignedIn && (
                                                     <>
                                                         <div className="glass p-4 rounded-lg mb-4">
                                                             <div className="flex items-center justify-between mb-3">
                                                                 <span className="text-xs text-gray-400">Username:</span>
                                                                 <ActionButton
-                                                                    onClick={() => copyToClipboard(credentials.username, "username")}
+                                                                    onClick={() => copyToClipboard(SERVER_CREDENTIALS.username, "username")}
                                                                     variant="secondary"
                                                                     size="sm"
                                                                     className="hover:border-[#2ed573]/50"
@@ -272,14 +214,14 @@ export default function AboutPage() {
                                                                     {copiedUsername ? "✓ Copied" : "Copy"}
                                                                 </ActionButton>
                                                             </div>
-                                                            <code className="text-sm text-[#2ed573] break-all">{credentials.username}</code>
+                                                            <code className="text-sm text-[#2ed573] break-all">{SERVER_CREDENTIALS.username}</code>
                                                         </div>
 
                                                         <div className="glass p-4 rounded-lg">
                                                             <div className="flex items-center justify-between mb-3">
                                                                 <span className="text-xs text-gray-400">Password:</span>
                                                                 <ActionButton
-                                                                    onClick={() => copyToClipboard(credentials.password, "password")}
+                                                                    onClick={() => copyToClipboard(SERVER_CREDENTIALS.password, "password")}
                                                                     variant="secondary"
                                                                     size="sm"
                                                                     className="hover:border-[#2ed573]/50"
@@ -287,7 +229,7 @@ export default function AboutPage() {
                                                                     {copiedPassword ? "✓ Copied" : "Copy"}
                                                                 </ActionButton>
                                                             </div>
-                                                            <code className="text-sm text-[#2ed573] break-all">{credentials.password}</code>
+                                                            <code className="text-sm text-[#2ed573] break-all">{SERVER_CREDENTIALS.password}</code>
                                                         </div>
 
                                                         <p className="text-xs text-gray-500 mt-4">
