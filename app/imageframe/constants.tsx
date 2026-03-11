@@ -20,8 +20,7 @@ export const HOSTS: Record<HostType, HostConfig> = {
         uploadEndpoint: "/api/upload",
         deleteEndpoint: "/api/delete",
         healthEndpoint: "/api/health",
-        description: "Third-party hosting - Disabled for security",
-        disabled: true,
+        description: "Public fallback storage when Watermelon Storage is unavailable",
     },
     supabase: {
         name: "Watermelon Storage",

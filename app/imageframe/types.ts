@@ -2,6 +2,7 @@
 export interface UploadedImage {
     url: string;
     directUrl: string;
+    deleteUrl?: string;
     thumbnail?: string;
     filename: string;
     uploadedAt: number;

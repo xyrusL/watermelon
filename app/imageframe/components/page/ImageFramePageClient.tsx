@@ -81,6 +81,20 @@ interface RecentImagesApiResponse {
     message?: string;
 }
 
+type HostAvailability = "checking" | "available" | "down";
+
+type HostHealthState = {
+    status: HostAvailability;
+    message: string | null;
+};
+
+const HOST_ORDER: HostType[] = ["supabase", "imgbb"];
+
+const createInitialHostStatuses = (): Record<HostType, HostHealthState> => ({
+    supabase: { status: "checking", message: null },
+    imgbb: { status: "checking", message: null },
+});
+
 export default function ImageFramePageClient() {
     const { isSignedIn, isLoaded, user } = useUser();
 
@@ -106,13 +120,13 @@ export default function ImageFramePageClient() {
     const [error, setError] = useState<string | null>(null);
     const [copiedTarget, setCopiedTarget] = useState<"url" | "command" | null>(null);
     const [gallery, setGallery] = useState<UploadedImage[]>([]);
-    const [apiError, setApiError] = useState<string | null>(null);
     const [isCheckingApi, setIsCheckingApi] = useState(true);
+    const [hostStatuses, setHostStatuses] = useState<Record<HostType, HostHealthState>>(createInitialHostStatuses);
     const [selectedGalleryImage, setSelectedGalleryImage] = useState<UploadedImage | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteSuccess, setDeleteSuccess] = useState(false);
-    const [selectedHost, setSelectedHost] = useState<HostType | null>("supabase");
+    const [selectedHost, setSelectedHost] = useState<HostType | null>(null);
     const [username, setUsername] = useState<string>("");
     const [isEditingUsername, setIsEditingUsername] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -179,6 +193,7 @@ export default function ImageFramePageClient() {
     const isGalleryFetchInFlightRef = useRef(false);
     const lastGalleryApiErrorRef = useRef<string | null>(null);
     const logoutModalTimeoutRef = useRef<number | null>(null);
+    const lastHostNoticeRef = useRef<string | null>(null);
     const debugStateLog = (event: string, data?: Record<string, unknown>) => {
         console.log("[ImageFrameState]", event, data || {});
     };
@@ -206,30 +221,116 @@ export default function ImageFramePageClient() {
         showNotification("error", "Gallery API Error", message, details);
     };
 
-    // Check API health when host is selected
-    useEffect(() => {
-        if (!selectedHost) {
-            setIsCheckingApi(false);
+    const isHostAvailable = (host: HostType) => hostStatuses[host].status === "available";
+    const selectedHostIsAvailable = selectedHost ? isHostAvailable(selectedHost) : false;
+    const alternativeHost = selectedHost === "imgbb" ? "supabase" : "imgbb";
+
+    const selectHost = (host: HostType) => {
+        if (!isHostAvailable(host)) {
+            showNotification(
+                "warning",
+                `${HOSTS[host].name} Unavailable`,
+                hostStatuses[host].message || `${HOSTS[host].name} is currently unavailable.`,
+                host === "supabase"
+                    ? "Use imgbb temporarily while private storage is down."
+                    : "Switch back to Watermelon Storage if it is available."
+            );
             return;
         }
 
-        const checkApi = async () => {
-            setIsCheckingApi(true);
-            setApiError(null);
+        setSelectedHost(host);
+        if (host === "imgbb") {
+            setIsPrivate(false);
+        }
+    };
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const checkHosts = async () => {
             try {
-                const response = await fetch(HOSTS[selectedHost].healthEndpoint);
-                const data = await response.json();
-                if (data.status !== "ok") {
-                    setApiError(data.message || "API is not available");
+                const results = await Promise.all(
+                    HOST_ORDER.map(async (host) => {
+                        try {
+                            const response = await fetch(HOSTS[host].healthEndpoint);
+                            const data = await response.json().catch(() => ({}));
+                            return [
+                                host,
+                                {
+                                    status: response.ok && data.status === "ok" ? "available" : "down",
+                                    message: typeof data.message === "string"
+                                        ? data.message
+                                        : response.ok
+                                            ? null
+                                            : `${HOSTS[host].name} is unavailable`,
+                                } satisfies HostHealthState,
+                            ] as const;
+                        } catch {
+                            return [
+                                host,
+                                {
+                                    status: "down",
+                                    message: `Failed to connect to ${HOSTS[host].name}`,
+                                } satisfies HostHealthState,
+                            ] as const;
+                        }
+                    })
+                );
+
+                if (cancelled) return;
+
+                const nextStatuses = Object.fromEntries(results) as Record<HostType, HostHealthState>;
+                setHostStatuses(nextStatuses);
+                setIsCheckingApi(false);
+
+                if (!selectedHost) {
+                    if (nextStatuses.supabase.status === "available") {
+                        setSelectedHost("supabase");
+                    } else if (nextStatuses.imgbb.status === "available") {
+                        setSelectedHost("imgbb");
+                    }
                 }
-            } catch (err) {
-                setApiError("Failed to connect to upload service");
-            } finally {
+
+                if (selectedHost && nextStatuses[selectedHost].status === "down") {
+                    const noticeKey = `${selectedHost}:${nextStatuses[selectedHost].message || "down"}`;
+                    if (lastHostNoticeRef.current !== noticeKey) {
+                        showNotification(
+                            "warning",
+                            `${HOSTS[selectedHost].name} Unavailable`,
+                            nextStatuses[selectedHost].message || `${HOSTS[selectedHost].name} is currently down.`,
+                            selectedHost === "supabase" && nextStatuses.imgbb.status === "available"
+                                ? "Use imgbb temporarily while private storage is unavailable."
+                                : selectedHost === "imgbb" && nextStatuses.supabase.status === "available"
+                                    ? "Switch back to Watermelon Storage to continue uploading."
+                                    : "Uploads are unavailable until a storage provider comes back online."
+                        );
+                        lastHostNoticeRef.current = noticeKey;
+                    }
+                } else {
+                    lastHostNoticeRef.current = null;
+                }
+            } catch {
+                if (cancelled) return;
                 setIsCheckingApi(false);
             }
         };
-        checkApi();
+
+        void checkHosts();
+        const interval = window.setInterval(() => {
+            void checkHosts();
+        }, 30000);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(interval);
+        };
     }, [selectedHost]);
+
+    useEffect(() => {
+        if (selectedHost === "imgbb" && isPrivate) {
+            setIsPrivate(false);
+        }
+    }, [selectedHost, isPrivate]);
 
     // Function to fetch recent images (uses centralized mapper)
     const fetchRecentImages = async () => {
@@ -420,8 +521,9 @@ export default function ImageFramePageClient() {
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
+        if (!selectedHostIsAvailable) return;
         setIsDragging(true);
-    }, []);
+    }, [selectedHostIsAvailable]);
 
     const handleDragLeave = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -431,6 +533,21 @@ export default function ImageFramePageClient() {
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
+        if (!selectedHost || !isHostAvailable(selectedHost)) {
+            showNotification(
+                "warning",
+                selectedHost ? `${HOSTS[selectedHost].name} Unavailable` : "Choose a Storage First",
+                selectedHost
+                    ? hostStatuses[selectedHost].message || `${HOSTS[selectedHost].name} is currently unavailable.`
+                    : "Select Watermelon Storage or imgbb before adding an image.",
+                selectedHost === "supabase" && isHostAvailable("imgbb")
+                    ? "Use imgbb temporarily while private storage is unavailable."
+                    : selectedHost === "imgbb" && isHostAvailable("supabase")
+                        ? "Switch back to Watermelon Storage to continue."
+                        : undefined
+            );
+            return;
+        }
         const file = e.dataTransfer.files[0];
         if (file) {
             const ext = getExtFromName(file.name);
@@ -447,7 +564,7 @@ export default function ImageFramePageClient() {
             }
             selectFile(file);
         }
-    }, []);
+    }, [hostStatuses, isHostAvailable, selectedHost, showNotification]);
 
     const selectFile = (file: File) => {
         setSelectedFile(file);
@@ -506,6 +623,20 @@ export default function ImageFramePageClient() {
     }, [selectedFile, lastEditedFrameSize]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!selectedHost || !isHostAvailable(selectedHost)) {
+            showNotification(
+                "warning",
+                selectedHost ? `${HOSTS[selectedHost].name} Unavailable` : "Choose a Storage First",
+                selectedHost
+                    ? hostStatuses[selectedHost].message || `${HOSTS[selectedHost].name} is currently unavailable.`
+                    : "Select Watermelon Storage or imgbb before choosing a file."
+            );
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+            return;
+        }
+
         const file = e.target.files?.[0];
         if (file) {
             // Validate file type
@@ -544,6 +675,16 @@ export default function ImageFramePageClient() {
     // Handle URL upload
     const handleUrlUpload = async () => {
         if (!urlInput.trim()) return;
+        if (!selectedHost || !isHostAvailable(selectedHost)) {
+            showNotification(
+                "warning",
+                selectedHost ? `${HOSTS[selectedHost].name} Unavailable` : "Choose a Storage First",
+                selectedHost
+                    ? hostStatuses[selectedHost].message || `${HOSTS[selectedHost].name} is currently unavailable.`
+                    : "Select Watermelon Storage or imgbb before importing a URL."
+            );
+            return;
+        }
 
         if (!validateImageUrl(urlInput.trim())) {
             showNotification(
@@ -595,6 +736,19 @@ export default function ImageFramePageClient() {
 
     const uploadImage = async () => {
         if (!selectedFile || !selectedHost) return;
+        if (!isHostAvailable(selectedHost)) {
+            showNotification(
+                "warning",
+                `${HOSTS[selectedHost].name} Unavailable`,
+                hostStatuses[selectedHost].message || `${HOSTS[selectedHost].name} is currently unavailable.`,
+                selectedHost === "supabase" && isHostAvailable("imgbb")
+                    ? "Switch to imgbb temporarily."
+                    : selectedHost === "imgbb" && isHostAvailable("supabase")
+                        ? "Switch back to Watermelon Storage."
+                        : "Please wait for a storage service to recover."
+            );
+            return;
+        }
 
         const hostConfig = HOSTS[selectedHost];
         debugStateLog("upload_started", {
@@ -735,21 +889,23 @@ export default function ImageFramePageClient() {
                         "warning",
                         "Hosting Limit Reached",
                         `${hostConfig.name} has reached its upload limit`,
-                        "Try again in a minute or contact the server admin if it keeps happening."
+                        isHostAvailable(alternativeHost)
+                            ? `Try switching to ${HOSTS[alternativeHost].name}.`
+                            : "Try again in a minute or contact the server admin if it keeps happening."
                     );
                 } else if (/api|key|token/i.test(apiError)) {
                     showNotification(
                         "error",
                         "API Error",
                         "There's an issue with the hosting service configuration",
-                        `${apiError} • Try another hosting service.`
+                        `${apiError} • ${isHostAvailable(alternativeHost) ? `Try ${HOSTS[alternativeHost].name}.` : "Try again later."}`
                     );
                 } else {
                     showNotification(
                         "error",
                         "Upload Failed",
                         apiError || "An unknown error occurred",
-                        `Host: ${hostConfig.name} • Try another hosting service or check your internet connection.`
+                        `Host: ${hostConfig.name} • ${isHostAvailable(alternativeHost) ? `Try ${HOSTS[alternativeHost].name} instead.` : "Check your internet connection or try again later."}`
                     );
                 }
                 throw new Error(apiError || "Upload failed");
@@ -811,6 +967,7 @@ export default function ImageFramePageClient() {
                 id: typeof data.id === "string" ? data.id : undefined,
                 url: typeof data.url === "string" ? data.url : directUrl,
                 directUrl,
+                deleteUrl: typeof data.deleteUrl === "string" ? data.deleteUrl : undefined,
                 thumbnail: typeof data.thumbnail === "string" ? data.thumbnail : directUrl,
                 filename: typeof data.filename === "string" ? data.filename : selectedFile.name,
                 uploadedAt: Date.now(),
@@ -867,6 +1024,7 @@ export default function ImageFramePageClient() {
 
     const startUploadFlow = () => {
         if (!selectedFile || !selectedHost || isUploading) return;
+        if (!selectedHostIsAvailable) return;
 
         // Require an explicit user-selected frame first.
         // Auto-suggested values are still available if the user chooses to skip.
@@ -1064,7 +1222,7 @@ export default function ImageFramePageClient() {
     };
 
     const changeHost = () => {
-        setSelectedHost("supabase");
+        setSelectedHost(null);
         // Reset upload state
         setSelectedFile(null);
         setPreview(null);
@@ -1087,18 +1245,28 @@ export default function ImageFramePageClient() {
         setIsDeleting(true);
 
         try {
-            if (!selectedGalleryImage.id) {
-                throw new Error("Image ID is missing");
-            }
-
-            const response = await fetch("/api/user/soft-delete", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ imageId: selectedGalleryImage.id }),
-            });
-            const data = await response.json().catch(() => null);
-            if (!response.ok || !data?.success) {
-                throw new Error(data?.error || "Failed to delete image");
+            if (selectedGalleryImage.id) {
+                const response = await fetch("/api/user/soft-delete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ imageId: selectedGalleryImage.id }),
+                });
+                const data = await response.json().catch(() => null);
+                if (!response.ok || !data?.success) {
+                    throw new Error(data?.error || "Failed to delete image");
+                }
+            } else if (selectedGalleryImage.host === "imgbb" && selectedGalleryImage.deleteUrl) {
+                const response = await fetch("/api/delete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ deleteUrl: selectedGalleryImage.deleteUrl }),
+                });
+                const data = await response.json().catch(() => null);
+                if (!response.ok || !data?.success) {
+                    throw new Error(data?.error || "Failed to delete fallback image");
+                }
+            } else {
+                throw new Error("This image cannot be deleted from storage");
             }
         } catch (err) {
             console.error("Failed to delete:", err);
@@ -1306,6 +1474,93 @@ export default function ImageFramePageClient() {
     const successOutputValue = successOutputMode === "url" ? directUploadUrl : imageFrameCreateCommand;
     const isSuccessValueCopied = copiedTarget === successOutputMode;
     const uploadSizeLabel = uploadedImage?.fileSize ? formatFileSize(uploadedImage.fileSize) : null;
+    const bothHostsDown = HOST_ORDER.every((host) => hostStatuses[host].status === "down");
+    const selectedHostStatus = selectedHost ? hostStatuses[selectedHost] : null;
+    const hostBanner = bothHostsDown
+        ? {
+            type: "error" as const,
+            title: "All Upload Storage Is Down",
+            message: "Uploads are temporarily unavailable. Please try again later.",
+        }
+        : hostStatuses.supabase.status === "down" && hostStatuses.imgbb.status === "available"
+            ? {
+                type: "warning" as const,
+                title: "Private Storage Is Down",
+                message: "Watermelon Storage is currently unavailable. Use imgbb temporarily for public uploads.",
+            }
+            : hostStatuses.imgbb.status === "down" && hostStatuses.supabase.status === "available"
+                ? {
+                    type: "info" as const,
+                    title: "Fallback Storage Is Down",
+                    message: "imgbb is currently unavailable. Watermelon Storage is still online.",
+                }
+                : null;
+
+    const renderHostCard = (host: HostType) => {
+        const config = HOSTS[host];
+        const health = hostStatuses[host];
+        const isSelected = selectedHost === host;
+        const isAvailable = health.status === "available";
+        const isChecking = health.status === "checking";
+        const isWatermelon = host === "supabase";
+        const accent = isWatermelon ? "#2ed573" : "#ff8f3d";
+        const unavailableAccent = "#6b7280";
+        const statusColor = isChecking ? "#94a3b8" : isAvailable ? accent : unavailableAccent;
+        const title = isWatermelon ? "Watermelon Storage" : "imgbb";
+        const subtitle = isWatermelon
+            ? (isAvailable ? "Private, recommended, full control" : "Private storage is currently unavailable. Use imgbb temporarily.")
+            : (isAvailable ? "Public fallback storage" : "Third-party storage is currently unavailable");
+        const pillLabel = isChecking ? "Checking" : isAvailable ? (isWatermelon ? "Recommended" : "Fallback Ready") : "Unavailable";
+        const borderClass = isAvailable
+            ? isWatermelon
+                ? "border-[#2ed573]/40 bg-gradient-to-br from-[#2ed573]/12 to-transparent"
+                : "border-[#ff8f3d]/40 bg-gradient-to-br from-[#ff8f3d]/10 to-transparent"
+            : "border-white/10 bg-white/[0.03] opacity-70";
+
+        return (
+            <button
+                key={host}
+                type="button"
+                onClick={() => selectHost(host)}
+                disabled={!isAvailable}
+                className={`relative text-left rounded-2xl p-6 md:p-8 min-h-[330px] flex flex-col transition-all ${borderClass} ${isSelected ? "ring-2 ring-white/20 scale-[1.01]" : ""} ${isAvailable ? "hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.25)]" : "cursor-not-allowed"}`}
+            >
+                <div className="flex items-start justify-between gap-4 mb-6">
+                    <div>
+                        <div className="text-4xl mb-4">{isWatermelon ? "🍉" : "🖼️"}</div>
+                        <h3 className="font-pixel text-lg text-white mb-2">{title}</h3>
+                        <p className="text-sm leading-relaxed" style={{ color: statusColor }}>{subtitle}</p>
+                    </div>
+                    <div
+                        className="shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide border"
+                        style={{ color: statusColor, borderColor: `${statusColor}55`, backgroundColor: `${statusColor}18` }}
+                    >
+                        {pillLabel}
+                    </div>
+                </div>
+
+                <div className="space-y-3 text-sm mt-auto">
+                    <div className="flex items-center gap-3 text-gray-300">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: `${statusColor}18` }}>
+                            {isAvailable ? <PixelCheck size={10} color={statusColor} /> : <PixelClose size={10} color={statusColor} />}
+                        </div>
+                        <span><span className="text-white font-bold">{config.maxSizeLabel}</span> Max Size</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-300">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: `${statusColor}18` }}>
+                            {isWatermelon ? <PixelLock size={10} color={statusColor} /> : <PixelWarning size={10} color={statusColor} />}
+                        </div>
+                        <span className={isWatermelon ? "text-[#2ed573]" : "text-[#ffb36b]"}>
+                            {isWatermelon ? "Supports private uploads" : "Public uploads only"}
+                        </span>
+                    </div>
+                    <p className="text-xs text-gray-500 pt-2">
+                        {health.message || config.description}
+                    </p>
+                </div>
+            </button>
+        );
+    };
 
     return (
         <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
@@ -1655,28 +1910,6 @@ export default function ImageFramePageClient() {
                 onToggleNsfw={isAdmin ? toggleAdminNsfw : undefined}
             />
 
-            {/* API Error Modal */}
-            {apiError && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
-                    <div className="glass rounded-2xl p-8 max-w-md text-center border border-red-500/50">
-                        <div className="flex justify-center mb-4"><PixelWarning size={48} color="#ffa502" /></div>
-                        <h2 className="font-pixel text-lg text-red-400 mb-4">API ERROR</h2>
-                        <p className="text-gray-300 mb-6">
-                            There&apos;s something wrong with the upload service. Please let the server admin know!
-                        </p>
-                        <div className="glass p-3 rounded-lg mb-6">
-                            <code className="text-red-400 text-sm">{apiError}</code>
-                        </div>
-                        <Link
-                            href="/"
-                            className="inline-block px-6 py-3 bg-[#ff4757] hover:bg-[#ff6b81] rounded-xl font-medium transition-all"
-                        >
-                            Go Back Home
-                        </Link>
-                    </div>
-                </div>
-            )}
-
             {/* Upload Success Modal */}
             {showUploadSuccessModal && uploadedImage && (
                 <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
@@ -1779,16 +2012,6 @@ export default function ImageFramePageClient() {
                                 </p>
                             </div>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Loading Check */}
-            {isCheckingApi && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0d0d]">
-                    <div className="text-center">
-                        <div className="text-4xl animate-bounce mb-4">🍉</div>
-                        <p className="text-gray-400">Checking service...</p>
                     </div>
                 </div>
             )}
@@ -2030,10 +2253,9 @@ export default function ImageFramePageClient() {
                             {selectedHost && (
                                 <div className="inline-flex items-center gap-3 glass px-6 py-3 rounded-full border border-white/10">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-[#2ed573] rounded-full animate-pulse"></div>
+                                        <div className={`w-2 h-2 rounded-full ${selectedHostStatus?.status === "down" ? "bg-[#ff6b81]" : selectedHostStatus?.status === "checking" ? "bg-slate-400" : selectedHost === "imgbb" ? "bg-[#ff8f3d]" : "bg-[#2ed573]"} ${selectedHostStatus?.status !== "down" ? "animate-pulse" : ""}`}></div>
                                         <span className="text-sm text-gray-300">Using</span>
-                                        <span className={`font-pixel text-sm ${selectedHost === "imgbb" ? "text-[#ff4757]" : "text-[#2ed573]"
-                                            }`}>
+                                        <span className={`font-pixel text-sm ${selectedHost === "imgbb" ? "text-[#ff8f3d]" : "text-[#2ed573]"}`}>
                                             {HOSTS[selectedHost].name}
                                         </span>
                                     </div>
@@ -2059,126 +2281,63 @@ export default function ImageFramePageClient() {
                             />
                         )}
 
-                        {!selectedHost ? (
+                        <div className="space-y-8">
+                            {hostBanner && (
+                                <div className={`glass rounded-2xl p-4 border ${hostBanner.type === "error" ? "border-red-500/40 bg-red-500/10" : hostBanner.type === "warning" ? "border-[#ff8f3d]/40 bg-[#ff8f3d]/10" : "border-sky-400/30 bg-sky-500/10"}`}>
+                                    <div className="flex items-start gap-3">
+                                        <div className="mt-0.5">
+                                            {hostBanner.type === "error"
+                                                ? <PixelClose size={18} color="#ff6b81" />
+                                                : hostBanner.type === "warning"
+                                                    ? <PixelWarning size={18} color="#ffb36b" />
+                                                    : <PixelInfo size={18} color="#7dd3fc" />}
+                                        </div>
+                                        <div>
+                                            <p className="font-pixel text-sm text-white mb-1">{hostBanner.title}</p>
+                                            <p className="text-sm text-gray-300">{hostBanner.message}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="space-y-10 max-w-5xl mx-auto">
                                 <div className="text-center space-y-2">
                                     <h2 className="font-pixel text-xl text-white">CHOOSE YOUR IMAGE HOSTING SERVICE</h2>
-                                    <p className="text-gray-500 text-sm">Select the best option for your needs</p>
+                                    <p className="text-gray-500 text-sm">
+                                        {isCheckingApi ? "Checking storage availability..." : "Watermelon Storage is recommended. imgbb is a public fallback."}
+                                    </p>
                                 </div>
                                 <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                                    {/* Supabase Card - RECOMMENDED */}
-                                    <div
-                                        onClick={() => setSelectedHost("supabase")}
-                                        className="relative cursor-pointer group h-full"
-                                    >
-                                        {/* Gradient Border Effect */}
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-[#2ed573] via-[#3ecf8e] to-[#2ed573] rounded-2xl opacity-75 group-hover:opacity-100 blur-sm group-hover:blur transition-all duration-300"></div>
-
-                                        <div className="relative glass rounded-2xl p-8 h-[400px] flex flex-col bg-gradient-to-br from-[#2ed573]/10 to-transparent border border-[#2ed573]/30">
-                                            {/* Recommended Badge */}
-                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                                                <div className="bg-gradient-to-r from-[#2ed573] to-[#26de81] text-black text-xs font-bold px-5 py-2 rounded-full shadow-lg border-2 border-black/20 whitespace-nowrap">
-                                                    ⭐ RECOMMENDED
-                                                </div>
-                                            </div>
-
-                                            {/* Icon */}
-                                            <div className="text-6xl mb-6 mt-4 text-center group-hover:scale-110 transition-transform duration-300">
-                                                🍉
-                                            </div>
-
-                                            {/* Title */}
-                                            <h3 className="font-pixel text-xl text-white mb-3 text-center group-hover:text-[#2ed573] transition-colors">
-                                                Watermelon Storage
-                                            </h3>
-
-                                            {/* Subtitle */}
-                                            <div className="flex items-center justify-center gap-2 mb-6">
-                                                <PixelLock size={18} color="#2ed573" />
-                                                <p className="text-sm text-[#2ed573] font-semibold uppercase tracking-wide">Our Private Storage</p>
-                                            </div>
-
-                                            {/* Features */}
-                                            <ul className="space-y-4 text-sm mt-auto">
-                                                <li className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded-full bg-[#2ed573]/20 flex items-center justify-center flex-shrink-0">
-                                                        <PixelCheck size={12} color="#2ed573" />
-                                                    </div>
-                                                    <span className="text-gray-300"><span className="text-white font-bold">{HOSTS.supabase.maxSizeLabel}</span> Max Size</span>
-                                                </li>
-                                                <li className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded-full bg-[#2ed573]/20 flex items-center justify-center flex-shrink-0">
-                                                        <PixelCheck size={10} color="#2ed573" />
-                                                    </div>
-                                                    <span className="text-[#2ed573] font-bold">Full Privacy Control</span>
-                                                </li>
-                                                <li className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded-full bg-[#2ed573]/20 flex items-center justify-center flex-shrink-0">
-                                                        <PixelCheck size={10} color="#2ed573" />
-                                                    </div>
-                                                    <span className="text-gray-300 font-medium">Fast & Secure</span>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-
-                                    {/* ImgBB Card */}
-                                    <div
-                                        onClick={() => setSelectedHost("imgbb")}
-                                        className="relative cursor-pointer group h-full"
-                                    >
-                                        {/* Hover Effect */}
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-[#ff4757] to-[#ff6b81] rounded-2xl opacity-0 group-hover:opacity-50 blur transition-all duration-300"></div>
-
-                                        <div className="relative glass rounded-2xl p-8 h-[400px] flex flex-col border border-white/10 group-hover:border-[#ff4757]/50 transition-all duration-300">
-                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                                                <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs font-bold px-5 py-2 rounded-full shadow-lg border-2 border-black/20 whitespace-nowrap flex items-center gap-1">
-                                                    <PixelWarning size={14} color="#000" /> NOT RECOMMENDED
-                                                </div>
-                                            </div>
-
-                                            {/* Icon */}
-                                            <div className="mb-6 mt-4 text-center group-hover:scale-110 transition-transform duration-300 flex justify-center">
-                                                <PixelImage size={64} color="#ff4757" />
-                                            </div>
-
-                                            {/* Title */}
-                                            <h3 className="font-pixel text-xl text-white mb-3 text-center group-hover:text-[#ff4757] transition-colors">
-                                                imgbb
-                                            </h3>
-
-                                            {/* Subtitle */}
-                                            <p className="text-xs text-gray-500 mb-8 text-center uppercase tracking-wide font-semibold">Third-party service</p>
-
-                                            {/* Features */}
-                                            <ul className="space-y-4 text-sm mt-auto">
-                                                <li className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded-full bg-[#2ed573]/20 flex items-center justify-center flex-shrink-0">
-                                                        <PixelCheck size={10} color="#2ed573" />
-                                                    </div>
-                                                    <span className="text-gray-300"><span className="text-white font-bold">{HOSTS.imgbb.maxSizeLabel}</span> Max Size</span>
-                                                </li>
-                                                <li className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded-full bg-[#2ed573]/20 flex items-center justify-center flex-shrink-0">
-                                                        <PixelCheck size={10} color="#2ed573" />
-                                                    </div>
-                                                    <span className="text-gray-300 font-medium">Fast Upload Speed</span>
-                                                </li>
-                                                <li className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                                                        <PixelClose size={10} color="#f87171" />
-                                                    </div>
-                                                    <span className="text-red-400 font-bold">Not Private</span>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-
-
+                                    {renderHostCard("supabase")}
+                                    {renderHostCard("imgbb")}
                                 </div>
                             </div>
-                        ) : (
-                            <div className="space-y-6">
+
+                            {selectedHost ? (
+                                <div className="space-y-6">
+                                    {!selectedHostIsAvailable && (
+                                        <div className="glass rounded-xl p-4 border border-red-500/40 bg-red-500/10">
+                                            <p className="font-pixel text-sm text-red-300 mb-1">{HOSTS[selectedHost].name} is unavailable</p>
+                                            <p className="text-sm text-gray-300">
+                                                {hostStatuses[selectedHost].message || "This storage cannot accept uploads right now."}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {selectedHost === "imgbb" && (
+                                        <div className="glass rounded-xl p-4 border border-[#ff8f3d]/40 bg-[#ff8f3d]/10">
+                                            <div className="flex items-start gap-3">
+                                                <PixelWarning size={18} color="#ffb36b" />
+                                                <div>
+                                                    <p className="font-pixel text-sm text-[#ffb36b] mb-1">PUBLIC FALLBACK STORAGE</p>
+                                                    <p className="text-sm text-gray-300">
+                                                        imgbb uploads are public on a third-party host. Private uploads are only available on Watermelon Storage.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                 {/* Toggle Upload Mode */}
                                 {isSignedIn && (
                                     <div className="flex justify-center">
@@ -2222,10 +2381,11 @@ export default function ImageFramePageClient() {
                                                 placeholder="https://example.com/image.png"
                                                 className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:border-[#2ed573] outline-none transition-all"
                                                 onKeyDown={(e) => e.key === "Enter" && handleUrlUpload()}
+                                                disabled={!selectedHostIsAvailable}
                                             />
                                             <ActionButton
                                                 onClick={handleUrlUpload}
-                                                disabled={isUploading || !urlInput.trim()}
+                                                disabled={isUploading || !urlInput.trim() || !selectedHostIsAvailable}
                                                 variant="primary"
                                                 className="px-6 py-3 font-bold text-black flex items-center justify-center gap-2 w-full sm:w-auto"
                                             >
@@ -2242,13 +2402,14 @@ export default function ImageFramePageClient() {
                                     </div>
                                 ) : (
                                     <div
-                                        onClick={() => !preview && isSignedIn && fileInputRef.current?.click()}
-                                        onDragOver={isSignedIn ? handleDragOver : undefined}
+                                        onClick={() => !preview && isSignedIn && selectedHostIsAvailable && fileInputRef.current?.click()}
+                                        onDragOver={isSignedIn && selectedHostIsAvailable ? handleDragOver : undefined}
                                         onDragLeave={isSignedIn ? handleDragLeave : undefined}
-                                        onDrop={isSignedIn ? handleDrop : undefined}
+                                        onDrop={isSignedIn && selectedHostIsAvailable ? handleDrop : undefined}
                                         className={`
                     ${preview ? "bg-black/60 backdrop-blur-sm p-4 md:p-6" : "glass p-8 text-center"} rounded-2xl transition-all border-2
-                    ${!preview && isSignedIn ? "cursor-pointer border-dashed border-white/20 hover:border-[#ff4757]/50" : ""}
+                    ${!preview && isSignedIn && selectedHostIsAvailable ? "cursor-pointer border-dashed border-white/20 hover:border-[#ff4757]/50" : ""}
+                    ${!preview && isSignedIn && !selectedHostIsAvailable ? "border-dashed border-white/10 opacity-70 cursor-not-allowed" : ""}
                     ${preview ? "border-white/20" : ""}
                     ${isDragging && isSignedIn ? "border-[#2ed573] bg-[#2ed573]/10" : ""}
                   `}
@@ -2259,7 +2420,7 @@ export default function ImageFramePageClient() {
                                             accept="image/png,image/jpeg,image/gif,image/webp"
                                             onChange={handleFileSelect}
                                             className="hidden"
-                                            disabled={!isSignedIn}
+                                            disabled={!isSignedIn || !selectedHostIsAvailable}
                                         />
 
                                         {preview ? (
@@ -2314,40 +2475,53 @@ export default function ImageFramePageClient() {
                                                         )}
 
                                                         <div className="mt-4 space-y-3">
-                                                            <div className="glass p-3 rounded-xl border border-white/10">
-                                                                <div className="flex items-center justify-between gap-2">
+                                                            {selectedHost === "imgbb" ? (
+                                                                <div className="glass p-3 rounded-xl border border-[#ff8f3d]/40 bg-[#ff8f3d]/10">
                                                                     <div className="flex items-center gap-2 min-w-0">
-                                                                        {isPrivate ? (
-                                                                            <PixelLock size={14} color="#ff4757" />
-                                                                        ) : (
-                                                                            <PixelGlobe size={14} color="#2ed573" />
-                                                                        )}
+                                                                        <PixelWarning size={14} color="#ffb36b" />
                                                                         <span className="text-xs text-gray-300">Visibility:</span>
-                                                                        <span className={`text-xs font-medium ${isPrivate ? 'text-[#ff4757]' : 'text-[#2ed573]'}`}>
-                                                                            {isPrivate ? 'Private' : 'Public'}
-                                                                        </span>
+                                                                        <span className="text-xs font-medium text-[#ffb36b]">Public Only</span>
                                                                     </div>
-                                                                    <ActionButton
-                                                                        onClick={() => setIsPrivate(!isPrivate)}
-                                                                        variant="secondary"
-                                                                        className={`
-                                                                            relative w-12 h-6 rounded-full transition-all duration-300
-                                                                            ${isPrivate ? 'bg-[#ff4757]/20 border-[#ff4757]/50' : 'bg-[#2ed573]/20 border-[#2ed573]/50'}
-                                                                            border shrink-0
-                                                                        `}
-                                                                    >
-                                                                        <div
-                                                                            className={`
-                                                                                absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-all duration-300
-                                                                                ${isPrivate ? 'translate-x-6 bg-[#ff4757]' : 'translate-x-0 bg-[#2ed573]'}
-                                                                            `}
-                                                                        />
-                                                                    </ActionButton>
+                                                                    <p className="text-[11px] text-gray-400 mt-1.5">
+                                                                        Fallback uploads are public and stored on imgbb.
+                                                                    </p>
                                                                 </div>
-                                                                <p className="text-[11px] text-gray-500 mt-1.5">
-                                                                    {isPrivate ? 'Only you can see this image' : 'Visible to everyone in public gallery'}
-                                                                </p>
-                                                            </div>
+                                                            ) : (
+                                                                <div className="glass p-3 rounded-xl border border-white/10">
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <div className="flex items-center gap-2 min-w-0">
+                                                                            {isPrivate ? (
+                                                                                <PixelLock size={14} color="#ff4757" />
+                                                                            ) : (
+                                                                                <PixelGlobe size={14} color="#2ed573" />
+                                                                            )}
+                                                                            <span className="text-xs text-gray-300">Visibility:</span>
+                                                                            <span className={`text-xs font-medium ${isPrivate ? 'text-[#ff4757]' : 'text-[#2ed573]'}`}>
+                                                                                {isPrivate ? 'Private' : 'Public'}
+                                                                            </span>
+                                                                        </div>
+                                                                        <ActionButton
+                                                                            onClick={() => setIsPrivate(!isPrivate)}
+                                                                            variant="secondary"
+                                                                            className={`
+                                                                                relative w-12 h-6 rounded-full transition-all duration-300
+                                                                                ${isPrivate ? 'bg-[#ff4757]/20 border-[#ff4757]/50' : 'bg-[#2ed573]/20 border-[#2ed573]/50'}
+                                                                                border shrink-0
+                                                                            `}
+                                                                        >
+                                                                            <div
+                                                                                className={`
+                                                                                    absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-all duration-300
+                                                                                    ${isPrivate ? 'translate-x-6 bg-[#ff4757]' : 'translate-x-0 bg-[#2ed573]'}
+                                                                                `}
+                                                                            />
+                                                                        </ActionButton>
+                                                                    </div>
+                                                                    <p className="text-[11px] text-gray-500 mt-1.5">
+                                                                        {isPrivate ? 'Only you can see this image' : 'Visible to everyone in public gallery'}
+                                                                    </p>
+                                                                </div>
+                                                            )}
 
                                                             <div className="glass p-3 rounded-xl border border-white/10">
                                                                 <div className="flex items-center justify-between gap-2">
@@ -2395,12 +2569,12 @@ export default function ImageFramePageClient() {
                                                             </ActionButton>
                                                             <ActionButton
                                                                 onClick={startUploadFlow}
-                                                                disabled={isUploading}
+                                                                disabled={isUploading || !selectedHostIsAvailable}
                                                                 variant="danger"
                                                                 fullWidth
-                                                                className={`flex-1 py-3.5 ${isUploading ? "bg-gray-600 border-gray-600 hover:bg-gray-600 cursor-not-allowed" : "hover:scale-[1.02]"}`}
+                                                                className={`flex-1 py-3.5 ${(isUploading || !selectedHostIsAvailable) ? "bg-gray-600 border-gray-600 hover:bg-gray-600 cursor-not-allowed" : "hover:scale-[1.02]"}`}
                                                             >
-                                                                {isUploading ? "Uploading..." : "Upload Image"}
+                                                                {isUploading ? "Uploading..." : !selectedHostIsAvailable ? "Storage Unavailable" : "Upload Image"}
                                                             </ActionButton>
                                                         </div>
                                                     </div>
@@ -2415,7 +2589,7 @@ export default function ImageFramePageClient() {
                                                     Drop your image here
                                                 </p>
                                                 <p className="text-sm text-gray-500 mb-3">
-                                                    or click to browse
+                                                    {selectedHostIsAvailable ? "or click to browse" : "Selected storage is unavailable right now"}
                                                 </p>
                                                 <div className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full">
                                                     <PixelUpload size={14} color="#9ca3af" />
@@ -2423,6 +2597,11 @@ export default function ImageFramePageClient() {
                                                         PNG, JPG, GIF • Max {selectedHost && HOSTS[selectedHost].maxSizeLabel}
                                                     </p>
                                                 </div>
+                                                {!selectedHostIsAvailable && selectedHost && (
+                                                    <p className="text-xs text-red-300 mt-3">
+                                                        {hostStatuses[selectedHost].message || `Switch to another storage before uploading.`}
+                                                    </p>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -2435,8 +2614,13 @@ export default function ImageFramePageClient() {
                                     </div>
                                 )}
 
-                            </div>
-                        )}
+                                </div>
+                            ) : (
+                                <div className="glass rounded-2xl p-6 border border-white/10 text-center">
+                                    <p className="text-gray-300">Choose a storage option above to continue.</p>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Gallery */}
                         <ImageGallery
