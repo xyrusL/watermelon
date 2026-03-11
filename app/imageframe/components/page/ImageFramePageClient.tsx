@@ -122,6 +122,7 @@ export default function ImageFramePageClient() {
     const [gallery, setGallery] = useState<UploadedImage[]>([]);
     const [isCheckingApi, setIsCheckingApi] = useState(true);
     const [hostStatuses, setHostStatuses] = useState<Record<HostType, HostHealthState>>(createInitialHostStatuses);
+    const [showHostChooserModal, setShowHostChooserModal] = useState(false);
     const [selectedGalleryImage, setSelectedGalleryImage] = useState<UploadedImage | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -239,6 +240,7 @@ export default function ImageFramePageClient() {
         }
 
         setSelectedHost(host);
+        setShowHostChooserModal(false);
         if (host === "imgbb") {
             setIsPrivate(false);
         }
@@ -331,6 +333,12 @@ export default function ImageFramePageClient() {
             setIsPrivate(false);
         }
     }, [selectedHost, isPrivate]);
+
+    useEffect(() => {
+        if (!selectedHost) {
+            setShowHostChooserModal(true);
+        }
+    }, [selectedHost]);
 
     // Function to fetch recent images (uses centralized mapper)
     const fetchRecentImages = async () => {
@@ -1222,21 +1230,7 @@ export default function ImageFramePageClient() {
     };
 
     const changeHost = () => {
-        setSelectedHost(null);
-        // Reset upload state
-        setSelectedFile(null);
-        setPreview(null);
-        setUploadedImage(null);
-        setShowUploadSuccessModal(false);
-        setCommandFrameSource("fallback");
-        setLastEditedFrameSize(null);
-        setError(null);
-        setCroppedPreview(null);
-        setShowEditor(false);
-        setUrlInput("");
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
+        setShowHostChooserModal(true);
     };
 
     const deleteImage = async () => {
@@ -1486,7 +1480,7 @@ export default function ImageFramePageClient() {
             ? {
                 type: "warning" as const,
                 title: "Private Storage Is Down",
-                message: "Watermelon Storage is currently unavailable. Use imgbb temporarily for public uploads.",
+                message: "Watermelon Storage is currently unavailable. Use imgbb temporarily.",
             }
             : hostStatuses.imgbb.status === "down" && hostStatuses.supabase.status === "available"
                 ? {
@@ -1503,19 +1497,28 @@ export default function ImageFramePageClient() {
         const isAvailable = health.status === "available";
         const isChecking = health.status === "checking";
         const isWatermelon = host === "supabase";
-        const accent = isWatermelon ? "#2ed573" : "#ff8f3d";
-        const unavailableAccent = "#6b7280";
-        const statusColor = isChecking ? "#94a3b8" : isAvailable ? accent : unavailableAccent;
         const title = isWatermelon ? "Watermelon Storage" : "imgbb";
-        const subtitle = isWatermelon
-            ? (isAvailable ? "Private, recommended, full control" : "Private storage is currently unavailable. Use imgbb temporarily.")
-            : (isAvailable ? "Public fallback storage" : "Third-party storage is currently unavailable");
-        const pillLabel = isChecking ? "Checking" : isAvailable ? (isWatermelon ? "Recommended" : "Fallback Ready") : "Unavailable";
-        const borderClass = isAvailable
+        const pillLabel = isChecking ? "Checking" : isAvailable ? (isWatermelon ? "Recommended" : "3rd Party") : "Unavailable";
+        const description = config.description || (isWatermelon ? "Main storage with full control" : "Use when Watermelon Storage is unavailable");
+        const supportLine = isWatermelon ? "Private uploads supported" : "Third-party storage";
+        const iconColor = isWatermelon ? "#2ed573" : "#ff8f3d";
+        const accentClass = isWatermelon
+            ? "border-[#2ed573]/30 text-[#7dffb0] bg-[#2ed573]/8"
+            : "border-[#ff8f3d]/30 text-[#ffb36b] bg-[#ff8f3d]/8";
+        const cardClass = isAvailable
+            ? "border-white/12 bg-[#12161d] hover:border-white/22 hover:-translate-y-0.5"
+            : "border-white/8 bg-[#101319] opacity-65 cursor-not-allowed";
+        const selectedClass = isSelected && isAvailable
             ? isWatermelon
-                ? "border-[#2ed573]/40 bg-gradient-to-br from-[#2ed573]/12 to-transparent"
-                : "border-[#ff8f3d]/40 bg-gradient-to-br from-[#ff8f3d]/10 to-transparent"
-            : "border-white/10 bg-white/[0.03] opacity-70";
+                ? "border-[#2ed573]/45 shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
+                : "border-[#ff8f3d]/45 shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
+            : "";
+        const iconWrapClass = isWatermelon ? "border-[#2ed573]/25 bg-[#2ed573]/10" : "border-[#ff8f3d]/25 bg-[#ff8f3d]/10";
+        const availabilityLine = isChecking
+            ? "Checking availability"
+            : isAvailable
+                ? `${title} is available`
+                : health.message || `${title} is unavailable`;
 
         return (
             <button
@@ -1523,41 +1526,44 @@ export default function ImageFramePageClient() {
                 type="button"
                 onClick={() => selectHost(host)}
                 disabled={!isAvailable}
-                className={`relative text-left rounded-2xl p-6 md:p-8 min-h-[330px] flex flex-col transition-all ${borderClass} ${isSelected ? "ring-2 ring-white/20 scale-[1.01]" : ""} ${isAvailable ? "hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.25)]" : "cursor-not-allowed"}`}
+                className={`relative text-left rounded-[28px] p-6 md:p-7 min-h-[280px] flex flex-col transition-all duration-200 border ${cardClass} ${selectedClass}`}
             >
-                <div className="flex items-start justify-between gap-4 mb-6">
-                    <div>
-                        <div className="text-4xl mb-4">{isWatermelon ? "🍉" : "🖼️"}</div>
-                        <h3 className="font-pixel text-lg text-white mb-2">{title}</h3>
-                        <p className="text-sm leading-relaxed" style={{ color: statusColor }}>{subtitle}</p>
+                <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.04),transparent_55%)]" />
+
+                <div className="relative flex items-start justify-between gap-4">
+                    <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${iconWrapClass}`}>
+                        {isWatermelon ? (
+                            <PixelShield size={20} color={iconColor} />
+                        ) : (
+                            <PixelImage size={20} color={iconColor} />
+                        )}
                     </div>
-                    <div
-                        className="shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide border"
-                        style={{ color: statusColor, borderColor: `${statusColor}55`, backgroundColor: `${statusColor}18` }}
-                    >
+                    <div className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] border max-w-full ${isAvailable ? accentClass : "border-white/12 text-gray-500 bg-white/[0.04]"}`}>
                         {pillLabel}
                     </div>
                 </div>
 
-                <div className="space-y-3 text-sm mt-auto">
-                    <div className="flex items-center gap-3 text-gray-300">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: `${statusColor}18` }}>
-                            {isAvailable ? <PixelCheck size={10} color={statusColor} /> : <PixelClose size={10} color={statusColor} />}
-                        </div>
-                        <span><span className="text-white font-bold">{config.maxSizeLabel}</span> Max Size</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-300">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: `${statusColor}18` }}>
-                            {isWatermelon ? <PixelLock size={10} color={statusColor} /> : <PixelWarning size={10} color={statusColor} />}
-                        </div>
-                        <span className={isWatermelon ? "text-[#2ed573]" : "text-[#ffb36b]"}>
-                            {isWatermelon ? "Supports private uploads" : "Public uploads only"}
-                        </span>
-                    </div>
-                    <p className="text-xs text-gray-500 pt-2">
-                        {health.message || config.description}
-                    </p>
+                <div className="relative mt-6">
+                    <h3 className="font-pixel text-lg md:text-xl text-white leading-tight">{title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-gray-400">{description}</p>
                 </div>
+
+                <div className="relative mt-6 space-y-3 border-t border-white/8 pt-5 text-sm">
+                    <div className="flex items-center gap-3 text-gray-200">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isWatermelon ? "bg-[#2ed573]/10" : "bg-[#ff8f3d]/10"}`}>
+                            <PixelCheck size={12} color={iconColor} />
+                        </div>
+                        <span><span className="font-semibold text-white">{config.maxSizeLabel}</span> max size</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-200">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isWatermelon ? "bg-[#2ed573]/10" : "bg-[#ff8f3d]/10"}`}>
+                            {isWatermelon ? <PixelLock size={12} color={iconColor} /> : <PixelGlobe size={12} color={iconColor} />}
+                        </div>
+                        <span>{supportLine}</span>
+                    </div>
+                </div>
+
+                <p className="relative mt-auto pt-6 text-xs text-gray-500">{availabilityLine}</p>
             </button>
         );
     };
@@ -2106,6 +2112,69 @@ export default function ImageFramePageClient() {
                 </div>
             )}
 
+            {showHostChooserModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                    <div className="w-full max-w-4xl rounded-[30px] border border-white/12 bg-[#0f1319] shadow-[0_24px_80px_rgba(0,0,0,0.55)] overflow-hidden">
+                        <div className="border-b border-white/8 px-5 py-4 sm:px-6">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="font-pixel text-base sm:text-lg text-white">CHOOSE STORAGE</p>
+                                    <p className="mt-2 text-sm text-gray-400">
+                                        {isCheckingApi ? "Checking availability..." : "Choose where to upload this image"}
+                                    </p>
+                                </div>
+                                {selectedHost && (
+                                    <ActionButton
+                                        onClick={() => setShowHostChooserModal(false)}
+                                        variant="secondary"
+                                        className="w-9 h-9 p-0 border-white/15 hover:border-white/30 text-gray-400 hover:text-white flex items-center justify-center shrink-0"
+                                        title="Close"
+                                    >
+                                        <PixelClose size={12} color="currentColor" />
+                                    </ActionButton>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="px-5 py-5 sm:px-6 sm:py-6">
+                            {hostBanner && (
+                                <div className={`mb-5 rounded-2xl border px-4 py-3 ${hostBanner.type === "error" ? "border-red-500/30 bg-red-500/8" : hostBanner.type === "warning" ? "border-[#ff8f3d]/30 bg-[#ff8f3d]/8" : "border-sky-400/25 bg-sky-500/8"}`}>
+                                    <div className="flex items-start gap-3">
+                                        <div className="mt-0.5">
+                                            {hostBanner.type === "error"
+                                                ? <PixelClose size={16} color="#ff6b81" />
+                                                : hostBanner.type === "warning"
+                                                    ? <PixelWarning size={16} color="#ffb36b" />
+                                                    : <PixelInfo size={16} color="#7dd3fc" />}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-white">{hostBanner.title}</p>
+                                            <p className="mt-1 text-sm text-gray-400">{hostBanner.message}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {renderHostCard("supabase")}
+                                {renderHostCard("imgbb")}
+                            </div>
+
+                            {selectedHost && (
+                                <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/8 pt-4">
+                                    <p className="text-xs text-gray-500">
+                                        Current: <span className="text-gray-300">{HOSTS[selectedHost].name}</span>
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        Select a storage card to switch.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Background */}
             <div className="fixed inset-0 z-0">
                 <Image
@@ -2282,37 +2351,6 @@ export default function ImageFramePageClient() {
                         )}
 
                         <div className="space-y-8">
-                            {hostBanner && (
-                                <div className={`glass rounded-2xl p-4 border ${hostBanner.type === "error" ? "border-red-500/40 bg-red-500/10" : hostBanner.type === "warning" ? "border-[#ff8f3d]/40 bg-[#ff8f3d]/10" : "border-sky-400/30 bg-sky-500/10"}`}>
-                                    <div className="flex items-start gap-3">
-                                        <div className="mt-0.5">
-                                            {hostBanner.type === "error"
-                                                ? <PixelClose size={18} color="#ff6b81" />
-                                                : hostBanner.type === "warning"
-                                                    ? <PixelWarning size={18} color="#ffb36b" />
-                                                    : <PixelInfo size={18} color="#7dd3fc" />}
-                                        </div>
-                                        <div>
-                                            <p className="font-pixel text-sm text-white mb-1">{hostBanner.title}</p>
-                                            <p className="text-sm text-gray-300">{hostBanner.message}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="space-y-10 max-w-5xl mx-auto">
-                                <div className="text-center space-y-2">
-                                    <h2 className="font-pixel text-xl text-white">CHOOSE YOUR IMAGE HOSTING SERVICE</h2>
-                                    <p className="text-gray-500 text-sm">
-                                        {isCheckingApi ? "Checking storage availability..." : "Watermelon Storage is recommended. imgbb is a public fallback."}
-                                    </p>
-                                </div>
-                                <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                                    {renderHostCard("supabase")}
-                                    {renderHostCard("imgbb")}
-                                </div>
-                            </div>
-
                             {selectedHost ? (
                                 <div className="space-y-6">
                                     {!selectedHostIsAvailable && (
@@ -2321,20 +2359,6 @@ export default function ImageFramePageClient() {
                                             <p className="text-sm text-gray-300">
                                                 {hostStatuses[selectedHost].message || "This storage cannot accept uploads right now."}
                                             </p>
-                                        </div>
-                                    )}
-
-                                    {selectedHost === "imgbb" && (
-                                        <div className="glass rounded-xl p-4 border border-[#ff8f3d]/40 bg-[#ff8f3d]/10">
-                                            <div className="flex items-start gap-3">
-                                                <PixelWarning size={18} color="#ffb36b" />
-                                                <div>
-                                                    <p className="font-pixel text-sm text-[#ffb36b] mb-1">PUBLIC FALLBACK STORAGE</p>
-                                                    <p className="text-sm text-gray-300">
-                                                        imgbb uploads are public on a third-party host. Private uploads are only available on Watermelon Storage.
-                                                    </p>
-                                                </div>
-                                            </div>
                                         </div>
                                     )}
 
@@ -2476,14 +2500,14 @@ export default function ImageFramePageClient() {
 
                                                         <div className="mt-4 space-y-3">
                                                             {selectedHost === "imgbb" ? (
-                                                                <div className="glass p-3 rounded-xl border border-[#ff8f3d]/40 bg-[#ff8f3d]/10">
+                                                                <div className="glass p-3 rounded-xl border border-white/10">
                                                                     <div className="flex items-center gap-2 min-w-0">
-                                                                        <PixelWarning size={14} color="#ffb36b" />
+                                                                        <PixelGlobe size={14} color="#ff8f3d" />
                                                                         <span className="text-xs text-gray-300">Visibility:</span>
-                                                                        <span className="text-xs font-medium text-[#ffb36b]">Public Only</span>
+                                                                        <span className="text-xs font-medium text-white">Public</span>
                                                                     </div>
-                                                                    <p className="text-[11px] text-gray-400 mt-1.5">
-                                                                        Fallback uploads are public and stored on imgbb.
+                                                                    <p className="text-[11px] text-gray-500 mt-1.5">
+                                                                        Private uploads are not available on this host.
                                                                     </p>
                                                                 </div>
                                                             ) : (
