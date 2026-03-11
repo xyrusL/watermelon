@@ -20,7 +20,6 @@ import ActionButton from "../../components/ActionButton";
 export interface UploadedImage {
     url: string;
     directUrl: string;
-    deleteUrl?: string;
     thumbnail?: string;
     filename: string;
     uploadedAt: number;
@@ -153,6 +152,8 @@ export default function AdminPanel({
             if (data.success) {
                 const images: UploadedImage[] = data.images.map((img: {
                     url: string;
+                    directUrl?: string;
+                    thumbnail?: string;
                     file_path: string;
                     filename: string;
                     uploaded_at: string;
@@ -167,8 +168,8 @@ export default function AdminPanel({
                     user_deleted_by_email?: string | null;
                 }) => ({
                     url: img.url,
-                    directUrl: img.url,
-                    deleteUrl: img.file_path,
+                    directUrl: img.directUrl || img.url,
+                    thumbnail: img.thumbnail || img.directUrl || img.url,
                     filename: img.filename,
                     uploadedAt: new Date(img.uploaded_at).getTime(),
                     fileSize: img.file_size,
@@ -218,8 +219,6 @@ export default function AdminPanel({
         // Store images to delete for potential revert
         const imagesToDelete = adminImages.filter(img => selectedImages.has(img.id || img.uploadedAt.toString()));
         const imageIds = imagesToDelete.map(img => img.id);
-        const filePaths = imagesToDelete.map(img => img.deleteUrl).filter(Boolean);
-
         // Optimistic update - remove from local state immediately
         setAdminImages(prev => prev.filter(img => !selectedImages.has(img.id || img.uploadedAt.toString())));
         const deletedCount = selectedImages.size;
@@ -229,7 +228,7 @@ export default function AdminPanel({
             const response = await fetch('/api/admin/images', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageIds, filePaths }),
+                body: JSON.stringify({ imageIds }),
             });
 
             const data = await response.json();
@@ -362,7 +361,7 @@ export default function AdminPanel({
                                                 const response = await fetch('/api/admin/images', {
                                                     method: 'DELETE',
                                                     headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ imageIds: [imageToDelete.id], filePaths: [imageToDelete.deleteUrl].filter(Boolean) }),
+                                                    body: JSON.stringify({ imageIds: [imageToDelete.id] }),
                                                 });
                                                 const data = await response.json();
                                                 if (data.success) {

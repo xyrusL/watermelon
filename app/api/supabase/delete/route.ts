@@ -1,95 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { getStorageBucketName, getSupabaseAdmin, jsonError, requireAdminUser } from "@/app/api/_lib/security";
 
 export async function POST(request: NextRequest) {
     try {
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json(
-                { success: false, error: "Unauthorized" },
-                { status: 401 }
-            );
+        const adminCheck = await requireAdminUser();
+        if (!adminCheck.ok) return adminCheck.response;
+
+        const { imageId } = await request.json();
+        if (!imageId || typeof imageId !== "string") {
+            return jsonError("Invalid imageId", 400);
         }
 
-        const client = await clerkClient();
-        const currentUser = await client.users.getUser(userId);
-        const userEmail = currentUser.emailAddresses[0]?.emailAddress;
-        const isAdmin = currentUser.publicMetadata?.role === "admin";
+        const supabase = getSupabaseAdmin();
+        const bucket = getStorageBucketName();
 
-        if (!userEmail && !isAdmin) {
-            return NextResponse.json(
-                { success: false, error: "User email not found" },
-                { status: 400 }
-            );
-        }
-
-        if (!isAdmin) {
-            return NextResponse.json(
-                { success: false, error: "Forbidden - Admin access required for permanent delete" },
-                { status: 403 }
-            );
-        }
-
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-        if (!supabaseUrl || !supabaseKey) {
-            return NextResponse.json({
-                success: false,
-                error: "Supabase storage not configured"
-            }, { status: 500 });
-        }
-
-        const { deleteUrl } = await request.json();
-
-        if (!deleteUrl) {
-            return NextResponse.json({
-                success: false,
-                error: "No file path provided"
-            }, { status: 400 });
-        }
-
-        // Initialize Supabase client
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
-        // Verify record exists before deleting from storage
         const { data: imageRecord, error: fetchError } = await supabase
-            .from('images')
-            .select('uploader_email, file_path')
-            .eq('file_path', deleteUrl)
+            .from("images")
+            .select("id, file_path")
+            .eq("id", imageId)
             .single();
 
         if (fetchError || !imageRecord) {
-            return NextResponse.json(
-                { success: false, error: "Image not found" },
-                { status: 404 }
-            );
+            return jsonError("Image not found", 404);
         }
 
-        // Delete from Supabase Storage
-        const { error } = await supabase.storage
-            .from('watermelon-images')
-            .remove([deleteUrl]);
+        const { error: storageError } = await supabase.storage
+            .from(bucket)
+            .remove([imageRecord.file_path]);
 
-        if (error) {
-            console.error("Supabase delete error:", error);
-            return NextResponse.json({
-                success: false,
-                error: error.message || "Delete failed"
-            }, { status: 500 });
+        if (storageError) {
+            console.error("Supabase delete error:", storageError);
+            return jsonError(storageError.message || "Delete failed", 500);
+        }
+
+        const { error: dbError } = await supabase
+            .from("images")
+            .delete()
+            .eq("id", imageId);
+
+        if (dbError) {
+            console.error("Database delete error:", dbError);
+            return jsonError(dbError.message, 500);
         }
 
         return NextResponse.json({
             success: true,
-            message: "Image deleted successfully from Watermelon Storage"
+            message: "Image deleted successfully from Watermelon Storage",
         });
-
     } catch (error) {
         console.error("Delete error:", error);
-        return NextResponse.json({
-            success: false,
-            error: error instanceof Error ? error.message : "Delete failed"
-        }, { status: 500 });
+        return jsonError(
+            error instanceof Error ? error.message : "Delete failed",
+            500
+        );
     }
 }

@@ -139,17 +139,13 @@ export async function updateImageNsfw(
  * Deletes images (admin only for now)
  */
 export async function deleteImages(
-    imageIds: string[],
-    filePaths: (string | undefined)[]
+    imageIds: string[]
 ): Promise<UpdateResult> {
     try {
         const response = await fetch('/api/admin/images', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                imageIds,
-                filePaths: filePaths.filter(Boolean)
-            }),
+            body: JSON.stringify({ imageIds }),
         });
         return await response.json();
     } catch (err) {

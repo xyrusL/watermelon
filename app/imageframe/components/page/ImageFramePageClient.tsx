@@ -112,7 +112,7 @@ export default function ImageFramePageClient() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteSuccess, setDeleteSuccess] = useState(false);
-    const [selectedHost, setSelectedHost] = useState<HostType | null>(null);
+    const [selectedHost, setSelectedHost] = useState<HostType | null>("supabase");
     const [username, setUsername] = useState<string>("");
     const [isEditingUsername, setIsEditingUsername] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -153,7 +153,7 @@ export default function ImageFramePageClient() {
     const [croppedPreview, setCroppedPreview] = useState<string | null>(null);
 
     // Visibility state
-    const [isPrivate, setIsPrivate] = useState(false); // Default is public
+    const [isPrivate, setIsPrivate] = useState(true); // Default is private
     const [isNsfw, setIsNsfw] = useState(false); // Default is not NSFW
     const [revealedNsfwImages, setRevealedNsfwImages] = useState<Set<number>>(new Set()); // Track temporarily revealed NSFW images
     const [isUrlMode, setIsUrlMode] = useState(false);
@@ -655,8 +655,6 @@ export default function ImageFramePageClient() {
                         : autoFaceFrameSize
                             ? 'face-auto'
                             : '',
-                    'x-uploader-name': username || 'Anonymous',
-                    'x-uploader-email': user?.primaryEmailAddress?.emailAddress || '',
                     'x-is-private': isPrivate.toString(),
                     'x-is-nsfw': isNsfw.toString(),
                     'x-frame-width': (lastEditedFrameSize || autoFaceFrameSize)
@@ -737,7 +735,7 @@ export default function ImageFramePageClient() {
                         "warning",
                         "Hosting Limit Reached",
                         `${hostConfig.name} has reached its upload limit`,
-                        `Try switching to ${selectedHost === "imgbb" ? "Watermelon Storage" : "imgbb"} or try again later.`
+                        "Try again in a minute or contact the server admin if it keeps happening."
                     );
                 } else if (/api|key|token/i.test(apiError)) {
                     showNotification(
@@ -810,10 +808,10 @@ export default function ImageFramePageClient() {
             await new Promise((resolve) => window.setTimeout(resolve, 700));
 
             const newImage: UploadedImage = {
+                id: typeof data.id === "string" ? data.id : undefined,
                 url: typeof data.url === "string" ? data.url : directUrl,
                 directUrl,
-                deleteUrl: typeof data.deleteUrl === "string" ? data.deleteUrl : undefined,
-                thumbnail: typeof data.thumbnail === "string" ? data.thumbnail : undefined,
+                thumbnail: typeof data.thumbnail === "string" ? data.thumbnail : directUrl,
                 filename: typeof data.filename === "string" ? data.filename : selectedFile.name,
                 uploadedAt: Date.now(),
                 fileSize: uploadedFileSize,
@@ -1066,7 +1064,7 @@ export default function ImageFramePageClient() {
     };
 
     const changeHost = () => {
-        setSelectedHost(null);
+        setSelectedHost("supabase");
         // Reset upload state
         setSelectedFile(null);
         setPreview(null);
@@ -1089,39 +1087,24 @@ export default function ImageFramePageClient() {
         setIsDeleting(true);
 
         try {
-            const host = selectedGalleryImage.host || "supabase";
-
-            // Delete from storage
-            if (selectedGalleryImage.deleteUrl) {
-                const deleteEndpoint = HOSTS[host].deleteEndpoint;
-                const response = await fetch(deleteEndpoint, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ deleteUrl: selectedGalleryImage.deleteUrl }),
-                });
-
-                if (!response.ok) {
-                    console.error("Failed to delete from storage");
-                }
+            if (!selectedGalleryImage.id) {
+                throw new Error("Image ID is missing");
             }
 
-            // Delete from database if it's a supabase image
-            if (host === "supabase") {
-                try {
-                    await fetch('/api/supabase/delete-record', {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            url: selectedGalleryImage.directUrl,
-                            file_path: selectedGalleryImage.deleteUrl
-                        }),
-                    });
-                } catch (dbErr) {
-                    console.error("Failed to delete from database:", dbErr);
-                }
+            const response = await fetch("/api/user/soft-delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ imageId: selectedGalleryImage.id }),
+            });
+            const data = await response.json().catch(() => null);
+            if (!response.ok || !data?.success) {
+                throw new Error(data?.error || "Failed to delete image");
             }
         } catch (err) {
             console.error("Failed to delete:", err);
+            showNotification("error", "Delete Failed", err instanceof Error ? err.message : "Failed to delete image");
+            setIsDeleting(false);
+            return;
         }
 
         // Remove from local gallery
@@ -1219,12 +1202,11 @@ export default function ImageFramePageClient() {
                 selectedImages.has(img.id || img.uploadedAt.toString())
             );
             const imageIds = imagesToDelete.map((img: UploadedImage & { id?: string }) => img.id);
-            const filePaths = imagesToDelete.map(img => img.deleteUrl).filter(Boolean);
 
             const response = await fetch('/api/admin/images', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageIds, filePaths }),
+                body: JSON.stringify({ imageIds }),
             });
 
             const data = await response.json();
@@ -1614,7 +1596,6 @@ export default function ImageFramePageClient() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 imageIds: [adminSelectedImage.id],
-                                filePaths: [adminSelectedImage.deleteUrl].filter(Boolean)
                             }),
                         });
                         const data = await response.json();

@@ -1,10 +1,10 @@
 # Supabase Storage Setup Guide
 
 ## What is Supabase?
-Supabase provides FREE cloud storage for your images with:
+Supabase provides cloud storage for your images with:
 - ✅ **1 GB FREE storage**
 - ✅ **Full privacy control** - YOU own the data
-- ✅ **Direct raw URLs** - Perfect for Minecraft ImageFrame
+- ✅ **Private-by-default access** - Safer for user uploads
 - ✅ **Fast CDN delivery**
 
 ## Setup Steps (5 minutes)
@@ -26,21 +26,21 @@ Supabase provides FREE cloud storage for your images with:
 1. In Supabase dashboard, click "Storage" in left menu
 2. Click "New bucket"
 3. Name it: `watermelon-images`
-4. **IMPORTANT:** Make it **PUBLIC** (toggle the switch)
+4. **IMPORTANT:** Make it **PRIVATE** (leave public access off)
 5. Click "Create bucket"
 
-### 4. Set Up Policies (Allow public uploads)
+### 4. Set Up Policies
 1. Click on your `watermelon-images` bucket
 2. Click "Policies" tab
 3. Click "New Policy"
 4. Select "For full customization" 
 5. Add this policy:
 
-**Policy name:** Public Upload and Read
-**Allowed operations:** SELECT, INSERT, DELETE
+**Policy name:** No public bucket access
+**Allowed operations:** SELECT, INSERT, UPDATE, DELETE
 **Policy definition:**
 ```sql
-true
+false
 ```
 6. Click "Review" then "Save policy"
 
@@ -62,6 +62,7 @@ With your actual values:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ...
+SUPABASE_STORAGE_BUCKET=watermelon-images
 ```
 
 ### 7. Create Database Table for Image Tracking
@@ -74,34 +75,27 @@ CREATE TABLE images (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   file_path TEXT NOT NULL,
   filename TEXT NOT NULL,
-  url TEXT NOT NULL,
+  url TEXT,
   file_size INTEGER,
   uploader_name TEXT,
   uploader_email TEXT,
   host TEXT DEFAULT 'supabase',
+  is_private BOOLEAN DEFAULT true,
+  is_nsfw BOOLEAN DEFAULT false,
+  image_width INTEGER,
+  image_height INTEGER,
+  frame_width INTEGER,
+  frame_height INTEGER,
+  user_deleted_at TIMESTAMPTZ,
+  user_deleted_by_email TEXT,
   uploaded_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Enable Row Level Security
 ALTER TABLE images ENABLE ROW LEVEL SECURITY;
 
--- Create policy to allow public read
-CREATE POLICY "Allow public read access"
-ON images FOR SELECT
-TO public
-USING (true);
-
--- Create policy to allow authenticated inserts
-CREATE POLICY "Allow authenticated inserts"
-ON images FOR INSERT
-TO public
-WITH CHECK (true);
-
--- Create policy to allow deletes
-CREATE POLICY "Allow deletes"
-ON images FOR DELETE
-TO public
-USING (true);
+-- The app uses the service role server-side for reads and writes.
+-- Do not add broad public table policies unless you intend to expose the table.
 ```
 
 4. Click "Run" to create the table
@@ -111,15 +105,15 @@ USING (true);
 2. Go to ImageFrame page
 3. Select "Watermelon Storage" (recommended badge)
 4. Upload a test image
-5. Copy the URL - it will be a direct link like:
-   `https://xxxxx.supabase.co/storage/v1/object/public/watermelon-images/imageframe/123456-abc.jpg`
+5. Copy the URL - it will be a Watermelon route like:
+   `https://your-domain/api/images/<image-id>`
 
 ## How It Works
 
 1. **User uploads image** → Your site
-2. **Image stored in** → Supabase Storage bucket
-3. **Returns direct URL** → Public CDN link
-4. **Use in Minecraft** → `/imageframe create <url> <width> <height>`
+2. **Image stored in** → Private Supabase Storage bucket
+3. **Returns image route** → Watermelon access-controlled URL
+4. **Use in Minecraft** → Make the image public first, then use `/imageframe create <url> <width> <height>`
 
 ## Benefits Over Other Hosts
 
@@ -138,12 +132,12 @@ USING (true);
 - Restart the dev server after changing `.env.local`
 
 **Error: "Upload failed"**
-- Check if bucket is PUBLIC
-- Verify storage policies allow INSERT
+- Check if bucket exists and the service role key is correct
+- Verify the app can write to the bucket with server-side credentials
 
 **Error: "403 Forbidden"**
-- Bucket must be public
-- Check RLS policies
+- Verify the requesting user is signed in
+- Check that image ownership and admin permissions are correct
 
 ## Free Tier Limits
 - **1 GB storage** (about 1,000 images)

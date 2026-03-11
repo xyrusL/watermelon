@@ -2,7 +2,6 @@
 export interface UploadedImage {
     url: string;
     directUrl: string;
-    deleteUrl?: string;
     thumbnail?: string;
     filename: string;
     uploadedAt: number;
@@ -32,6 +31,7 @@ export interface HostConfig {
     deleteEndpoint: string;
     healthEndpoint: string;
     description?: string;
+    disabled?: boolean;
 }
 
 export interface NotificationState {

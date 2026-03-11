@@ -1,87 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { getSupabaseAdmin, jsonError, requireAdminUser } from "@/app/api/_lib/security";
 
-async function requireAdmin() {
-    const { userId } = await auth();
-    if (!userId) {
-        return {
-            ok: false,
-            response: NextResponse.json(
-                { success: false, error: "Unauthorized" },
-                { status: 401 }
-            ),
-        };
-    }
-
-    const client = await clerkClient();
-    const currentUser = await client.users.getUser(userId);
-
-    if (currentUser.publicMetadata?.role !== "admin") {
-        return {
-            ok: false,
-            response: NextResponse.json(
-                { success: false, error: "Forbidden - Admin access required" },
-                { status: 403 }
-            ),
-        };
-    }
-
-    return { ok: true as const };
-}
-
-// POST: Admin update image visibility (public/private)
 export async function POST(request: NextRequest) {
     try {
-        const adminCheck = await requireAdmin();
+        const adminCheck = await requireAdminUser();
         if (!adminCheck.ok) return adminCheck.response;
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-        if (!supabaseUrl || !supabaseKey) {
-            return NextResponse.json({
-                success: false,
-                error: "Supabase not configured"
-            }, { status: 500 });
+        const { imageId, isPrivate } = await request.json();
+        if (!imageId || typeof isPrivate !== "boolean") {
+            return jsonError("Invalid parameters", 400);
         }
 
-        const body = await request.json();
-        const { imageId, isPrivate } = body;
-
-        if (!imageId || typeof isPrivate !== 'boolean') {
-            return NextResponse.json({
-                success: false,
-                error: "Invalid parameters"
-            }, { status: 400 });
-        }
-
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
-        // Update visibility directly without ownership check (Admin override)
+        const supabase = getSupabaseAdmin();
         const { error: updateError } = await supabase
-            .from('images')
+            .from("images")
             .update({ is_private: isPrivate })
-            .eq('id', imageId);
+            .eq("id", imageId);
 
         if (updateError) {
             console.error("Admin visibility update error:", updateError);
-            return NextResponse.json({
-                success: false,
-                error: updateError.message
-            }, { status: 500 });
+            return jsonError(updateError.message, 500);
         }
 
         return NextResponse.json({
             success: true,
-            message: `Admin: Image is now ${isPrivate ? 'private' : 'public'}`
+            message: `Admin: Image is now ${isPrivate ? "private" : "public"}`,
         });
-
     } catch (error) {
         console.error("Admin Error:", error);
-        return NextResponse.json({
-            success: false,
-            error: error instanceof Error ? error.message : "Failed to update visibility"
-        }, { status: 500 });
+        return jsonError(
+            error instanceof Error ? error.message : "Failed to update visibility",
+            500
+        );
     }
 }

@@ -14,9 +14,12 @@ All URLs and paths in the codebase are flexible and will work on Vercel:
 You MUST add these in Vercel Dashboard → Settings → Environment Variables:
 
 ```
-IMGBB_API_KEY=4f4dbe1b41eb52c517833a6e1913183b
-FREEIMAGE_API_KEY=6d207e02198a847aa98d0a2a901485a5
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+SUPABASE_STORAGE_BUCKET=watermelon-images
 ```
+
+Do not commit real API keys or service-role secrets to this repository. If any previously committed key was real, rotate it immediately.
 
 ## Deployment Steps
 
@@ -34,7 +37,7 @@ FREEIMAGE_API_KEY=6d207e02198a847aa98d0a2a901485a5
 
 ## What Works Automatically
 
-- ✅ Image uploads (imgbb & freeimage)
+- ✅ Authenticated image uploads (Watermelon Storage)
 - ✅ Image cropping and editing
 - ✅ Gallery storage (localStorage)
 - ✅ Version fetching from Mojang API
@@ -45,8 +48,7 @@ FREEIMAGE_API_KEY=6d207e02198a847aa98d0a2a901485a5
 
 1. Visit homepage - check if it loads
 2. Try uploading an image via ImageFrame page
-3. Test commands page
-4. Test mods page
-5. Check if Minecraft version auto-updates
-
-**Everything is flexible and ready! Just add the environment variables and deploy! 🚀**
+3. Confirm private images load only for the uploader
+4. Test commands page
+5. Test mods page
+6. Check if Minecraft version auto-updates

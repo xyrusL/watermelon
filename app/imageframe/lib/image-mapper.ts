@@ -7,6 +7,8 @@ import { UploadedImage, HostType } from "../types";
 export interface DbImage {
     id: string;
     url: string;
+    directUrl?: string;
+    thumbnail?: string;
     file_path: string;
     filename: string;
     uploaded_at: string;
@@ -30,11 +32,12 @@ export interface DbImage {
  * Adding new fields? Add them here once, works everywhere.
  */
 export function mapDbImageToUploadedImage(img: DbImage): UploadedImage & { id: string } {
+    const directUrl = img.directUrl || img.url;
     return {
         id: img.id,
         url: img.url,
-        directUrl: img.url,
-        deleteUrl: img.file_path,
+        directUrl,
+        thumbnail: img.thumbnail || directUrl,
         filename: img.filename,
         uploadedAt: new Date(img.uploaded_at).getTime(),
         fileSize: img.file_size,

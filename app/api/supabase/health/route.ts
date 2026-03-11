@@ -8,7 +8,7 @@ export async function GET() {
         if (!supabaseUrl || !supabaseKey) {
             return NextResponse.json({
                 status: "error",
-                message: "Supabase not configured. Please add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env.local"
+                message: "Supabase not configured. Please add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to the environment."
             });
         }
 

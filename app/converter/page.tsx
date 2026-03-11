@@ -199,15 +199,8 @@ export default function ConverterPage() {
         return 21;
     };
 
-    const getUploaderHeaders = () => {
-        const uploaderEmail = user?.primaryEmailAddress?.emailAddress || "";
-        const displayName = user?.unsafeMetadata?.displayName as string | undefined;
-        const fallbackName = uploaderEmail.split("@")[0] || "Anonymous";
-        const uploaderName = (displayName && displayName.trim()) || fallbackName;
-
+    const getUploadHeaders = () => {
         return {
-            "x-uploader-name": uploaderName,
-            "x-uploader-email": uploaderEmail,
             "x-is-private": "false",
             "x-is-nsfw": "false",
         } as const;
@@ -520,7 +513,7 @@ export default function ConverterPage() {
             const response = await fetch("/api/supabase/upload", {
                 method: "POST",
                 body: formData,
-                headers: getUploaderHeaders(),
+                headers: getUploadHeaders(),
             });
 
             const data = await response.json();
@@ -684,7 +677,7 @@ export default function ConverterPage() {
             const response = await fetch("/api/supabase/upload", {
                 method: "POST",
                 body: formData,
-                headers: getUploaderHeaders(),
+                headers: getUploadHeaders(),
             });
 
             const data = await response.json();

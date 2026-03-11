@@ -320,7 +320,7 @@ export default function ImageDetailsModal({
                             <div className="text-center py-4">
                                 <div className="flex justify-center mb-4"><PixelCheck size={48} color="#2ed573" /></div>
                                 <p className="text-[#2ed573] font-medium">Removed from Gallery!</p>
-                                <p className="text-xs text-gray-500 mt-2">Note: Image may still exist on imgbb (free account limitation)</p>
+                                <p className="text-xs text-gray-500 mt-2">The image is no longer shown in your gallery.</p>
                             </div>
                         ) : (
                             <div className="space-y-3">

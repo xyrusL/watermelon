@@ -1,75 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { auth } from "@clerk/nextjs/server";
+import { DbImageRecord, serializeImageRecord } from "@/app/api/_lib/images";
+import { getSupabaseAdmin, requireAuthenticatedUser } from "@/app/api/_lib/security";
 
-// GET: Fetch user's own images
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
-        const { userId } = await auth();
-        
-        if (!userId) {
-            return NextResponse.json({
-                success: false,
-                error: "Unauthorized"
-            }, { status: 401 });
-        }
+        const authResult = await requireAuthenticatedUser();
+        if (!authResult.ok) return authResult.response;
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-        if (!supabaseUrl || !supabaseKey) {
-            return NextResponse.json({
-                success: false,
-                error: "Supabase not configured"
-            }, { status: 500 });
-        }
-
-        // Get user's email from Clerk
-        const { clerkClient } = await import("@clerk/nextjs/server");
-        const client = await clerkClient();
-        const user = await client.users.getUser(userId);
-        const userEmail = user.emailAddresses[0]?.emailAddress;
-
-        if (!userEmail) {
-            return NextResponse.json({
-                success: false,
-                error: "User email not found"
-            }, { status: 400 });
-        }
-
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
-        // Fetch user's active images (both public and private, excluding soft-deleted)
+        const supabase = getSupabaseAdmin();
         const { data: images, error } = await supabase
-            .from('images')
-            .select('*')
-            .eq('uploader_email', userEmail)
-            .is('user_deleted_at', null)
-            .order('uploaded_at', { ascending: false });
+            .from("images")
+            .select("*")
+            .eq("uploader_email", authResult.user.email)
+            .is("user_deleted_at", null)
+            .order("uploaded_at", { ascending: false });
 
         if (error) {
             console.error("Fetch error:", error);
-            return NextResponse.json({
-                success: false,
-                error: error.message
-            }, { status: 500 });
+            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
+
+        const serialized = (images as DbImageRecord[] | null)?.map(serializeImageRecord) || [];
 
         return NextResponse.json({
             success: true,
-            images: images || [],
+            images: serialized,
             stats: {
-                totalImages: images?.length || 0,
-                publicImages: images?.filter(img => !img.is_private).length || 0,
-                privateImages: images?.filter(img => img.is_private).length || 0
-            }
+                totalImages: serialized.length,
+                publicImages: serialized.filter((img) => img.is_private !== true).length,
+                privateImages: serialized.filter((img) => img.is_private === true).length,
+            },
         });
-
     } catch (error) {
         console.error("Error:", error);
-        return NextResponse.json({
-            success: false,
-            error: error instanceof Error ? error.message : "Failed to fetch images"
-        }, { status: 500 });
+        return NextResponse.json(
+            {
+                success: false,
+                error: error instanceof Error ? error.message : "Failed to fetch images",
+            },
+            { status: 500 }
+        );
     }
 }

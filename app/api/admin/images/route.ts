@@ -1,148 +1,113 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { DbImageRecord, serializeImageRecord } from "@/app/api/_lib/images";
+import { enforceRateLimit, getStorageBucketName, getSupabaseAdmin, jsonError, requireAdminUser } from "@/app/api/_lib/security";
 
-async function requireAdmin() {
-    const { userId } = await auth();
-    if (!userId) {
-        return {
-            ok: false,
-            response: NextResponse.json(
-                { success: false, error: "Unauthorized" },
-                { status: 401 }
-            ),
-        };
-    }
-
-    const client = await clerkClient();
-    const currentUser = await client.users.getUser(userId);
-
-    if (currentUser.publicMetadata?.role !== "admin") {
-        return {
-            ok: false,
-            response: NextResponse.json(
-                { success: false, error: "Forbidden - Admin access required" },
-                { status: 403 }
-            ),
-        };
-    }
-
-    return { ok: true as const };
-}
-
-// GET: Fetch all images (admin only)
 export async function GET(request: NextRequest) {
     try {
-        const adminCheck = await requireAdmin();
+        const adminCheck = await requireAdminUser();
         if (!adminCheck.ok) return adminCheck.response;
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const rateLimit = enforceRateLimit(request, {
+            key: "admin-images",
+            limit: 60,
+            windowMs: 60 * 1000,
+        });
+        if (!rateLimit.ok) return rateLimit.response;
 
-        if (!supabaseUrl || !supabaseKey) {
-            return NextResponse.json({
-                success: false,
-                error: "Supabase not configured"
-            }, { status: 500 });
-        }
-
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
-        // Fetch all images from the images table
+        const supabase = getSupabaseAdmin();
         const { data: images, error } = await supabase
-            .from('images')
-            .select('*')
-            .order('uploaded_at', { ascending: false });
+            .from("images")
+            .select("*")
+            .order("uploaded_at", { ascending: false });
 
         if (error) {
             console.error("Fetch error:", error);
-            return NextResponse.json({
-                success: false,
-                error: error.message
-            }, { status: 500 });
+            return jsonError(error.message, 500);
         }
+
+        const serialized = (images as DbImageRecord[] | null)?.map(serializeImageRecord) || [];
 
         return NextResponse.json({
             success: true,
-            images: images || [],
+            images: serialized,
             stats: {
-                totalImages: images?.length || 0,
-                softDeletedImages: images?.filter(img => !!img.user_deleted_at).length || 0,
-            }
+                totalImages: serialized.length,
+                softDeletedImages: serialized.filter((img) => !!img.user_deleted_at).length,
+            },
         });
-
     } catch (error) {
         console.error("Error:", error);
-        return NextResponse.json({
-            success: false,
-            error: error instanceof Error ? error.message : "Failed to fetch images"
-        }, { status: 500 });
+        return jsonError(
+            error instanceof Error ? error.message : "Failed to fetch images",
+            500
+        );
     }
 }
 
-// DELETE: Bulk delete images (admin only)
 export async function DELETE(request: NextRequest) {
     try {
-        const adminCheck = await requireAdmin();
+        const adminCheck = await requireAdminUser();
         if (!adminCheck.ok) return adminCheck.response;
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-        if (!supabaseUrl || !supabaseKey) {
-            return NextResponse.json({
-                success: false,
-                error: "Supabase not configured"
-            }, { status: 500 });
-        }
+        const rateLimit = enforceRateLimit(request, {
+            key: "admin-delete-images",
+            limit: 20,
+            windowMs: 60 * 1000,
+        });
+        if (!rateLimit.ok) return rateLimit.response;
 
         const body = await request.json();
-        const { imageIds, filePaths } = body;
+        const imageIds = Array.isArray(body.imageIds)
+            ? body.imageIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0)
+            : [];
 
-        if (!imageIds || !Array.isArray(imageIds) || imageIds.length === 0) {
-            return NextResponse.json({
-                success: false,
-                error: "No image IDs provided"
-            }, { status: 400 });
+        if (imageIds.length === 0) {
+            return jsonError("No image IDs provided", 400);
         }
 
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabase = getSupabaseAdmin();
+        const bucket = getStorageBucketName();
+        const { data: images, error: fetchError } = await supabase
+            .from("images")
+            .select("id, file_path")
+            .in("id", imageIds);
 
-        // Delete from storage
-        if (filePaths && filePaths.length > 0) {
+        if (fetchError) {
+            return jsonError(fetchError.message, 500);
+        }
+
+        const filePaths = (images || [])
+            .map((image) => image.file_path)
+            .filter((path): path is string => typeof path === "string" && path.length > 0);
+
+        if (filePaths.length > 0) {
             const { error: storageError } = await supabase.storage
-                .from('watermelon-images')
+                .from(bucket)
                 .remove(filePaths);
-
             if (storageError) {
                 console.warn("Storage delete error:", storageError);
             }
         }
 
-        // Delete from database
         const { error: dbError } = await supabase
-            .from('images')
+            .from("images")
             .delete()
-            .in('id', imageIds);
+            .in("id", imageIds);
 
         if (dbError) {
             console.error("Database delete error:", dbError);
-            return NextResponse.json({
-                success: false,
-                error: dbError.message
-            }, { status: 500 });
+            return jsonError(dbError.message, 500);
         }
 
         return NextResponse.json({
             success: true,
-            message: `Deleted ${imageIds.length} image(s)`
+            message: `Deleted ${imageIds.length} image(s)`,
         });
-
     } catch (error) {
         console.error("Delete error:", error);
-        return NextResponse.json({
-            success: false,
-            error: error instanceof Error ? error.message : "Failed to delete images"
-        }, { status: 500 });
+        return jsonError(
+            error instanceof Error ? error.message : "Failed to delete images",
+            500
+        );
     }
 }
