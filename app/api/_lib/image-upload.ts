@@ -55,6 +55,14 @@ export type ValidatedUpload = {
     isGif: boolean;
 };
 
+const toNodeBuffer = (value: ArrayBuffer | Uint8Array | Buffer): Buffer => {
+    if (value instanceof ArrayBuffer) {
+        return Buffer.from(new Uint8Array(value)) as Buffer;
+    }
+
+    return Buffer.from(value) as Buffer;
+};
+
 const getExtension = (fileName: string) =>
     fileName.split(".").pop()?.toLowerCase() || "";
 
@@ -121,7 +129,7 @@ const optimizeAnimatedGif = async (
     const loop = metadata.loop;
     const delay = metadata.delay;
 
-    let bestBuffer = inputBuffer;
+    let bestBuffer: Buffer = inputBuffer;
 
     for (const profile of GIF_OPTIMIZATION_PROFILES) {
         const pipeline = sharp(inputBuffer, { animated: true });
@@ -136,7 +144,7 @@ const optimizeAnimatedGif = async (
             }
         }
 
-        const candidate = await pipeline
+        const candidate: Buffer = toNodeBuffer(await pipeline
             .gif({
                 reuse: true,
                 progressive: false,
@@ -148,7 +156,7 @@ const optimizeAnimatedGif = async (
                 loop,
                 delay,
             })
-            .toBuffer();
+            .toBuffer());
 
         if (candidate.length <= maxOutputSizeBytes) {
             return candidate.length < inputBuffer.length ? candidate : inputBuffer;
@@ -186,7 +194,8 @@ export async function validateAndNormalizeImageUpload(
         throw new Error("Unsupported content type");
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const sourceArrayBuffer = await file.arrayBuffer();
+    const buffer: Buffer = toNodeBuffer(new Uint8Array(sourceArrayBuffer));
     const signatureMime = detectFileSignature(buffer);
 
     if (!signatureMime || !ALLOWED_IMAGE_MIME_TYPES.has(signatureMime)) {
@@ -226,7 +235,7 @@ export async function validateAndNormalizeImageUpload(
         throw new Error(`Animated GIF exceeds ${MAX_GIF_FRAMES} frames`);
     }
 
-    let normalizedBuffer = buffer;
+    let normalizedBuffer: Buffer = buffer;
 
     if (isGif) {
         normalizedBuffer = await optimizeAnimatedGif(buffer, MAX_OUTPUT_SIZE_BYTES);
@@ -237,11 +246,17 @@ export async function validateAndNormalizeImageUpload(
         });
 
         if (signatureMime === "image/jpeg") {
-            normalizedBuffer = await pipeline.jpeg({ quality: 85, progressive: true, mozjpeg: true }).toBuffer();
+            normalizedBuffer = toNodeBuffer(
+                await pipeline.jpeg({ quality: 85, progressive: true, mozjpeg: true }).toBuffer()
+            );
         } else if (signatureMime === "image/png") {
-            normalizedBuffer = await pipeline.png({ compressionLevel: 9, progressive: true }).toBuffer();
+            normalizedBuffer = toNodeBuffer(
+                await pipeline.png({ compressionLevel: 9, progressive: true }).toBuffer()
+            );
         } else {
-            normalizedBuffer = await pipeline.webp({ quality: 85 }).toBuffer();
+            normalizedBuffer = toNodeBuffer(
+                await pipeline.webp({ quality: 85 }).toBuffer()
+            );
         }
     }
 
