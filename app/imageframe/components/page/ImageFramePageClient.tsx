@@ -215,11 +215,23 @@ export default function ImageFramePageClient() {
 
     // formatDate and formatFileSize now imported from ./utils
 
-    const notifyGalleryApiError = (message: string, details?: string) => {
+    // Background gallery polling should stay non-blocking; the chooser handles storage availability.
+    const recordGalleryApiError = (message: string, details?: string) => {
         const dedupeKey = `${message}::${details || ""}`;
         if (lastGalleryApiErrorRef.current === dedupeKey) return;
         lastGalleryApiErrorRef.current = dedupeKey;
-        showNotification("error", "Gallery API Error", message, details);
+        console.warn("[ImageFrame] Gallery API unavailable", { message, details });
+    };
+
+    const restoreGalleryFromCache = () => {
+        try {
+            const saved = localStorage.getItem("watermelon-gallery");
+            if (!saved) return;
+            const cachedGallery = JSON.parse(saved);
+            setGallery((currentGallery) => (currentGallery.length > 0 ? currentGallery : cachedGallery));
+        } catch (cacheError) {
+            console.warn("[ImageFrame] Failed to restore cached gallery", cacheError);
+        }
     };
 
     const isHostAvailable = (host: HostType) => hostStatuses[host].status === "available";
@@ -363,7 +375,8 @@ export default function ImageFramePageClient() {
             if (!response.ok) {
                 const statusMessage = `Request failed with status ${response.status}`;
                 const apiMessage = data?.error || data?.message || statusMessage;
-                notifyGalleryApiError(apiMessage, "Endpoint: /api/supabase/recent");
+                recordGalleryApiError(apiMessage, "Endpoint: /api/supabase/recent");
+                restoreGalleryFromCache();
                 return;
             }
 
@@ -376,10 +389,11 @@ export default function ImageFramePageClient() {
                     imageCount: images.length,
                 });
             } else if (data && !data.success) {
-                notifyGalleryApiError(
+                recordGalleryApiError(
                     data.error || "Gallery API returned an error",
                     "Endpoint: /api/supabase/recent"
                 );
+                restoreGalleryFromCache();
             }
         } catch (err) {
             console.warn('Failed to fetch recent images:', err);
@@ -387,15 +401,11 @@ export default function ImageFramePageClient() {
                 requestId,
                 error: err instanceof Error ? err.message : "unknown_error",
             });
-            notifyGalleryApiError(
+            recordGalleryApiError(
                 err instanceof Error ? err.message : "Network error while fetching gallery",
                 "Endpoint: /api/supabase/recent"
             );
-            // Fallback to localStorage
-            const saved = localStorage.getItem("watermelon-gallery");
-            if (saved) {
-                setGallery(JSON.parse(saved));
-            }
+            restoreGalleryFromCache();
         } finally {
             isGalleryFetchInFlightRef.current = false;
         }
@@ -1474,7 +1484,7 @@ export default function ImageFramePageClient() {
         ? {
             type: "error" as const,
             title: "All Upload Storage Is Down",
-            message: "Uploads are temporarily unavailable. Please try again later.",
+            message: "Watermelon Storage and imgbb are both unavailable right now. Please try again later.",
         }
         : hostStatuses.supabase.status === "down" && hostStatuses.imgbb.status === "available"
             ? {
@@ -1507,12 +1517,14 @@ export default function ImageFramePageClient() {
             : "border-[#ff8f3d]/30 text-[#ffb36b] bg-[#ff8f3d]/8";
         const cardClass = isAvailable
             ? "border-white/12 bg-[#12161d] hover:border-white/22 hover:-translate-y-0.5"
-            : "border-white/8 bg-[#101319] opacity-65 cursor-not-allowed";
+            : "border-white/8 bg-[#101319] opacity-60 grayscale cursor-not-allowed";
         const selectedClass = isSelected && isAvailable
             ? isWatermelon
                 ? "border-[#2ed573]/45 shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
                 : "border-[#ff8f3d]/45 shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
-            : "";
+            : isSelected
+                ? "border-white/18"
+                : "";
         const iconWrapClass = isWatermelon ? "border-[#2ed573]/25 bg-[#2ed573]/10" : "border-[#ff8f3d]/25 bg-[#ff8f3d]/10";
         const availabilityLine = isChecking
             ? "Checking availability"
@@ -1526,6 +1538,8 @@ export default function ImageFramePageClient() {
                 type="button"
                 onClick={() => selectHost(host)}
                 disabled={!isAvailable}
+                aria-disabled={!isAvailable}
+                title={isAvailable ? `Use ${title}` : `${title} is unavailable`}
                 className={`relative text-left rounded-[28px] p-6 md:p-7 min-h-[280px] flex flex-col transition-all duration-200 border ${cardClass} ${selectedClass}`}
             >
                 <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.04),transparent_55%)]" />
@@ -2123,7 +2137,7 @@ export default function ImageFramePageClient() {
                                         {isCheckingApi ? "Checking availability..." : "Choose where to upload this image"}
                                     </p>
                                 </div>
-                                {selectedHost && (
+                                {selectedHost && selectedHostIsAvailable && (
                                     <ActionButton
                                         onClick={() => setShowHostChooserModal(false)}
                                         variant="secondary"
@@ -2160,13 +2174,17 @@ export default function ImageFramePageClient() {
                                 {renderHostCard("imgbb")}
                             </div>
 
-                            {selectedHost && (
+                            {(selectedHost || bothHostsDown) && (
                                 <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/8 pt-4">
                                     <p className="text-xs text-gray-500">
-                                        Current: <span className="text-gray-300">{HOSTS[selectedHost].name}</span>
+                                        {selectedHost
+                                            ? <>Current: <span className="text-gray-300">{HOSTS[selectedHost].name}</span></>
+                                            : "No storage provider is online right now."}
                                     </p>
                                     <p className="text-xs text-gray-500">
-                                        Select a storage card to switch.
+                                        {bothHostsDown
+                                            ? "Uploads are paused until a provider recovers."
+                                            : "Select a storage card to switch."}
                                     </p>
                                 </div>
                             )}
