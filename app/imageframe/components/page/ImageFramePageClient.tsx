@@ -2306,9 +2306,9 @@ export default function ImageFramePageClient() {
             )}
 
             {showHostChooserModal && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:items-center sm:p-4 bg-black/80 backdrop-blur-md">
-                    <div className="w-full max-w-4xl rounded-[26px] sm:rounded-[30px] border border-white/12 bg-[#0f1319] shadow-[0_24px_80px_rgba(0,0,0,0.55)] max-h-[calc(100vh-1.5rem)] sm:max-h-[90vh] overflow-y-auto overscroll-contain">
-                        <div className="border-b border-white/8 px-4 py-4 sm:px-6">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-md sm:items-center sm:p-4">
+                    <div className="motion-host-chooser-panel w-full max-w-4xl rounded-t-[26px] border border-white/12 border-b-0 bg-[#0f1319] shadow-[0_24px_80px_rgba(0,0,0,0.55)] max-h-[90dvh] overflow-hidden sm:rounded-[30px] sm:border-b flex flex-col">
+                        <div className="shrink-0 border-b border-white/8 px-4 py-4 sm:px-6">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <p className="font-pixel text-base sm:text-lg text-white">CHOOSE STORAGE</p>
@@ -2329,7 +2329,7 @@ export default function ImageFramePageClient() {
                             </div>
                         </div>
 
-                        <div className="px-4 py-4 sm:px-6 sm:py-6">
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-6 [scrollbar-gutter:stable] [WebkitOverflowScrolling:touch]">
                             {hostBanner && (
                                 <div className={`mb-4 rounded-2xl border px-4 py-3 ${hostBanner.type === "error" ? "border-red-500/30 bg-red-500/8" : hostBanner.type === "warning" ? "border-[#ff8f3d]/30 bg-[#ff8f3d]/8" : "border-sky-400/25 bg-sky-500/8"}`}>
                                     <div className="flex items-start gap-3">
@@ -2352,9 +2352,11 @@ export default function ImageFramePageClient() {
                                 {renderHostCard("supabase")}
                                 {renderHostCard("imgbb")}
                             </div>
+                        </div>
 
-                            {(selectedHost || bothHostsDown) && (
-                                <div className="mt-4 flex flex-col gap-2 border-t border-white/8 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        {(selectedHost || bothHostsDown) && (
+                            <div className="shrink-0 border-t border-white/8 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-4">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <p className="text-xs text-gray-500">
                                         {selectedHost
                                             ? <>Current: <span className="text-gray-300">{HOSTS[selectedHost].name}</span></>
@@ -2366,8 +2368,8 @@ export default function ImageFramePageClient() {
                                             : "Select a storage card to switch."}
                                     </p>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
