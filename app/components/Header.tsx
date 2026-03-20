@@ -9,6 +9,24 @@ interface HeaderProps {
     variant?: "fixed" | "static";
 }
 
+const userButtonAppearance = {
+    elements: {
+        avatarBox: {
+            width: "36px",
+            height: "36px",
+            borderRadius: "50%",
+            border: "2px solid #2ed573",
+            boxShadow: "0 0 8px rgba(74, 222, 128, 0.4)",
+        },
+        avatarImage: {
+            width: "100%",
+            height: "100%",
+            borderRadius: "50%",
+            objectFit: "cover",
+        },
+    },
+};
+
 export default function Header({ variant = "static" }: HeaderProps) {
     const baseClasses = variant === "fixed"
         ? "fixed top-0 left-0 right-0 z-50 py-3 px-4"
@@ -116,7 +134,7 @@ function NavLinks() {
                 </SignInButton>
             </SignedOut>
             <SignedIn>
-                <UserButton afterSignOutUrl="/" />
+                <UserButton afterSignOutUrl="/" appearance={userButtonAppearance} />
             </SignedIn>
         </nav>
     );

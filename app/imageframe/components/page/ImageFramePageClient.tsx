@@ -103,6 +103,24 @@ const createInitialHostStatuses = (): Record<HostType, HostHealthState> => ({
     imgbb: { status: "checking", message: null },
 });
 
+const userButtonAppearance = {
+    elements: {
+        avatarBox: {
+            width: "36px",
+            height: "36px",
+            borderRadius: "50%",
+            border: "2px solid #2ed573",
+            boxShadow: "0 0 8px rgba(74, 222, 128, 0.4)",
+        },
+        avatarImage: {
+            width: "100%",
+            height: "100%",
+            borderRadius: "50%",
+            objectFit: "cover",
+        },
+    },
+} as const;
+
 const PRIMARY_NAV_LINKS: HeaderNavLink[] = [
     {
         href: "/about",
@@ -2442,6 +2460,7 @@ export default function ImageFramePageClient() {
                                             afterSignOutUrl="/"
                                             appearance={{
                                                 elements: {
+                                                    ...userButtonAppearance.elements,
                                                     userButtonPopoverActionButton__signOut: "logout-trigger"
                                                 }
                                             }}
@@ -2497,6 +2516,7 @@ export default function ImageFramePageClient() {
                                             afterSignOutUrl="/"
                                             appearance={{
                                                 elements: {
+                                                    ...userButtonAppearance.elements,
                                                     userButtonPopoverActionButton__signOut: "logout-trigger"
                                                 }
                                             }}
@@ -2575,7 +2595,7 @@ export default function ImageFramePageClient() {
                                     )}
                                 </ActionButton>
                                 <SignedIn>
-                                    <UserButton afterSignOutUrl="/" />
+                                    <UserButton afterSignOutUrl="/" appearance={userButtonAppearance} />
                                 </SignedIn>
                             </div>
                         </div>
