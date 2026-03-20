@@ -186,9 +186,10 @@ export default function Home() {
               {teamMembers.map((member, index) => (
                 <div
                   key={member.name}
-                  className="glass p-6 rounded-2xl text-center hover:scale-110 transition-all duration-300 cursor-pointer animation-will-change"
+                  className="glass p-6 rounded-2xl text-center hover:[transform:translateY(-8px)_scale(1.03)] cursor-default animation-will-change"
                   style={{
                     animation: `floatCard 3s ease-in-out infinite ${index * 0.3}s, cardGlow 2s ease-in-out infinite ${index * 0.5}s`,
+                    transition: "transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 300ms ease, border-color 300ms ease",
                   }}
                 >
                   <div className="text-5xl mb-4 animate-[spin_20s_linear_infinite]" style={{
