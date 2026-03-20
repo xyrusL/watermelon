@@ -13,6 +13,10 @@ interface ImageGalleryProps {
     onToggleNsfwReveal: (timestamp: number, e: React.MouseEvent) => void;
     isSignedIn?: boolean;
     imagesPerPage?: number;
+    availabilityNotice?: {
+        tone: "info" | "warning" | "error";
+        message: string;
+    } | null;
 }
 
 const DEFAULT_IMAGES_PER_PAGE = 12;
@@ -60,6 +64,7 @@ export default function ImageGallery({
     onToggleNsfwReveal,
     isSignedIn = false,
     imagesPerPage,
+    availabilityNotice = null,
 }: ImageGalleryProps) {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
@@ -125,7 +130,13 @@ export default function ImageGallery({
     );
 
     if (!isSignedIn) return null;
-    if (images.length === 0) return null;
+    if (images.length === 0 && !availabilityNotice) return null;
+
+    const noticeClasses = availabilityNotice?.tone === "error"
+        ? "border-red-500/40 bg-red-500/10 text-red-200"
+        : availabilityNotice?.tone === "warning"
+            ? "border-[#ffa502]/40 bg-[#ffa502]/10 text-[#ffd27d]"
+            : "border-sky-500/35 bg-sky-500/10 text-sky-100";
 
     const getActiveStyle = () => ({
         borderColor: `${UI_ACCENT}66`,
@@ -140,59 +151,71 @@ export default function ImageGallery({
             </h2>
             <p className="text-gray-500 text-sm text-center mb-6">Click an image to view details</p>
 
-            <div className="glass rounded-2xl border border-white/10 p-3 sm:p-4 mb-5">
-                <div className="flex flex-wrap items-end gap-3">
-                    <label className="flex flex-col gap-1 min-w-[140px]">
-                        <span className="text-[11px] uppercase tracking-wide text-gray-400">Sort</span>
-                        <select
-                            value={sortOrder}
-                            onChange={(e) => {
-                                setSortOrder(e.target.value as SortOrder);
-                                setCurrentPage(1);
-                            }}
-                            className="h-9 px-3 rounded-lg glass border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-[#2ed573]/60"
-                        >
-                            <option value="newest" className="bg-[#1a1a1a]">Newest</option>
-                            <option value="oldest" className="bg-[#1a1a1a]">Oldest</option>
-                        </select>
-                    </label>
-                    <label className="flex flex-col gap-1 min-w-[140px]">
-                        <span className="text-[11px] uppercase tracking-wide text-gray-400">Range</span>
-                        <select
-                            value={dateWindow}
-                            onChange={(e) => {
-                                setDateWindow(e.target.value as DateWindow);
-                                setCurrentPage(1);
-                            }}
-                            className="h-9 px-3 rounded-lg glass border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-[#2ed573]/60"
-                        >
-                            <option value="all" className="bg-[#1a1a1a]">All</option>
-                            <option value="day" className="bg-[#1a1a1a]">Day</option>
-                            <option value="week" className="bg-[#1a1a1a]">Week</option>
-                            <option value="month" className="bg-[#1a1a1a]">Month</option>
-                            <option value="year" className="bg-[#1a1a1a]">Year</option>
-                        </select>
-                    </label>
-                    <ActionButton
-                        type="button"
-                        onClick={() => {
-                            setNewReleaseOnly((prev) => !prev);
-                            setCurrentPage(1);
-                        }}
-                        variant="secondary"
-                        size="sm"
-                        className="h-9 px-3 rounded-lg text-sm border-white/10 text-gray-300 hover:text-white hover:border-white/25"
-                        style={newReleaseOnly ? getActiveStyle() : undefined}
-                    >
-                        New Release
-                    </ActionButton>
-                    <span className="text-xs text-gray-500 ml-auto mb-2">
-                        {filteredImages.length} result{filteredImages.length === 1 ? "" : "s"} · {effectiveImagesPerPage}/page
-                    </span>
+            {availabilityNotice && (
+                <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm ${noticeClasses}`}>
+                    {availabilityNotice.message}
                 </div>
-            </div>
+            )}
 
-            {filteredImages.length === 0 ? (
+            {images.length > 0 && (
+                <div className="glass rounded-2xl border border-white/10 p-3 sm:p-4 mb-5">
+                    <div className="flex flex-wrap items-end gap-3">
+                        <label className="flex flex-col gap-1 min-w-[140px]">
+                            <span className="text-[11px] uppercase tracking-wide text-gray-400">Sort</span>
+                            <select
+                                value={sortOrder}
+                                onChange={(e) => {
+                                    setSortOrder(e.target.value as SortOrder);
+                                    setCurrentPage(1);
+                                }}
+                                className="h-9 px-3 rounded-lg glass border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-[#2ed573]/60"
+                            >
+                                <option value="newest" className="bg-[#1a1a1a]">Newest</option>
+                                <option value="oldest" className="bg-[#1a1a1a]">Oldest</option>
+                            </select>
+                        </label>
+                        <label className="flex flex-col gap-1 min-w-[140px]">
+                            <span className="text-[11px] uppercase tracking-wide text-gray-400">Range</span>
+                            <select
+                                value={dateWindow}
+                                onChange={(e) => {
+                                    setDateWindow(e.target.value as DateWindow);
+                                    setCurrentPage(1);
+                                }}
+                                className="h-9 px-3 rounded-lg glass border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-[#2ed573]/60"
+                            >
+                                <option value="all" className="bg-[#1a1a1a]">All</option>
+                                <option value="day" className="bg-[#1a1a1a]">Day</option>
+                                <option value="week" className="bg-[#1a1a1a]">Week</option>
+                                <option value="month" className="bg-[#1a1a1a]">Month</option>
+                                <option value="year" className="bg-[#1a1a1a]">Year</option>
+                            </select>
+                        </label>
+                        <ActionButton
+                            type="button"
+                            onClick={() => {
+                                setNewReleaseOnly((prev) => !prev);
+                                setCurrentPage(1);
+                            }}
+                            variant="secondary"
+                            size="sm"
+                            className="h-9 px-3 rounded-lg text-sm border-white/10 text-gray-300 hover:text-white hover:border-white/25"
+                            style={newReleaseOnly ? getActiveStyle() : undefined}
+                        >
+                            New Release
+                        </ActionButton>
+                        <span className="text-xs text-gray-500 ml-auto mb-2">
+                            {filteredImages.length} result{filteredImages.length === 1 ? "" : "s"} · {effectiveImagesPerPage}/page
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {images.length === 0 ? (
+                <div className="glass rounded-2xl border border-white/10 p-6 text-center text-gray-400">
+                    No images are available right now.
+                </div>
+            ) : filteredImages.length === 0 ? (
                 <div className="glass rounded-2xl border border-white/10 p-6 text-center text-gray-400">
                     No images match the selected filters.
                 </div>

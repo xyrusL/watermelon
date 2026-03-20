@@ -120,6 +120,7 @@ export default function ImageFramePageClient() {
     const [error, setError] = useState<string | null>(null);
     const [copiedTarget, setCopiedTarget] = useState<"url" | "command" | null>(null);
     const [gallery, setGallery] = useState<UploadedImage[]>([]);
+    const [gallerySourceErrors, setGallerySourceErrors] = useState<Partial<Record<HostType, string>>>({});
     const [isCheckingApi, setIsCheckingApi] = useState(true);
     const [hostStatuses, setHostStatuses] = useState<Record<HostType, HostHealthState>>(createInitialHostStatuses);
     const [showHostChooserModal, setShowHostChooserModal] = useState(false);
@@ -364,35 +365,69 @@ export default function ImageFramePageClient() {
                 requestId,
                 inFlight: isGalleryFetchInFlightRef.current,
             });
-            const response = await fetch('/api/supabase/recent');
-            let data: RecentImagesApiResponse | null = null;
-            try {
-                data = await response.json();
-            } catch {
-                // Non-JSON response; we'll fall back to status-based errors below.
-            }
+            const fetchHostImages = async (host: HostType, endpoint: string) => {
+                const response = await fetch(endpoint);
+                let data: RecentImagesApiResponse | null = null;
+                try {
+                    data = await response.json();
+                } catch {
+                    data = null;
+                }
 
-            if (!response.ok) {
-                const statusMessage = `Request failed with status ${response.status}`;
-                const apiMessage = data?.error || data?.message || statusMessage;
-                recordGalleryApiError(apiMessage, "Endpoint: /api/supabase/recent");
-                restoreGalleryFromCache();
-                return;
-            }
+                if (!response.ok) {
+                    const statusMessage = `Request failed with status ${response.status}`;
+                    throw new Error(data?.error || data?.message || statusMessage);
+                }
 
-            if (data?.success && Array.isArray(data.images) && requestId === latestGalleryRequestIdRef.current) {
-                const images = mapDbImagesToUploadedImages(data.images);
-                setGallery(images);
+                if (!data?.success || !Array.isArray(data.images)) {
+                    throw new Error(data?.error || "Gallery API returned an error");
+                }
+
+                return {
+                    host,
+                    images: mapDbImagesToUploadedImages(data.images),
+                };
+            };
+
+            const results = await Promise.allSettled([
+                fetchHostImages("supabase", "/api/supabase/recent"),
+                fetchHostImages("imgbb", "/api/imgbb/recent"),
+            ]);
+
+            const sourceOrder: HostType[] = ["supabase", "imgbb"];
+            const nextErrors: Partial<Record<HostType, string>> = {};
+            const mergedImages: UploadedImage[] = [];
+
+            results.forEach((result, index) => {
+                const host = sourceOrder[index];
+                if (result.status === "fulfilled") {
+                    mergedImages.push(...result.value.images);
+                    return;
+                }
+
+                const message = result.reason instanceof Error ? result.reason.message : "Unknown gallery error";
+                nextErrors[host] = message;
+                recordGalleryApiError(message, `Endpoint: ${host === "supabase" ? "/api/supabase/recent" : "/api/imgbb/recent"}`);
+            });
+
+            if (requestId !== latestGalleryRequestIdRef.current) return;
+
+            setGallerySourceErrors(nextErrors);
+
+            if (mergedImages.length > 0) {
+                const sortedImages = [...mergedImages].sort((a, b) => b.uploadedAt - a.uploadedAt);
+                setGallery(sortedImages);
+                localStorage.setItem("watermelon-gallery", JSON.stringify(sortedImages));
                 lastGalleryApiErrorRef.current = null;
                 debugStateLog("gallery_fetch_success", {
                     requestId,
-                    imageCount: images.length,
+                    imageCount: sortedImages.length,
+                    sourceErrors: Object.keys(nextErrors),
                 });
-            } else if (data && !data.success) {
-                recordGalleryApiError(
-                    data.error || "Gallery API returned an error",
-                    "Endpoint: /api/supabase/recent"
-                );
+            } else if (Object.keys(nextErrors).length === 0) {
+                setGallery([]);
+                localStorage.setItem("watermelon-gallery", JSON.stringify([]));
+            } else {
                 restoreGalleryFromCache();
             }
         } catch (err) {
@@ -403,7 +438,7 @@ export default function ImageFramePageClient() {
             });
             recordGalleryApiError(
                 err instanceof Error ? err.message : "Network error while fetching gallery",
-                "Endpoint: /api/supabase/recent"
+                "Endpoint: /api/supabase/recent,/api/imgbb/recent"
             );
             restoreGalleryFromCache();
         } finally {
@@ -1479,6 +1514,28 @@ export default function ImageFramePageClient() {
     const isSuccessValueCopied = copiedTarget === successOutputMode;
     const uploadSizeLabel = uploadedImage?.fileSize ? formatFileSize(uploadedImage.fileSize) : null;
     const bothHostsDown = HOST_ORDER.every((host) => hostStatuses[host].status === "down");
+    const unavailableGalleryHosts = HOST_ORDER.filter((host) =>
+        hostStatuses[host].status === "down" || Boolean(gallerySourceErrors[host])
+    );
+    const visibleGallery = gallery.filter((image) =>
+        !image.host || !unavailableGalleryHosts.includes(image.host)
+    );
+    const galleryAvailabilityNotice = unavailableGalleryHosts.length === 2
+        ? {
+            tone: "error" as const,
+            message: "The gallery is currently unavailable due to API issues.",
+        }
+        : unavailableGalleryHosts.includes("imgbb")
+            ? {
+                tone: "warning" as const,
+                message: "ImgBB service is currently unavailable. Showing images from Watermelon storage only.",
+            }
+            : unavailableGalleryHosts.includes("supabase")
+                ? {
+                    tone: "warning" as const,
+                    message: "Watermelon storage is currently unavailable. Showing images from ImgBB only.",
+                }
+                : null;
     const selectedHostStatus = selectedHost ? hostStatuses[selectedHost] : null;
     const hostBanner = bothHostsDown
         ? {
@@ -2666,12 +2723,13 @@ export default function ImageFramePageClient() {
 
                         {/* Gallery */}
                         <ImageGallery
-                            images={gallery}
+                            images={visibleGallery}
                             currentUserEmail={user?.primaryEmailAddress?.emailAddress}
                             revealedNsfwImages={revealedNsfwImages}
                             onImageClick={openImageDetails}
                             onToggleNsfwReveal={toggleNsfwReveal}
                             isSignedIn={isSignedIn ?? false}
+                            availabilityNotice={galleryAvailabilityNotice}
                         />
                     </div>
                 </main>

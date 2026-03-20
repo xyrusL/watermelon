@@ -17,7 +17,7 @@ export async function GET(_request: NextRequest) {
         let query = supabase
             .from("images")
             .select("*")
-            .eq("host", "supabase")
+            .eq("host", "imgbb")
             .is("user_deleted_at", null)
             .order("uploaded_at", { ascending: false })
             .limit(20);
@@ -33,7 +33,7 @@ export async function GET(_request: NextRequest) {
 
         const { data: images, error } = await query;
         if (error) {
-            console.error("Database error in /api/supabase/recent:", error);
+            console.error("Database error in /api/imgbb/recent:", error);
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
@@ -42,7 +42,7 @@ export async function GET(_request: NextRequest) {
             images: (images as DbImageRecord[] | null)?.map(serializeImageRecord) || [],
         });
     } catch (error) {
-        console.error("Fetch recent images error:", error);
+        console.error("Fetch recent imgbb images error:", error);
         return NextResponse.json(
             {
                 success: false,
