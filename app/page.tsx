@@ -2,11 +2,25 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { useState } from "react";
 import ActionButton from "./components/ActionButton";
 import Header from "./components/Header";
 
 const SERVER_IP = "watermelon.deze.me";
+const FOOTER_NAV_LINKS = [
+  { href: "/", label: "Home" },
+  { href: "/about", label: "About" },
+  { href: "/commands", label: "Commands" },
+  { href: "/tools", label: "Tools" },
+  { href: "/mods", label: "Mods" },
+];
+
+const FOOTER_COMMUNITY_LINKS = [
+  { href: "/imageframe", label: "ImageFrame" },
+  { href: "/converter", label: "Converter" },
+  { href: "/minecraft", label: "Minecraft PE" },
+];
 
 const teamMembers = [
   {
@@ -40,16 +54,22 @@ const features = [
     title: "SMP Experience",
     description: "Pure survival multiplayer gameplay with friends",
     icon: "⛏️",
+    iconAnimation: "feature-pickaxe 2.4s ease-in-out infinite",
+    glowColor: "rgba(255, 107, 129, 0.95)",
   },
   {
     title: "Custom Plugins",
     description: "Unique features to enhance your experience",
     icon: "🔧",
+    iconAnimation: "feature-wrench 2.8s ease-in-out infinite",
+    glowColor: "rgba(46, 213, 115, 0.95)",
   },
   {
     title: "Fun Community",
     description: "Friendly players ready to welcome you",
     icon: "🎮",
+    iconAnimation: "feature-controller 2.2s ease-in-out infinite",
+    glowColor: "rgba(255, 71, 87, 0.95)",
   },
 ];
 
@@ -61,8 +81,7 @@ export default function Home() {
       await navigator.clipboard.writeText(SERVER_IP);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
+    } catch {
     }
   };
 
@@ -339,10 +358,19 @@ export default function Home() {
               {features.map((feature, index) => (
                 <div
                   key={feature.title}
-                  className="glass p-6 rounded-2xl text-center hover:border-[#ff4757]/50 transition-all"
+                  className="glass p-6 rounded-2xl text-center hover:border-[#ff4757]/50 transition-all group"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <div className="text-4xl mb-4">{feature.icon}</div>
+                  <div
+                    className="text-4xl mb-4 inline-flex feature-icon"
+                    style={{
+                      "--feature-glow-color": feature.glowColor,
+                      animation: feature.iconAnimation,
+                      willChange: "transform, filter",
+                    } as CSSProperties}
+                  >
+                    {feature.icon}
+                  </div>
                   <h3 className="font-pixel text-xs text-white mb-3">
                     {feature.title}
                   </h3>
@@ -384,26 +412,69 @@ export default function Home() {
         </section>
 
         {/* Footer */}
-        <footer className="py-12 px-4 border-t border-white/5">
-          <div className="max-w-4xl 2xl:max-w-6xl mx-auto text-center">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <img
-                src="/watermelon.svg"
-                alt="Watermelon"
-                width={32}
-                height={32}
-              />
-              <span className="font-pixel text-sm text-[#ff4757]">
-                WATERMELON
-              </span>
+        <footer className="bg-[#0a0a0a] px-4 py-5 sm:py-6">
+          <div className="max-w-4xl 2xl:max-w-6xl mx-auto">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 md:justify-between md:gap-x-8">
+                <div className="flex items-center gap-2 shrink-0">
+                  <img
+                    src="/watermelon.svg"
+                    alt="Watermelon"
+                    width={18}
+                    height={18}
+                  />
+                  <span className="font-pixel text-sm text-[#ff4757]">
+                    WATERMELON
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-y-2 text-[13px] text-gray-300">
+                  {FOOTER_NAV_LINKS.map((link, index) => (
+                    <span key={link.href} className="flex items-center">
+                      <Link
+                        href={link.href}
+                        className="transition-colors hover:text-[#2ed573]"
+                      >
+                        {link.label}
+                      </Link>
+                      {index < FOOTER_NAV_LINKS.length - 1 ? (
+                        <span className="mx-2 text-gray-500">·</span>
+                      ) : null}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-y-2 text-[13px] text-gray-300">
+                  {FOOTER_COMMUNITY_LINKS.map((link, index) => (
+                    <span key={link.href} className="flex items-center">
+                      <Link
+                        href={link.href}
+                        className="transition-colors hover:text-[#2ed573]"
+                      >
+                        {link.label}
+                      </Link>
+                      {index < FOOTER_COMMUNITY_LINKS.length - 1 ? (
+                        <span className="mx-2 text-gray-500">·</span>
+                      ) : null}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 pt-4">
+                <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
+                  <Link
+                    href={`https://${SERVER_IP}`}
+                    className="text-[13px] text-gray-400 transition-colors hover:text-[#2ed573]"
+                  >
+                    {SERVER_IP}
+                  </Link>
+                  <p className="text-[13px] text-gray-500">
+                    © 2026 Watermelon SMP. All rights reserved.
+                  </p>
+                </div>
+              </div>
             </div>
-            <p className="text-gray-500 text-sm mb-4">
-              Join us at{" "}
-              <span className="text-[#2ed573] font-medium">{SERVER_IP}</span>
-            </p>
-            <p className="text-gray-600 text-xs">
-              © {new Date().getFullYear()} Watermelon SMP. All rights reserved.
-            </p>
           </div>
         </footer>
       </div>

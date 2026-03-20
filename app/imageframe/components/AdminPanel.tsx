@@ -544,7 +544,7 @@ export default function AdminPanel({
 export function AdminButton({ isAdmin, onClick }: { isAdmin: boolean; onClick: () => void }) {
     if (!isAdmin) return null;
     return (
-        <ActionButton onClick={onClick} variant="danger" shape="pill" size="md" className="px-4 py-2.5 hover:scale-105 flex items-center gap-2">
+        <ActionButton onClick={onClick} variant="danger" shape="pill" size="md" className="px-4 py-2.5 hover:scale-105 flex items-center gap-2 shrink-0">
             <PixelShield size={14} color="currentColor" />
             <span className="hidden sm:inline">Admin</span>
         </ActionButton>

@@ -1,5 +1,4 @@
 // Constants for ImageFrame
-import React from "react";
 import { HostType, HostConfig, FrameSize } from "./types";
 import {
     PixelFrame,

@@ -73,6 +73,9 @@ export default function ActionButton({
 
     return (
         <button
+            data-motion-button="true"
+            data-button-variant={variant}
+            data-button-tone={tone}
             className={`${baseClass} ${shapeClassMap[shape]} ${sizeClassMap[size]} ${variantClasses} ${fullWidth ? "w-full" : ""} ${className}`.trim()}
             {...props}
         >

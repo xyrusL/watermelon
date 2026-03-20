@@ -495,7 +495,7 @@ export function UserPanelButton({ isSignedIn, onClick }: { isSignedIn: boolean; 
             variant="primary"
             shape="pill"
             size="md"
-            className="px-4 py-2.5 text-sm hover:scale-105 flex items-center gap-2"
+            className="px-4 py-2.5 text-sm hover:scale-105 flex items-center gap-2 shrink-0"
         >
             <PixelUser size={14} color="currentColor" />
             <span className="hidden sm:inline">My Uploads</span>

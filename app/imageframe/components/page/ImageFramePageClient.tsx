@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
 import "react-image-crop/dist/ReactCrop.css";
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import ActionButton from "../../../components/ActionButton";
@@ -88,6 +89,13 @@ type HostHealthState = {
     message: string | null;
 };
 
+type HeaderNavLink = {
+    href: string;
+    label: string;
+    icon: ReactNode;
+    hoverBorderClass: string;
+};
+
 const HOST_ORDER: HostType[] = ["supabase", "imgbb"];
 
 const createInitialHostStatuses = (): Record<HostType, HostHealthState> => ({
@@ -95,8 +103,81 @@ const createInitialHostStatuses = (): Record<HostType, HostHealthState> => ({
     imgbb: { status: "checking", message: null },
 });
 
+const PRIMARY_NAV_LINKS: HeaderNavLink[] = [
+    {
+        href: "/about",
+        label: "About",
+        hoverBorderClass: "hover:border-[#5f27cd]/50",
+        icon: (
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="2" width="12" height="12" rx="2" fill="#5f27cd" />
+                <rect x="7" y="5" width="2" height="2" fill="white" />
+                <rect x="7" y="8" width="2" height="4" fill="white" />
+            </svg>
+        ),
+    },
+    {
+        href: "/converter",
+        label: "Converter",
+        hoverBorderClass: "hover:border-[#ff4757]/50",
+        icon: (
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="3" width="14" height="10" rx="1" fill="#ff4757" />
+                <polygon points="6,5 6,11 11,8" fill="white" />
+            </svg>
+        ),
+    },
+    {
+        href: "/tools",
+        label: "Tools",
+        hoverBorderClass: "hover:border-[#ffa502]/50",
+        icon: (
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
+                <rect x="3" y="4" width="10" height="8" rx="1" fill="#ffa502" />
+                <rect x="1" y="6" width="2" height="4" fill="#ffa502" />
+                <rect x="13" y="6" width="2" height="4" fill="#ffa502" />
+                <rect x="5" y="6" width="2" height="2" fill="white" />
+                <rect x="9" y="6" width="2" height="2" fill="white" />
+            </svg>
+        ),
+    },
+];
+
+const SECONDARY_NAV_LINKS: HeaderNavLink[] = [
+    {
+        href: "/commands",
+        label: "Commands",
+        hoverBorderClass: "hover:border-[#2ed573]/50",
+        icon: (
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="2" width="12" height="12" rx="1" fill="#2ed573" />
+                <rect x="4" y="4" width="8" height="2" fill="white" />
+                <rect x="4" y="7" width="6" height="2" fill="white" />
+                <rect x="4" y="10" width="7" height="2" fill="white" />
+            </svg>
+        ),
+    },
+    {
+        href: "/imageframe",
+        label: "ImageFrame",
+        hoverBorderClass: "hover:border-[#ff4757]/50",
+        icon: (
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="2" width="14" height="12" rx="1" fill="#2ed573" />
+                <rect x="2" y="3" width="12" height="10" fill="#1a1a1a" />
+                <circle cx="5" cy="6" r="2" fill="#ffa502" />
+                <polygon points="3,12 7,8 10,11 12,9 14,12" fill="#2ed573" />
+            </svg>
+        ),
+    },
+];
+
+const TABLET_VISIBLE_NAV_LINKS = PRIMARY_NAV_LINKS.slice(0, 1);
+const TABLET_MORE_NAV_LINKS = [...PRIMARY_NAV_LINKS.slice(1), ...SECONDARY_NAV_LINKS];
+
 export default function ImageFramePageClient() {
     const { isSignedIn, isLoaded, user } = useUser();
+    const pathname = usePathname();
 
     // Check if user is admin (via Clerk's publicMetadata)
     const isAdmin = user?.publicMetadata?.role === "admin";
@@ -129,6 +210,7 @@ export default function ImageFramePageClient() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteSuccess, setDeleteSuccess] = useState(false);
     const [selectedHost, setSelectedHost] = useState<HostType | null>(null);
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [username, setUsername] = useState<string>("");
     const [isEditingUsername, setIsEditingUsername] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -191,6 +273,7 @@ export default function ImageFramePageClient() {
     };
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const headerMenuRef = useRef<HTMLDivElement>(null);
     const latestGalleryRequestIdRef = useRef(0);
     const isGalleryFetchInFlightRef = useRef(false);
     const lastGalleryApiErrorRef = useRef<string | null>(null);
@@ -352,6 +435,28 @@ export default function ImageFramePageClient() {
             setShowHostChooserModal(true);
         }
     }, [selectedHost]);
+
+    useEffect(() => {
+        const handlePointerDown = (event: MouseEvent) => {
+            if (!headerMenuRef.current?.contains(event.target as Node)) {
+                setShowMoreMenu(false);
+            }
+        };
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setShowMoreMenu(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handlePointerDown);
+        document.addEventListener("keydown", handleEscape);
+
+        return () => {
+            document.removeEventListener("mousedown", handlePointerDown);
+            document.removeEventListener("keydown", handleEscape);
+        };
+    }, []);
 
     // Function to fetch recent images (uses centralized mapper)
     const fetchRecentImages = async () => {
@@ -1597,47 +1702,64 @@ export default function ImageFramePageClient() {
                 disabled={!isAvailable}
                 aria-disabled={!isAvailable}
                 title={isAvailable ? `Use ${title}` : `${title} is unavailable`}
-                className={`relative text-left rounded-[28px] p-6 md:p-7 min-h-[280px] flex flex-col transition-all duration-200 border ${cardClass} ${selectedClass}`}
+                className={`relative text-left rounded-[24px] sm:rounded-[28px] p-4 sm:p-6 md:p-7 min-h-0 sm:min-h-[280px] flex flex-col transition-all duration-200 border ${cardClass} ${selectedClass}`}
             >
-                <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.04),transparent_55%)]" />
+                <div className="pointer-events-none absolute inset-0 rounded-[24px] sm:rounded-[28px] bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.04),transparent_55%)]" />
 
-                <div className="relative flex items-start justify-between gap-4">
-                    <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${iconWrapClass}`}>
+                <div className="relative flex items-start justify-between gap-3 sm:gap-4">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl border flex items-center justify-center ${iconWrapClass}`}>
                         {isWatermelon ? (
-                            <PixelShield size={20} color={iconColor} />
+                            <PixelShield size={18} color={iconColor} />
                         ) : (
-                            <PixelImage size={20} color={iconColor} />
+                            <PixelImage size={18} color={iconColor} />
                         )}
                     </div>
-                    <div className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] border max-w-full ${isAvailable ? accentClass : "border-white/12 text-gray-500 bg-white/[0.04]"}`}>
+                    <div className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.16em] border max-w-full ${isAvailable ? accentClass : "border-white/12 text-gray-500 bg-white/[0.04]"}`}>
                         {pillLabel}
                     </div>
                 </div>
 
-                <div className="relative mt-6">
-                    <h3 className="font-pixel text-lg md:text-xl text-white leading-tight">{title}</h3>
-                    <p className="mt-3 text-sm leading-6 text-gray-400">{description}</p>
+                <div className="relative mt-4 sm:mt-6">
+                    <h3 className="font-pixel text-base sm:text-lg md:text-xl text-white" style={{ lineHeight: 1.15 }}>{title}</h3>
+                    <p className="mt-2 text-[13px] sm:text-sm text-gray-400" style={{ lineHeight: 1.45 }}>{description}</p>
                 </div>
 
-                <div className="relative mt-6 space-y-3 border-t border-white/8 pt-5 text-sm">
+                <div className="relative mt-4 sm:mt-6 space-y-2 sm:space-y-3 border-t border-white/8 pt-4 sm:pt-5 text-[13px] sm:text-sm">
                     <div className="flex items-center gap-3 text-gray-200">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isWatermelon ? "bg-[#2ed573]/10" : "bg-[#ff8f3d]/10"}`}>
+                        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${isWatermelon ? "bg-[#2ed573]/10" : "bg-[#ff8f3d]/10"}`}>
                             <PixelCheck size={12} color={iconColor} />
                         </div>
-                        <span><span className="font-semibold text-white">{config.maxSizeLabel}</span> max size</span>
+                        <span style={{ lineHeight: 1.45 }}><span className="font-semibold text-white">{config.maxSizeLabel}</span> max size</span>
                     </div>
                     <div className="flex items-center gap-3 text-gray-200">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isWatermelon ? "bg-[#2ed573]/10" : "bg-[#ff8f3d]/10"}`}>
-                            {isWatermelon ? <PixelLock size={12} color={iconColor} /> : <PixelGlobe size={12} color={iconColor} />}
+                        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${isWatermelon ? "bg-[#2ed573]/10" : "bg-[#ff8f3d]/10"}`}>
+                            {isWatermelon ? <PixelLock size={11} color={iconColor} /> : <PixelGlobe size={11} color={iconColor} />}
                         </div>
-                        <span>{supportLine}</span>
+                        <span style={{ lineHeight: 1.45 }}>{supportLine}</span>
                     </div>
                 </div>
 
-                <p className="relative mt-auto pt-6 text-xs text-gray-500">{availabilityLine}</p>
+                <p className="relative mt-auto pt-4 text-[11px] sm:text-xs text-gray-500" style={{ lineHeight: 1.4 }}>{availabilityLine}</p>
             </button>
         );
     };
+
+    const renderHeaderLink = (link: HeaderNavLink, compact = false, iconOnly = false, fullWidth = false) => (
+        <Link
+            key={link.href}
+            href={link.href}
+            onClick={() => {
+                setShowMoreMenu(false);
+            }}
+            aria-current={pathname === link.href ? "page" : undefined}
+            aria-label={iconOnly ? link.label : undefined}
+            title={iconOnly ? link.label : undefined}
+            className={`site-nav-link glass border border-white/10 ${link.hoverBorderClass} rounded-full text-sm font-medium transition-all flex items-center gap-2 ${fullWidth ? "w-full justify-start" : iconOnly ? "w-10 h-10 shrink-0 justify-center p-0" : compact ? "px-3 py-2.5 justify-center whitespace-nowrap" : "px-3 md:px-4 py-2.5 whitespace-nowrap"}`}
+        >
+            {link.icon}
+            {!iconOnly && <span>{link.label}</span>}
+        </Link>
+    );
 
     return (
         <div className="min-h-screen bg-[#0d0d0d] text-white overflow-x-hidden">
@@ -2184,9 +2306,9 @@ export default function ImageFramePageClient() {
             )}
 
             {showHostChooserModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                    <div className="w-full max-w-4xl rounded-[30px] border border-white/12 bg-[#0f1319] shadow-[0_24px_80px_rgba(0,0,0,0.55)] overflow-hidden">
-                        <div className="border-b border-white/8 px-5 py-4 sm:px-6">
+                <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:items-center sm:p-4 bg-black/80 backdrop-blur-md">
+                    <div className="w-full max-w-4xl rounded-[26px] sm:rounded-[30px] border border-white/12 bg-[#0f1319] shadow-[0_24px_80px_rgba(0,0,0,0.55)] max-h-[calc(100vh-1.5rem)] sm:max-h-[90vh] overflow-y-auto overscroll-contain">
+                        <div className="border-b border-white/8 px-4 py-4 sm:px-6">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <p className="font-pixel text-base sm:text-lg text-white">CHOOSE STORAGE</p>
@@ -2207,9 +2329,9 @@ export default function ImageFramePageClient() {
                             </div>
                         </div>
 
-                        <div className="px-5 py-5 sm:px-6 sm:py-6">
+                        <div className="px-4 py-4 sm:px-6 sm:py-6">
                             {hostBanner && (
-                                <div className={`mb-5 rounded-2xl border px-4 py-3 ${hostBanner.type === "error" ? "border-red-500/30 bg-red-500/8" : hostBanner.type === "warning" ? "border-[#ff8f3d]/30 bg-[#ff8f3d]/8" : "border-sky-400/25 bg-sky-500/8"}`}>
+                                <div className={`mb-4 rounded-2xl border px-4 py-3 ${hostBanner.type === "error" ? "border-red-500/30 bg-red-500/8" : hostBanner.type === "warning" ? "border-[#ff8f3d]/30 bg-[#ff8f3d]/8" : "border-sky-400/25 bg-sky-500/8"}`}>
                                     <div className="flex items-start gap-3">
                                         <div className="mt-0.5">
                                             {hostBanner.type === "error"
@@ -2226,19 +2348,19 @@ export default function ImageFramePageClient() {
                                 </div>
                             )}
 
-                            <div className="grid gap-4 md:grid-cols-2">
+                            <div className="grid gap-3 md:grid-cols-2">
                                 {renderHostCard("supabase")}
                                 {renderHostCard("imgbb")}
                             </div>
 
                             {(selectedHost || bothHostsDown) && (
-                                <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/8 pt-4">
+                                <div className="mt-4 flex flex-col gap-2 border-t border-white/8 pt-4 sm:flex-row sm:items-center sm:justify-between">
                                     <p className="text-xs text-gray-500">
                                         {selectedHost
                                             ? <>Current: <span className="text-gray-300">{HOSTS[selectedHost].name}</span></>
                                             : "No storage provider is online right now."}
                                     </p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-gray-500 sm:text-right">
                                         {bothHostsDown
                                             ? "Uploads are paused until a provider recovers."
                                             : "Select a storage card to switch."}
@@ -2264,75 +2386,205 @@ export default function ImageFramePageClient() {
             {/* Content */}
             <div className="relative z-10 min-h-screen">
                 {/* Header */}
-                <header className="py-3 px-4">
-                    <div className="max-w-4xl mx-auto">
-                        <div className="glass rounded-2xl px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <header className="relative z-40 py-3 px-4">
+                    <div ref={headerMenuRef} className="max-w-6xl mx-auto flex flex-col">
+                        <div className="glass relative overflow-visible rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
                             <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                                 <img src="/watermelon.svg" alt="Watermelon" width={28} height={28} />
-                                <span className="font-pixel text-xs text-[#ff4757] hidden sm:block">WATERMELON</span>
+                                <span className="font-pixel text-[10px] text-[#ff4757] whitespace-nowrap">WATERMELON</span>
                             </Link>
-                            <div className="w-full sm:w-auto flex items-center gap-1 sm:gap-2 md:gap-3 flex-wrap justify-center sm:justify-end">
-                                <Link
-                                    href="/about"
-                                    className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#5f27cd]/50 rounded-full text-sm font-medium transition-all flex items-center gap-1 md:gap-2"
-                                >
-                                    <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
-                                        <rect x="2" y="2" width="12" height="12" rx="2" fill="#5f27cd" />
-                                        <rect x="7" y="5" width="2" height="2" fill="white" />
-                                        <rect x="7" y="8" width="2" height="4" fill="white" />
-                                    </svg>
-                                    <span className="hidden md:inline">About</span>
-                                </Link>
-                                <Link
-                                    href="/converter"
-                                    className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all flex items-center gap-1 md:gap-2"
-                                >
-                                    <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
-                                        <rect x="1" y="3" width="14" height="10" rx="1" fill="#ff4757" />
-                                        <polygon points="6,5 6,11 11,8" fill="white" />
-                                    </svg>
-                                    <span className="hidden md:inline">Converter</span>
-                                </Link>
-                                <Link
-                                    href="/tools"
-                                    className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#ffa502]/50 rounded-full text-sm font-medium transition-all flex items-center gap-1 md:gap-2"
-                                >
-                                    <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
-                                        <rect x="3" y="4" width="10" height="8" rx="1" fill="#ffa502" />
-                                        <rect x="1" y="6" width="2" height="4" fill="#ffa502" />
-                                        <rect x="13" y="6" width="2" height="4" fill="#ffa502" />
-                                        <rect x="5" y="6" width="2" height="2" fill="white" />
-                                        <rect x="9" y="6" width="2" height="2" fill="white" />
-                                    </svg>
-                                    <span className="hidden md:inline">Tools</span>
-                                </Link>
+                            <div className="hidden lg:flex items-center justify-end gap-2 min-w-0 flex-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    {PRIMARY_NAV_LINKS.map((link) => renderHeaderLink(link))}
+                                    <div className="relative">
+                                        <ActionButton
+                                            type="button"
+                                            onClick={() => setShowMoreMenu((prev) => !prev)}
+                                            variant="secondary"
+                                            shape="pill"
+                                            size="md"
+                                            className="px-3 md:px-4 py-2.5 border-white/10 hover:border-white/25 text-sm flex items-center gap-2 whitespace-nowrap"
+                                            aria-expanded={showMoreMenu}
+                                            aria-haspopup="menu"
+                                        >
+                                            <span>More</span>
+                                            <ChevronDown size={14} className={`transition-transform ${showMoreMenu ? "rotate-180" : ""}`} />
+                                        </ActionButton>
+                                        {showMoreMenu && (
+                                            <div className="motion-dropdown is-open absolute left-1/2 top-full mt-2 w-56 -translate-x-1/2 rounded-2xl border border-white/10 bg-[#12161d]/95 backdrop-blur-xl shadow-[0_24px_60px_rgba(0,0,0,0.45)] p-2 z-[80] origin-top">
+                                                <div className="flex flex-col gap-2">
+                                                    {SECONDARY_NAV_LINKS.map((link) => renderHeaderLink(link, true))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <SignedOut>
+                                        <SignInButton mode="modal">
+                                            <ActionButton
+                                                variant="primary"
+                                                shape="pill"
+                                                size="md"
+                                                className="px-3 md:px-4 py-2.5 hover:scale-105 cursor-pointer flex items-center gap-2 whitespace-nowrap"
+                                            >
+                                                <PixelKey size={14} color="currentColor" />
+                                                <span>Sign In</span>
+                                            </ActionButton>
+                                        </SignInButton>
+                                    </SignedOut>
+                                    <SignedIn>
+                                        <AdminButton isAdmin={isAdmin} onClick={openAdminPanel} />
+                                        <UserPanelButton isSignedIn={isSignedIn ?? false} onClick={openUserPanel} />
+                                        <UserButton
+                                            afterSignOutUrl="/"
+                                            appearance={{
+                                                elements: {
+                                                    userButtonPopoverActionButton__signOut: "logout-trigger"
+                                                }
+                                            }}
+                                        />
+                                    </SignedIn>
+                                </div>
+                            </div>
+
+                            <div className="hidden md:flex lg:hidden items-center justify-end gap-2 min-w-0 flex-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    {TABLET_VISIBLE_NAV_LINKS.map((link) => renderHeaderLink(link))}
+                                    <div className="relative">
+                                        <ActionButton
+                                            type="button"
+                                            onClick={() => setShowMoreMenu((prev) => !prev)}
+                                            variant="secondary"
+                                            shape="pill"
+                                            size="md"
+                                            className="px-3 py-2.5 border-white/10 hover:border-white/25 text-sm flex items-center gap-2 whitespace-nowrap"
+                                            aria-expanded={showMoreMenu}
+                                            aria-haspopup="menu"
+                                        >
+                                            <span>More</span>
+                                            <ChevronDown size={14} className={`transition-transform ${showMoreMenu ? "rotate-180" : ""}`} />
+                                        </ActionButton>
+                                        {showMoreMenu && (
+                                            <div className="motion-dropdown is-open absolute left-1/2 top-full mt-2 w-56 -translate-x-1/2 rounded-2xl border border-white/10 bg-[#12161d]/95 backdrop-blur-xl shadow-[0_24px_60px_rgba(0,0,0,0.45)] p-2 z-[80] origin-top">
+                                                <div className="flex flex-col gap-2">
+                                                    {TABLET_MORE_NAV_LINKS.map((link) => renderHeaderLink(link, true))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <SignedOut>
+                                        <SignInButton mode="modal">
+                                            <ActionButton
+                                                variant="primary"
+                                                shape="pill"
+                                                size="md"
+                                                className="px-3 py-2.5 hover:scale-105 cursor-pointer flex items-center gap-2 whitespace-nowrap"
+                                            >
+                                                <PixelKey size={14} color="currentColor" />
+                                                <span>Sign In</span>
+                                            </ActionButton>
+                                        </SignInButton>
+                                    </SignedOut>
+                                    <SignedIn>
+                                        <AdminButton isAdmin={isAdmin} onClick={openAdminPanel} />
+                                        <UserPanelButton isSignedIn={isSignedIn ?? false} onClick={openUserPanel} />
+                                        <UserButton
+                                            afterSignOutUrl="/"
+                                            appearance={{
+                                                elements: {
+                                                    userButtonPopoverActionButton__signOut: "logout-trigger"
+                                                }
+                                            }}
+                                        />
+                                    </SignedIn>
+                                </div>
+                            </div>
+
+                            <div className="md:hidden flex items-center gap-2 shrink-0">
+                                <SignedIn>
+                                    {isAdmin && (
+                                        <ActionButton
+                                            onClick={() => {
+                                                setShowMoreMenu(false);
+                                                openAdminPanel();
+                                            }}
+                                            variant="danger"
+                                            shape="pill"
+                                            size="md"
+                                            className="w-10 h-10 p-0 flex items-center justify-center shrink-0"
+                                            title="Admin"
+                                            aria-label="Admin"
+                                        >
+                                            <PixelShield size={14} color="currentColor" />
+                                        </ActionButton>
+                                    )}
+                                    <ActionButton
+                                        onClick={() => {
+                                            setShowMoreMenu(false);
+                                            openUserPanel();
+                                        }}
+                                        variant="primary"
+                                        shape="pill"
+                                        size="md"
+                                        className="w-10 h-10 p-0 flex items-center justify-center shrink-0"
+                                        title="My Uploads"
+                                        aria-label="My Uploads"
+                                    >
+                                        <PixelUser size={14} color="currentColor" />
+                                    </ActionButton>
+                                </SignedIn>
                                 <SignedOut>
                                     <SignInButton mode="modal">
                                         <ActionButton
                                             variant="primary"
                                             shape="pill"
                                             size="md"
-                                            className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 hover:scale-105 cursor-pointer flex items-center gap-1 md:gap-2"
+                                            className="w-10 h-10 p-0 flex items-center justify-center shrink-0"
+                                            title="Sign In"
+                                            aria-label="Sign In"
                                         >
                                             <PixelKey size={14} color="currentColor" />
-                                            <span className="hidden md:inline">Sign In</span>
                                         </ActionButton>
                                     </SignInButton>
                                 </SignedOut>
+                                <ActionButton
+                                    type="button"
+                                    onClick={() => setShowMoreMenu((prev) => !prev)}
+                                    variant="secondary"
+                                    shape="pill"
+                                    size="md"
+                                    className="w-10 h-10 p-0 border-white/10 hover:border-white/25 flex items-center justify-center shrink-0"
+                                    aria-expanded={showMoreMenu}
+                                    aria-haspopup="menu"
+                                    title="Menu"
+                                    aria-label="Menu"
+                                >
+                                    {showMoreMenu ? (
+                                        <PixelClose size={14} color="currentColor" />
+                                    ) : (
+                                        <div className="flex flex-col gap-[3px]">
+                                            <span className="block w-4 h-[2px] bg-white rounded-full" />
+                                            <span className="block w-4 h-[2px] bg-white rounded-full" />
+                                            <span className="block w-4 h-[2px] bg-white rounded-full" />
+                                        </div>
+                                    )}
+                                </ActionButton>
                                 <SignedIn>
-                                    <AdminButton isAdmin={isAdmin} onClick={openAdminPanel} />
-                                    <UserPanelButton isSignedIn={isSignedIn ?? false} onClick={openUserPanel} />
-                                    <UserButton
-                                        afterSignOutUrl="/"
-                                        appearance={{
-                                            elements: {
-                                                userButtonPopoverActionButton__signOut: "logout-trigger"
-                                            }
-                                        }}
-                                    />
+                                    <UserButton afterSignOutUrl="/" />
                                 </SignedIn>
                             </div>
                         </div>
+
+                        {showMoreMenu && (
+                            <div className="motion-dropdown is-open md:hidden mt-3 glass rounded-2xl p-3 border border-white/10">
+                                <div className="flex flex-col gap-2">
+                                    {[...PRIMARY_NAV_LINKS, ...SECONDARY_NAV_LINKS].map((link) => renderHeaderLink(link, true))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </header>
 
@@ -2506,11 +2758,11 @@ export default function ImageFramePageClient() {
                                         onDragLeave={isSignedIn ? handleDragLeave : undefined}
                                         onDrop={isSignedIn && selectedHostIsAvailable ? handleDrop : undefined}
                                         className={`
-                    ${preview ? "bg-black/60 backdrop-blur-sm p-4 md:p-6" : "glass p-8 text-center"} rounded-2xl transition-all border-2
+                    ${preview ? "bg-black/60 backdrop-blur-sm p-4 md:p-6" : "motion-dropzone glass p-8 text-center"} rounded-2xl transition-all border-2
                     ${!preview && isSignedIn && selectedHostIsAvailable ? "cursor-pointer border-dashed border-white/20 hover:border-[#ff4757]/50" : ""}
                     ${!preview && isSignedIn && !selectedHostIsAvailable ? "border-dashed border-white/10 opacity-70 cursor-not-allowed" : ""}
                     ${preview ? "border-white/20" : ""}
-                    ${isDragging && isSignedIn ? "border-[#2ed573] bg-[#2ed573]/10" : ""}
+                    ${isDragging && isSignedIn ? "is-dragging border-[#2ed573] bg-[#2ed573]/10" : ""}
                   `}
                                     >
                                         <input

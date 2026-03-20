@@ -145,18 +145,7 @@ const requiredMods = [
 ];
 
 export default function ToolsPage() {
-    const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
     const [minecraftVersion, setMinecraftVersion] = useState<string>("1.21.1");
-
-    const copyUrl = async (url: string) => {
-        try {
-            await navigator.clipboard.writeText(url);
-            setCopiedUrl(url);
-            setTimeout(() => setCopiedUrl(null), 2000);
-        } catch (err) {
-            console.error("Failed to copy:", err);
-        }
-    };
 
     // Fetch latest Minecraft version
     useEffect(() => {

@@ -37,8 +37,7 @@ export default function AboutPage() {
                 setCopiedPassword(true);
                 setTimeout(() => setCopiedPassword(false), 2000);
             }
-        } catch (err) {
-            console.error("Failed to copy:", err);
+        } catch {
         }
     };
 

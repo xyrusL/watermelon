@@ -1,10 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useState, useRef, useEffect, Dispatch, SetStateAction } from "react";
-import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
-import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { useUser } from "@clerk/nextjs";
+import { FFmpeg } from "../lib/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import Header from "../components/Header";
 import ActionButton from "../components/ActionButton";
@@ -23,8 +22,11 @@ type VideoGifSettings = {
 
 type QualityPreset = "high" | "medium" | "low";
 
+type FFmpegLogEvent = { message: string };
+type FFmpegProgressEvent = { progress: number };
+
 export default function ConverterPage() {
-    const { isSignedIn, user } = useUser();
+    const { isSignedIn } = useUser();
     const [converterType, setConverterType] = useState<"video" | "image">("video");
 
     // Video converter states
@@ -37,6 +39,7 @@ export default function ConverterPage() {
     const [gifSize, setGifSize] = useState<number>(0);
     const [gifBlob, setGifBlob] = useState<Blob | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isVideoDragActive, setIsVideoDragActive] = useState(false);
     const [quality, setQuality] = useState(10); // 1-31, lower is better
     const [fps, setFps] = useState(15);
     const [scale, setScale] = useState(480); // Width in pixels
@@ -44,6 +47,7 @@ export default function ConverterPage() {
     const [duration, setDuration] = useState(0);
     const [maxDuration, setMaxDuration] = useState(10);
     const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+    const [ffmpegRuntimeReady, setFfmpegRuntimeReady] = useState(false);
     const [suggestedSettings, setSuggestedSettings] = useState<VideoGifSettings | null>(null);
     const [useSuggestedSettings, setUseSuggestedSettings] = useState(true);
 
@@ -208,9 +212,12 @@ export default function ConverterPage() {
 
     // Initialize FFmpeg only in browser
     useEffect(() => {
-        if (typeof window !== 'undefined') {
+        if (typeof window === "undefined") return;
+
+        if (!ffmpegRef.current) {
             ffmpegRef.current = new FFmpeg();
-        }
+            setFfmpegRuntimeReady(true);
+        };
     }, []);
 
     // Cleanup any remaining object URLs on unmount
@@ -228,6 +235,7 @@ export default function ConverterPage() {
         if (
             typeof window === 'undefined' ||
             !ffmpegRef.current ||
+            !ffmpegRuntimeReady ||
             !isSignedIn ||
             converterType !== "video" ||
             ffmpegLoaded
@@ -236,9 +244,7 @@ export default function ConverterPage() {
         const loadFFmpeg = async () => {
             const ffmpeg = ffmpegRef.current!;
 
-            ffmpeg.on("log", ({ message }) => {
-                console.log(message);
-
+            ffmpeg.on("log", ({ message }: FFmpegLogEvent) => {
                 if (!isConvertingRef.current) return;
 
                 const timeMatch = message.match(/time=(\d{2}:\d{2}:\d{2}(?:\.\d+)?)/);
@@ -258,7 +264,7 @@ export default function ConverterPage() {
                 }
             });
 
-            ffmpeg.on("progress", ({ progress: p }) => {
+            ffmpeg.on("progress", ({ progress: p }: FFmpegProgressEvent) => {
                 if (!isConvertingRef.current) return;
 
                 const safeProgress = Number.isFinite(p) ? Math.min(Math.max(p, 0), 1) : 0;
@@ -276,6 +282,7 @@ export default function ConverterPage() {
                 await ffmpeg.load({
                     coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
                     wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+                    classWorkerURL: "./ffmpeg.worker.js",
                 });
                 setFfmpegLoaded(true);
                 setLoadingMessage("");
@@ -287,7 +294,7 @@ export default function ConverterPage() {
         };
 
         loadFFmpeg();
-    }, [isSignedIn, converterType, ffmpegLoaded]);
+    }, [isSignedIn, converterType, ffmpegLoaded, ffmpegRuntimeReady]);
 
     const handleVideoSelect = (file: File) => {
         if (!file.type.startsWith("video/")) {
@@ -337,6 +344,7 @@ export default function ConverterPage() {
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
+        setIsVideoDragActive(false);
         const file = e.dataTransfer.files[0];
         if (file) handleVideoSelect(file);
     };
@@ -810,8 +818,12 @@ export default function ConverterPage() {
                                         /* File Upload Mode */
                                         <div
                                             onDrop={handleDrop}
-                                            onDragOver={(e) => e.preventDefault()}
-                                            className="glass rounded-2xl p-12 border-2 border-dashed border-white/20 hover:border-[#2ed573]/50 transition-all text-center cursor-pointer"
+                                            onDragOver={(e) => {
+                                                e.preventDefault();
+                                                setIsVideoDragActive(true);
+                                            }}
+                                            onDragLeave={() => setIsVideoDragActive(false)}
+                                            className={`motion-dropzone glass rounded-2xl p-12 border-2 border-dashed border-white/20 hover:border-[#2ed573]/50 transition-all text-center cursor-pointer ${isVideoDragActive ? "is-dragging" : ""}`}
                                             onClick={() => document.getElementById("video-input")?.click()}
                                         >
                                             <div className="text-6xl mb-4">🎬</div>

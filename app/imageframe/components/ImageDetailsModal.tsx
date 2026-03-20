@@ -95,9 +95,9 @@ export default function ImageDetailsModal({
     const imgId = image.id || image.uploadedAt?.toString();
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90" onClick={onClose}>
+        <div className="motion-backdrop is-open fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90" onClick={onClose}>
             <div
-                className="glass rounded-2xl p-3 sm:p-4 md:p-6 max-w-4xl w-full relative max-h-[90vh] my-auto overflow-y-auto overflow-x-hidden"
+                className="motion-modal-panel is-open glass rounded-2xl p-3 sm:p-4 md:p-6 max-w-4xl w-full relative max-h-[90vh] my-auto overflow-y-auto overflow-x-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
                 <ActionButton

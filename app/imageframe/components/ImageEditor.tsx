@@ -330,10 +330,6 @@ export default function ImageEditor({
         }, outputType);
     };
 
-    // Zoom handlers
-    const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 3));
-    const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
-
     // Rotation handlers
     const rotateClockwise = () => setRotation(prev => (prev + 90) % 360);
     const rotateCounterClockwise = () => setRotation(prev => (prev - 90 + 360) % 360);

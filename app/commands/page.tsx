@@ -113,8 +113,7 @@ export default function CommandsPage() {
             await navigator.clipboard.writeText(cmd);
             setCopiedCommand(cmd);
             setTimeout(() => setCopiedCommand(null), 2000);
-        } catch (err) {
-            console.error("Failed to copy:", err);
+        } catch {
         }
     };
 

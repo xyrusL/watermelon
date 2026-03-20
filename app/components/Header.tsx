@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import ActionButton from "./ActionButton";
 
@@ -29,11 +30,14 @@ export default function Header({ variant = "static" }: HeaderProps) {
 }
 
 function NavLinks() {
+    const pathname = usePathname();
+
     return (
         <nav className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-wrap justify-end">
             <Link
                 href="/about"
-                className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#5f27cd]/50 rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-1 md:gap-2"
+                aria-current={pathname === "/about" ? "page" : undefined}
+                className="site-nav-link px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#5f27cd]/50 rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-1 md:gap-2"
             >
                 <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
                     <rect x="2" y="2" width="12" height="12" rx="2" fill="#5f27cd" />
@@ -44,7 +48,8 @@ function NavLinks() {
             </Link>
             <Link
                 href="/converter"
-                className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-1 md:gap-2"
+                aria-current={pathname === "/converter" ? "page" : undefined}
+                className="site-nav-link px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-1 md:gap-2"
             >
                 <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
                     <rect x="1" y="3" width="14" height="10" rx="1" fill="#ff4757" />
@@ -54,7 +59,8 @@ function NavLinks() {
             </Link>
             <Link
                 href="/tools"
-                className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#ffa502]/50 rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-1 md:gap-2"
+                aria-current={pathname === "/tools" ? "page" : undefined}
+                className="site-nav-link px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#ffa502]/50 rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-1 md:gap-2"
             >
                 <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
                     <rect x="3" y="4" width="10" height="8" rx="1" fill="#ffa502" />
@@ -67,7 +73,8 @@ function NavLinks() {
             </Link>
             <Link
                 href="/commands"
-                className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#2ed573]/50 rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-1 md:gap-2"
+                aria-current={pathname === "/commands" ? "page" : undefined}
+                className="site-nav-link px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#2ed573]/50 rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-1 md:gap-2"
             >
                 <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
                     <rect x="2" y="2" width="12" height="12" rx="1" fill="#2ed573" />
@@ -79,7 +86,8 @@ function NavLinks() {
             </Link>
             <Link
                 href="/imageframe"
-                className="px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-1 md:gap-2"
+                aria-current={pathname === "/imageframe" ? "page" : undefined}
+                className="site-nav-link px-2 sm:px-3 md:px-4 py-2 md:py-2.5 glass border border-white/10 hover:border-[#ff4757]/50 rounded-full text-sm font-medium transition-all hover:scale-105 flex items-center gap-1 md:gap-2"
             >
                 <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none">
                     <rect x="1" y="2" width="14" height="12" rx="1" fill="#2ed573" />
