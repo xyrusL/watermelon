@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -14,6 +14,8 @@
   --background-secondary: #1a1a1a;
   --foreground: #ededed;
   --foreground-muted: #a0a0a0;
+
+  --font-body: 'Inter', 'DM Sans', system-ui, -apple-system, sans-serif;
 }
 
 *,
@@ -34,7 +36,10 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.65;
+  font-weight: 400;
   overflow-x: hidden;
 }
 
@@ -48,16 +53,34 @@ button {
   cursor: pointer;
 }
 
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-body);
+  font-size: inherit;
+  line-height: inherit;
+}
+
+button,
+label,
+nav a,
+.site-nav-link {
+  font-weight: 500;
+}
+
+input,
+select,
+textarea {
+  font-weight: 400;
+}
+
 /* Global inline icon and emoji alignment */
 p,
 li,
 span,
-h1,
-h2,
-h3,
-h4,
 label {
-  line-height: 1.7;
+  line-height: 1.65;
 }
 
 p img,
