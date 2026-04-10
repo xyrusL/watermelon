@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState, useRef, useEffect, Dispatch, SetStateAction } from "react";
 import { useUser } from "@clerk/nextjs";
-import { FFmpeg } from "../lib/ffmpeg";
+import { CORE_URL, FFmpeg } from "../lib/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import Header from "../components/Header";
 import ActionButton from "../components/ActionButton";
@@ -112,6 +112,20 @@ export default function ConverterPage() {
     };
 
     const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+    const getFfmpegLoadErrorMessage = (error: unknown) => {
+        const details = error instanceof Error ? error.message : String(error ?? "");
+        const normalized = details.toLowerCase();
+
+        if (normalized.includes("failed to fetch") || normalized.includes("networkerror")) {
+            return "Failed to load the converter engine from the FFmpeg CDN. Your browser is online, but the engine request did not complete. Try again in a moment or disable any extension/firewall that blocks third-party scripts.";
+        }
+
+        if (normalized.includes("security") || normalized.includes("cross-origin") || normalized.includes("cors")) {
+            return "Failed to load the converter engine because the FFmpeg files were blocked by browser security or cross-origin rules. Try again without strict privacy extensions or network filters.";
+        }
+
+        return "Failed to load the converter engine. The site is reachable, but the FFmpeg runtime could not start. This is usually a CDN, worker, or browser blocking issue rather than a full internet outage.";
+    };
     const normalizeScale = (value: number) => {
         const snapped = Math.round(value / 80) * 80;
         return clamp(snapped, 320, 720);
@@ -278,7 +292,7 @@ export default function ConverterPage() {
 
             try {
                 setLoadingMessage("Loading converter engine...");
-                const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+                const baseURL = CORE_URL.replace(/\/ffmpeg-core\.js$/, "");
                 await ffmpeg.load({
                     coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
                     wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
@@ -288,7 +302,7 @@ export default function ConverterPage() {
                 setLoadingMessage("");
             } catch (error) {
                 console.error("FFmpeg load error:", error);
-                setErrorMessage("Failed to load converter engine. Please check your internet connection and refresh the page.");
+                setErrorMessage(getFfmpegLoadErrorMessage(error));
                 setLoadingMessage("");
             }
         };

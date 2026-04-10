@@ -146,6 +146,27 @@ const containerGroup = {
   },
 };
 
+const heroLogoGlowFilter: string[] = [
+  "drop-shadow(0 0 16px rgba(255, 71, 87, 0.28)) drop-shadow(0 0 36px rgba(255, 71, 87, 0.18))",
+  "drop-shadow(0 0 16px rgba(46, 213, 115, 0.26)) drop-shadow(0 0 36px rgba(46, 213, 115, 0.18))",
+  "drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28)) drop-shadow(0 0 22px rgba(0, 0, 0, 0.16))",
+  "drop-shadow(0 0 16px rgba(255, 71, 87, 0.28)) drop-shadow(0 0 36px rgba(255, 71, 87, 0.18))",
+];
+
+const heroLogoBackdrop: string[] = [
+  "radial-gradient(ellipse at 50% 38%, rgba(255, 71, 87, 0.24) 0%, rgba(255, 71, 87, 0.14) 26%, rgba(46, 213, 115, 0.08) 48%, rgba(0, 0, 0, 0) 78%)",
+  "radial-gradient(ellipse at 50% 42%, rgba(46, 213, 115, 0.22) 0%, rgba(46, 213, 115, 0.14) 30%, rgba(255, 71, 87, 0.08) 50%, rgba(0, 0, 0, 0) 78%)",
+  "radial-gradient(ellipse at 50% 48%, rgba(0, 0, 0, 0.26) 0%, rgba(0, 0, 0, 0.16) 34%, rgba(0, 0, 0, 0.04) 56%, rgba(0, 0, 0, 0) 80%)",
+  "radial-gradient(ellipse at 50% 38%, rgba(255, 71, 87, 0.24) 0%, rgba(255, 71, 87, 0.14) 26%, rgba(46, 213, 115, 0.08) 48%, rgba(0, 0, 0, 0) 78%)",
+];
+
+const heroLogoInnerGlow: string[] = [
+  "radial-gradient(ellipse at 50% 36%, rgba(255, 71, 87, 0.2) 0%, rgba(255, 71, 87, 0.12) 24%, rgba(0, 0, 0, 0) 62%)",
+  "radial-gradient(ellipse at 50% 44%, rgba(46, 213, 115, 0.18) 0%, rgba(46, 213, 115, 0.12) 26%, rgba(0, 0, 0, 0) 62%)",
+  "radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.1) 28%, rgba(0, 0, 0, 0) 60%)",
+  "radial-gradient(ellipse at 50% 36%, rgba(255, 71, 87, 0.2) 0%, rgba(255, 71, 87, 0.12) 24%, rgba(0, 0, 0, 0) 62%)",
+];
+
 function SectionReveal({
   children,
   index,
@@ -263,24 +284,20 @@ export default function Home() {
 
         {/* Hero Section */}
         <motion.section
-          className="min-h-screen flex flex-col items-center justify-center px-4 py-20 pt-24"
+          className="min-h-screen flex flex-col items-center justify-center px-4 py-20 pt-28 sm:pt-30"
           initial={prefersReducedMotion ? false : "hidden"}
           animate={prefersReducedMotion ? undefined : "visible"}
           variants={heroSequence}
         >
           {/* Logo */}
-          <motion.div variants={heroItem} className="mb-8">
+          <motion.div variants={heroItem} className="mb-10">
             <motion.div
               className="relative inline-flex animate-float"
               animate={
                 prefersReducedMotion
                   ? undefined
                   : {
-                      filter: [
-                        "drop-shadow(0 0 14px rgba(255, 71, 87, 0.28)) drop-shadow(0 0 20px rgba(46, 213, 115, 0.16))",
-                        "drop-shadow(0 0 24px rgba(255, 71, 87, 0.5)) drop-shadow(0 0 34px rgba(46, 213, 115, 0.32))",
-                        "drop-shadow(0 0 14px rgba(255, 71, 87, 0.28)) drop-shadow(0 0 20px rgba(46, 213, 115, 0.16))",
-                      ],
+                      filter: heroLogoGlowFilter,
                     }
               }
               transition={
@@ -293,15 +310,61 @@ export default function Home() {
                     }
               }
             >
-              <div className="absolute inset-[-18px] rounded-full bg-[radial-gradient(circle,rgba(255,71,87,0.22)_0%,rgba(46,213,115,0.12)_42%,transparent_72%)] blur-2xl" />
-              <div className="absolute inset-[-8px] rounded-full border border-[#ff4757]/20 shadow-[0_0_40px_rgba(255,71,87,0.18),0_0_65px_rgba(46,213,115,0.12)]" />
-            <img
-              src="/watermelon.svg"
-              alt="Watermelon Logo"
-              width={120}
-              height={120}
+              <motion.div
+                className="pointer-events-none absolute inset-[-30px] rounded-[38%_38%_48%_48%/34%_34%_60%_60%] blur-3xl"
+                animate={
+                  prefersReducedMotion
+                    ? undefined
+                    : {
+                        background: heroLogoBackdrop,
+                        opacity: [0.68, 0.58, 0.42, 0.68],
+                        scale: [1, 1.06, 0.98, 1],
+                      }
+                }
+                transition={
+                  prefersReducedMotion
+                    ? undefined
+                    : {
+                        duration: 4.8,
+                        repeat: Number.POSITIVE_INFINITY,
+                        ease: "easeInOut",
+                      }
+                }
+                style={
+                  prefersReducedMotion ? { background: heroLogoBackdrop[0], opacity: 0.55 } : undefined
+                }
+              />
+              <motion.div
+                className="pointer-events-none absolute inset-[-14px] rounded-[34%_34%_46%_46%/28%_28%_52%_52%] blur-2xl"
+                animate={
+                  prefersReducedMotion
+                    ? undefined
+                    : {
+                        background: heroLogoInnerGlow,
+                        opacity: [0.52, 0.48, 0.3, 0.52],
+                        scale: [0.98, 1.03, 0.96, 0.98],
+                      }
+                }
+                transition={
+                  prefersReducedMotion
+                    ? undefined
+                    : {
+                        duration: 4.8,
+                        repeat: Number.POSITIVE_INFINITY,
+                        ease: "easeInOut",
+                      }
+                }
+                style={
+                  prefersReducedMotion ? { background: heroLogoInnerGlow[0], opacity: 0.42 } : undefined
+                }
+              />
+              <img
+                src="/watermelon.svg"
+                alt="Watermelon Logo"
+                width={120}
+                height={120}
                 className="relative z-10 drop-shadow-2xl"
-            />
+              />
             </motion.div>
           </motion.div>
 

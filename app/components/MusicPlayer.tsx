@@ -67,6 +67,7 @@ export default function MusicPlayer() {
     const audioRef = useRef<HTMLAudioElement>(null);
 
     const currentSong = songs[currentSongIndex];
+    const songListContainerClass = songs.length > 3 ? "max-h-[13.5rem] overflow-y-auto pr-1" : "";
 
     // Check screen size - only show on tablets, PCs, and smart TVs (768px+)
     useEffect(() => {
@@ -240,10 +241,13 @@ export default function MusicPlayer() {
             {/* First-time Music Prompt Modal */}
             {showPrompt && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-                    <div className="glass rounded-2xl p-8 max-w-md w-full text-center border-2 border-[#2ed573]/50 animate-[float_3s_ease-in-out_infinite]">
+                    <div className="glass relative w-full max-w-md overflow-hidden rounded-[28px] border border-white/12 bg-[#121212]/95 p-8 text-center shadow-[0_28px_90px_rgba(0,0,0,0.55)] animate-[float_3s_ease-in-out_infinite]">
+                        <div className="pointer-events-none absolute inset-x-10 top-8 h-32 rounded-full bg-[radial-gradient(circle,rgba(46,213,115,0.15)_0%,rgba(46,213,115,0.05)_45%,transparent_78%)] blur-3xl" />
                         {/* Pixel Jukebox Icon */}
-                        <div className="mb-6">
-                            <svg className="w-24 h-24 mx-auto" viewBox="0 0 64 64" fill="none">
+                        <div className="relative mb-5">
+                            <div className="mx-auto mb-4 flex w-fit items-center gap-8 text-[#a78bfa]/80">
+                                <span className="text-3xl leading-none">♪</span>
+                                <svg className="h-24 w-24" viewBox="0 0 64 64" fill="none">
                                 <rect x="12" y="20" width="40" height="36" fill="#5d4e37" />
                                 <rect x="14" y="22" width="36" height="32" fill="#8b7355" />
                                 <rect x="18" y="38" width="28" height="12" fill="#2c2c2c" />
@@ -262,34 +266,45 @@ export default function MusicPlayer() {
                                 <rect x="44" y="24" width="4" height="4" fill="#ff4757" />
                                 <rect x="16" y="56" width="6" height="4" fill="#5d4e37" />
                                 <rect x="42" y="56" width="6" height="4" fill="#5d4e37" />
-                            </svg>
+                                </svg>
+                                <span className="text-3xl leading-none">♪</span>
+                            </div>
                         </div>
 
-                        <h2 className="font-pixel text-lg text-[#2ed573] mb-4">
-                            🎵 JUKEBOX 🎵
+                        <h2 className="relative mb-4 font-pixel text-lg text-[#2ed573]">
+                            JUKEBOX
                         </h2>
 
-                        <p className="text-gray-300 mb-4">
+                        <p className="mb-5 text-lg leading-relaxed text-gray-200">
                             Want some background music while you explore?
                         </p>
 
                         {/* Song List for Selection */}
-                        <div className="glass rounded-xl p-3 mb-4 border border-white/10">
-                            <p className="text-xs text-gray-400 mb-2">Pick a song to start:</p>
-                            <div className="space-y-2">
+                        <div className="mb-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                            <p className="mb-3 text-center text-sm font-medium text-gray-400">Pick a song to start:</p>
+                            <div className={`space-y-2 ${songListContainerClass}`}>
                                 {songs.map((song, index) => (
                                     <ActionButton
                                         key={song.id}
                                         onClick={() => setCurrentSongIndex(index)}
                                         variant="secondary"
                                         size="sm"
-                                        className={`w-full p-2 rounded-lg text-left cursor-pointer ${currentSongIndex === index
-                                            ? "bg-[#2ed573]/20 border border-[#2ed573]/50"
-                                            : "bg-white/5 hover:bg-white/10 border border-transparent"
+                                        className={`w-full rounded-2xl px-4 py-3 text-left cursor-pointer transition-all ${currentSongIndex === index
+                                            ? "border-[#2ed573]/60 bg-[#153f29] text-white shadow-[0_0_0_1px_rgba(46,213,115,0.18),0_12px_24px_rgba(13,58,34,0.24)]"
+                                            : "border-white/8 bg-white/[0.04] hover:border-white/15 hover:bg-white/[0.07]"
                                             }`}
                                     >
-                                        <p className="text-sm text-white font-medium">{song.title}</p>
-                                        <p className="text-xs text-gray-400">{song.artist}</p>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${currentSongIndex === index ? "border-[#2ed573]/60 bg-[#2ed573]/18 text-[#7dffb0]" : "border-white/10 bg-black/20 text-gray-500"}`}>
+                                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                                                    <polygon points="8,6 18,12 8,18" />
+                                                </svg>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-semibold text-white">{song.title}</p>
+                                                <p className="truncate text-xs text-gray-400">{song.artist}</p>
+                                            </div>
+                                        </div>
                                     </ActionButton>
                                 ))}
                             </div>
@@ -299,14 +314,26 @@ export default function MusicPlayer() {
                             <ActionButton
                                 onClick={enableMusic}
                                 variant="primary"
-                                className="w-full py-4 px-6 font-pixel text-xs hover:scale-105 cursor-pointer flex items-center justify-center gap-2"
+                                className="w-full rounded-3xl border-[#34d06f] bg-[#34d06f] px-6 py-4 font-pixel text-sm tracking-[0.08em] text-[#08150c] shadow-[0_16px_36px_rgba(52,208,111,0.32)] hover:scale-[1.02] hover:bg-[#42dd7c] cursor-pointer"
                             >
-                                <span>▶</span> PLAY {currentSong.title}
+                                <span className="inline-flex items-center gap-3">
+                                    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-black/12">
+                                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                                            <polygon points="8,6 18,12 8,18" />
+                                        </svg>
+                                    </span>
+                                    <span className="text-left leading-tight">
+                                        <span className="block">PLAY NOW</span>
+                                        <span className="mt-1 block font-sans text-xs font-semibold tracking-normal text-[#10331d]">
+                                            {currentSong.title}
+                                        </span>
+                                    </span>
+                                </span>
                             </ActionButton>
                             <ActionButton
                                 onClick={dismissPromptForSession}
                                 variant="secondary"
-                                className="w-full py-3 px-6 border-white/20 hover:border-white/40 text-sm text-gray-400 hover:text-white cursor-pointer"
+                                className="w-full rounded-3xl border-white/12 px-6 py-3 text-sm text-gray-400 hover:border-white/25 hover:text-white cursor-pointer"
                             >
                                 No thanks, maybe later
                             </ActionButton>
@@ -420,15 +447,15 @@ export default function MusicPlayer() {
 
                         {/* Song List */}
                         {showSongList && (
-                            <div className="mb-4 space-y-2 max-h-40 overflow-y-auto">
+                            <div className={`mb-4 space-y-2 ${songListContainerClass}`}>
                                 {songs.map((song, index) => (
                                     <ActionButton
                                         key={song.id}
                                         onClick={() => changeSong(index)}
                                         variant="secondary"
                                         size="sm"
-                                        className={`w-full p-3 rounded-lg text-left cursor-pointer ${currentSongIndex === index
-                                            ? "bg-[#2ed573]/20 border border-[#2ed573]/50"
+                                        className={`w-full rounded-xl p-3 text-left cursor-pointer ${currentSongIndex === index
+                                            ? "bg-[#2ed573]/20 border border-[#2ed573]/50 shadow-[0_12px_24px_rgba(13,58,34,0.22)]"
                                             : "glass border border-white/10 hover:border-[#2ed573]/30"
                                             }`}
                                     >
