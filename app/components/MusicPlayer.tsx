@@ -25,13 +25,20 @@ const songs: Song[] = [
     },
 ];
 
+const MUSIC_ENABLED_KEY = "watermelon-music-enabled";
+const MUSIC_PROMPT_DISMISSED_SESSION_KEY = "watermelon-music-prompt-dismissed";
+const MUSIC_VOLUME_KEY = "watermelon-music-volume";
+const MUSIC_SONG_INDEX_KEY = "watermelon-music-song-index";
+const MUSIC_TIME_KEY = "watermelon-music-time";
+const MUSIC_PLAYING_KEY = "watermelon-music-playing";
+
 export default function MusicPlayer() {
     const [isOpen, setIsOpen] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [volume, setVolume] = useState(() => {
         if (typeof window === "undefined") return 0.5;
 
-        const savedVolume = localStorage.getItem("watermelon-music-volume");
+        const savedVolume = localStorage.getItem(MUSIC_VOLUME_KEY);
         const parsedVolume = savedVolume ? parseFloat(savedVolume) : NaN;
 
         return Number.isFinite(parsedVolume) ? parsedVolume : 0.5;
@@ -39,13 +46,17 @@ export default function MusicPlayer() {
     const [isMuted, setIsMuted] = useState(false);
     const [showPrompt, setShowPrompt] = useState(() => {
         if (typeof window === "undefined") return true;
-        return localStorage.getItem("watermelon-music-enabled") !== "true";
+
+        const musicEnabled = localStorage.getItem(MUSIC_ENABLED_KEY) === "true";
+        const dismissedForSession = sessionStorage.getItem(MUSIC_PROMPT_DISMISSED_SESSION_KEY) === "true";
+
+        return !musicEnabled && !dismissedForSession;
     });
     const [isLargeScreen, setIsLargeScreen] = useState(false);
     const [currentSongIndex, setCurrentSongIndex] = useState(() => {
         if (typeof window === "undefined") return 0;
 
-        const savedSongIndex = localStorage.getItem("watermelon-music-song-index");
+        const savedSongIndex = localStorage.getItem(MUSIC_SONG_INDEX_KEY);
         const parsedIndex = savedSongIndex ? parseInt(savedSongIndex, 10) : NaN;
 
         return Number.isInteger(parsedIndex) && parsedIndex >= 0 && parsedIndex < songs.length
@@ -81,7 +92,7 @@ export default function MusicPlayer() {
 
     // Load saved preferences on mount
     useEffect(() => {
-        const savedTime = localStorage.getItem("watermelon-music-time");
+        const savedTime = localStorage.getItem(MUSIC_TIME_KEY);
 
         if (savedTime && audioRef.current) {
             audioRef.current.currentTime = parseFloat(savedTime);
@@ -92,8 +103,8 @@ export default function MusicPlayer() {
     useEffect(() => {
         const interval = setInterval(() => {
             if (audioRef.current && isPlaying) {
-                localStorage.setItem("watermelon-music-time", audioRef.current.currentTime.toString());
-                localStorage.setItem("watermelon-music-playing", "true");
+                localStorage.setItem(MUSIC_TIME_KEY, audioRef.current.currentTime.toString());
+                localStorage.setItem(MUSIC_PLAYING_KEY, "true");
             }
         }, 1000);
         return () => clearInterval(interval);
@@ -101,14 +112,14 @@ export default function MusicPlayer() {
 
     // Save volume and song index changes
     useEffect(() => {
-        localStorage.setItem("watermelon-music-volume", volume.toString());
+        localStorage.setItem(MUSIC_VOLUME_KEY, volume.toString());
         if (audioRef.current) {
             audioRef.current.volume = isMuted ? 0 : volume;
         }
     }, [volume, isMuted]);
 
     useEffect(() => {
-        localStorage.setItem("watermelon-music-song-index", currentSongIndex.toString());
+        localStorage.setItem(MUSIC_SONG_INDEX_KEY, currentSongIndex.toString());
     }, [currentSongIndex]);
 
     // Restore position when audio is ready
@@ -117,7 +128,7 @@ export default function MusicPlayer() {
         if (!audio) return;
 
         const handleLoadedMetadata = () => {
-            const savedTime = localStorage.getItem("watermelon-music-time");
+            const savedTime = localStorage.getItem(MUSIC_TIME_KEY);
             if (savedTime) {
                 audio.currentTime = parseFloat(savedTime);
             }
@@ -134,10 +145,11 @@ export default function MusicPlayer() {
 
     const enableMusic = () => {
         setShowPrompt(false);
-        localStorage.setItem("watermelon-music-enabled", "true");
+        localStorage.setItem(MUSIC_ENABLED_KEY, "true");
+        sessionStorage.removeItem(MUSIC_PROMPT_DISMISSED_SESSION_KEY);
 
         if (audioRef.current) {
-            const savedTime = localStorage.getItem("watermelon-music-time");
+            const savedTime = localStorage.getItem(MUSIC_TIME_KEY);
             if (savedTime) {
                 audioRef.current.currentTime = parseFloat(savedTime);
             }
@@ -155,11 +167,11 @@ export default function MusicPlayer() {
         if (isPlaying) {
             audioRef.current.pause();
             setIsPlaying(false);
-            localStorage.setItem("watermelon-music-playing", "false");
+            localStorage.setItem(MUSIC_PLAYING_KEY, "false");
         } else {
             audioRef.current.play().then(() => {
                 setIsPlaying(true);
-                localStorage.setItem("watermelon-music-playing", "true");
+                localStorage.setItem(MUSIC_PLAYING_KEY, "true");
             }).catch((err) => {
                 console.error("Failed to play audio:", err);
             });
@@ -184,7 +196,7 @@ export default function MusicPlayer() {
             audioRef.current.pause();
         }
         setCurrentSongIndex(index);
-        localStorage.setItem("watermelon-music-time", "0");
+        localStorage.setItem(MUSIC_TIME_KEY, "0");
         setShowSongList(false);
 
         // Wait for source to update then play
@@ -208,6 +220,11 @@ export default function MusicPlayer() {
 
     const prevSong = () => {
         changeSong((currentSongIndex - 1 + songs.length) % songs.length);
+    };
+
+    const dismissPromptForSession = () => {
+        sessionStorage.setItem(MUSIC_PROMPT_DISMISSED_SESSION_KEY, "true");
+        setShowPrompt(false);
     };
 
     return (
@@ -287,7 +304,7 @@ export default function MusicPlayer() {
                                 <span>▶</span> PLAY {currentSong.title}
                             </ActionButton>
                             <ActionButton
-                                onClick={() => setShowPrompt(false)}
+                                onClick={dismissPromptForSession}
                                 variant="secondary"
                                 className="w-full py-3 px-6 border-white/20 hover:border-white/40 text-sm text-gray-400 hover:text-white cursor-pointer"
                             >
@@ -476,4 +493,3 @@ export default function MusicPlayer() {
         </>
     );
 }
-

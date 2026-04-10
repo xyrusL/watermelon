@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import ActionButton from "./components/ActionButton";
 import Header from "./components/Header";
 
@@ -73,8 +74,82 @@ const features = [
   },
 ];
 
+const heroSequence = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.12,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const heroItem = {
+  hidden: {
+    opacity: 0,
+    y: 28,
+    filter: "blur(10px)",
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: {
+      duration: 0.65,
+      ease: [0.22, 1, 0.36, 1] as const,
+    },
+  },
+};
+
+const sectionReveal = {
+  hidden: {
+    opacity: 0,
+    y: 48,
+    filter: "blur(12px)",
+  },
+  visible: (index: number) => ({
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: {
+      duration: 0.7,
+      delay: 0.85 + index * 0.14,
+      ease: [0.22, 1, 0.36, 1] as const,
+    },
+  }),
+};
+
+function SectionReveal({
+  children,
+  index,
+  className,
+}: {
+  children: ReactNode;
+  index: number;
+  className?: string;
+}) {
+  const prefersReducedMotion = useReducedMotion();
+
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <motion.section
+      custom={index}
+      initial="hidden"
+      animate="visible"
+      variants={sectionReveal}
+      className={className}
+    >
+      {children}
+    </motion.section>
+  );
+}
+
 export default function Home() {
   const [copied, setCopied] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   const copyIP = async () => {
     try {
@@ -105,9 +180,14 @@ export default function Home() {
         <Header variant="fixed" />
 
         {/* Hero Section */}
-        <section className="min-h-screen flex flex-col items-center justify-center px-4 py-20 pt-24">
+        <motion.section
+          className="min-h-screen flex flex-col items-center justify-center px-4 py-20 pt-24"
+          initial={prefersReducedMotion ? false : "hidden"}
+          animate={prefersReducedMotion ? undefined : "visible"}
+          variants={heroSequence}
+        >
           {/* Logo */}
-          <div className="animate-float mb-8">
+          <motion.div variants={heroItem} className="animate-float mb-8">
             <img
               src="/watermelon.svg"
               alt="Watermelon Logo"
@@ -115,23 +195,35 @@ export default function Home() {
               height={120}
               className="drop-shadow-2xl"
             />
-          </div>
+          </motion.div>
 
           {/* Title */}
-          <h1 className="font-pixel text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl text-center mb-4 gradient-text px-4">
+          <motion.h1
+            variants={heroItem}
+            className="font-pixel text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl text-center mb-4 gradient-text px-4"
+          >
             WATERMELON
-          </h1>
-          <p className="font-pixel text-[10px] sm:text-xs md:text-sm text-[#2ed573] mb-8">
+          </motion.h1>
+          <motion.p
+            variants={heroItem}
+            className="font-pixel text-[10px] sm:text-xs md:text-sm text-[#2ed573] mb-8"
+          >
             SMP SERVER
-          </p>
+          </motion.p>
 
           {/* Tagline */}
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 text-center max-w-xs sm:max-w-md lg:max-w-2xl mb-8 px-4">
+          <motion.p
+            variants={heroItem}
+            className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 text-center max-w-xs sm:max-w-md lg:max-w-2xl mb-8 px-4"
+          >
             A cozy Minecraft server with custom plugins and endless adventures
-          </p>
+          </motion.p>
 
           {/* Server IP */}
-          <div className="flex flex-col items-center gap-4 mb-8 px-4">
+          <motion.div
+            variants={heroItem}
+            className="flex flex-col items-center gap-4 mb-8 px-4"
+          >
             <ActionButton
               onClick={copyIP}
               variant="secondary"
@@ -156,12 +248,12 @@ export default function Home() {
                 <span className="text-sm font-medium text-[#2ed573]">1.8+ Compatible</span>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-        </section>
+        </motion.section>
 
         {/* Team Section */}
-        <section className="py-20 px-4 relative overflow-hidden">
+        <SectionReveal index={0} className="py-20 px-4 relative overflow-hidden">
           {/* Spotlight effects */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#ff4757]/10 rounded-full blur-3xl animate-pulse"></div>
@@ -210,10 +302,10 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </section>
+        </SectionReveal>
 
         {/* Difficulty Warning Section */}
-        <section className="py-20 px-4">
+        <SectionReveal index={1} className="py-20 px-4">
           <div className="max-w-4xl mx-auto">
             <div className="glass rounded-2xl p-8 border-2 border-[#ff4757]/30 relative overflow-hidden">
               {/* Danger stripes background */}
@@ -338,10 +430,10 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </section>
+        </SectionReveal>
 
         {/* Features Section */}
-        <section className="py-20 px-4 bg-gradient-to-b from-transparent to-[#1a1a1a]/50">
+        <SectionReveal index={2} className="py-20 px-4 bg-gradient-to-b from-transparent to-[#1a1a1a]/50">
           <div className="max-w-4xl mx-auto">
             <h2
               className="font-pixel text-xl md:text-2xl text-center mb-4 text-[#2ed573] inline-block w-full animate-[glow_2s_ease-in-out_infinite]"
@@ -380,10 +472,10 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </section>
+        </SectionReveal>
 
         {/* Minecraft Download Section */}
-        <section className="py-10 px-4 bg-[#1a1a1a]/50">
+        <SectionReveal index={3} className="py-10 px-4 bg-[#1a1a1a]/50">
           <div className="max-w-4xl mx-auto">
             <p className="text-center text-gray-400 mb-4 text-sm">
               📱 Wanna play on mobile?
@@ -410,10 +502,16 @@ export default function Home() {
               </div>
             </Link>
           </div>
-        </section>
+        </SectionReveal>
 
         {/* Footer */}
-        <footer className="bg-[#0a0a0a] px-4 py-5 sm:py-6">
+        <motion.footer
+          className="bg-[#0a0a0a] px-4 py-5 sm:py-6"
+          initial={prefersReducedMotion ? false : "hidden"}
+          animate={prefersReducedMotion ? undefined : "visible"}
+          custom={4}
+          variants={sectionReveal}
+        >
           <div className="max-w-4xl 2xl:max-w-6xl mx-auto">
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 md:justify-between md:gap-x-8">
@@ -477,7 +575,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </footer>
+        </motion.footer>
       </div>
     </div>
   );
