@@ -119,6 +119,33 @@ const sectionReveal = {
   }),
 };
 
+const containerReveal = {
+  hidden: {
+    opacity: 0,
+    y: 28,
+    filter: "blur(10px)",
+  },
+  visible: (index: number) => ({
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: {
+      duration: 0.62,
+      delay: index * 0.1,
+      ease: [0.22, 1, 0.36, 1] as const,
+    },
+  }),
+};
+
+const containerGroup = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
 function SectionReveal({
   children,
   index,
@@ -144,6 +171,61 @@ function SectionReveal({
     >
       {children}
     </motion.section>
+  );
+}
+
+function ContainerReveal({
+  children,
+  index = 0,
+  className,
+}: {
+  children: ReactNode;
+  index?: number;
+  className?: string;
+}) {
+  const prefersReducedMotion = useReducedMotion();
+
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <motion.div
+      className={className}
+      custom={index}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.2 }}
+      variants={containerReveal}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function ContainerRevealGroup({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const prefersReducedMotion = useReducedMotion();
+
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <motion.div
+      className={className}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.15 }}
+      variants={containerGroup}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -187,14 +269,40 @@ export default function Home() {
           variants={heroSequence}
         >
           {/* Logo */}
-          <motion.div variants={heroItem} className="animate-float mb-8">
+          <motion.div variants={heroItem} className="mb-8">
+            <motion.div
+              className="relative inline-flex animate-float"
+              animate={
+                prefersReducedMotion
+                  ? undefined
+                  : {
+                      filter: [
+                        "drop-shadow(0 0 14px rgba(255, 71, 87, 0.28)) drop-shadow(0 0 20px rgba(46, 213, 115, 0.16))",
+                        "drop-shadow(0 0 24px rgba(255, 71, 87, 0.5)) drop-shadow(0 0 34px rgba(46, 213, 115, 0.32))",
+                        "drop-shadow(0 0 14px rgba(255, 71, 87, 0.28)) drop-shadow(0 0 20px rgba(46, 213, 115, 0.16))",
+                      ],
+                    }
+              }
+              transition={
+                prefersReducedMotion
+                  ? undefined
+                  : {
+                      duration: 3.2,
+                      repeat: Number.POSITIVE_INFINITY,
+                      ease: "easeInOut",
+                    }
+              }
+            >
+              <div className="absolute inset-[-18px] rounded-full bg-[radial-gradient(circle,rgba(255,71,87,0.22)_0%,rgba(46,213,115,0.12)_42%,transparent_72%)] blur-2xl" />
+              <div className="absolute inset-[-8px] rounded-full border border-[#ff4757]/20 shadow-[0_0_40px_rgba(255,71,87,0.18),0_0_65px_rgba(46,213,115,0.12)]" />
             <img
               src="/watermelon.svg"
               alt="Watermelon Logo"
               width={120}
               height={120}
-              className="drop-shadow-2xl"
+                className="relative z-10 drop-shadow-2xl"
             />
+            </motion.div>
           </motion.div>
 
           {/* Title */}
@@ -274,10 +382,12 @@ export default function Home() {
               Meet the amazing people behind Watermelon
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <ContainerRevealGroup className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {teamMembers.map((member, index) => (
-                <div
+                <motion.div
                   key={member.name}
+                  variants={containerReveal}
+                  custom={index}
                   className="glass p-6 rounded-2xl text-center hover:[transform:translateY(-8px)_scale(1.03)] cursor-default animation-will-change"
                   style={{
                     animation: `floatCard 3s ease-in-out infinite ${index * 0.3}s, cardGlow 2s ease-in-out infinite ${index * 0.5}s`,
@@ -298,16 +408,16 @@ export default function Home() {
                     {member.role}
                   </p>
                   <p className="text-gray-400 text-sm">{member.description}</p>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </ContainerRevealGroup>
           </div>
         </SectionReveal>
 
         {/* Difficulty Warning Section */}
         <SectionReveal index={1} className="py-20 px-4">
           <div className="max-w-4xl mx-auto">
-            <div className="glass rounded-2xl p-8 border-2 border-[#ff4757]/30 relative overflow-hidden">
+            <ContainerReveal className="glass rounded-2xl p-8 border-2 border-[#ff4757]/30 relative overflow-hidden">
               {/* Danger stripes background */}
               <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
                 <svg className="w-32 h-32" viewBox="0 0 100 100" fill="none">
@@ -354,8 +464,8 @@ export default function Home() {
                   This server is set to <span className="text-[#ff4757] font-bold">HARD mode</span> - Are you ready for the challenge?
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="glass p-5 rounded-xl border border-[#ff4757]/20 hover:border-[#ff4757]/50 transition-all">
+                <ContainerRevealGroup className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <motion.div variants={containerReveal} custom={0} className="glass p-5 rounded-xl border border-[#ff4757]/20 hover:border-[#ff4757]/50 transition-all">
                     <div className="flex items-center gap-3 mb-3">
                       <svg className="w-8 h-8 animate-[shake_2s_ease-in-out_infinite]" viewBox="0 0 100 100" fill="none">
                         <circle cx="50" cy="30" r="15" fill="currentColor" className="text-[#6ab04c]" />
@@ -370,9 +480,9 @@ export default function Home() {
                     <p className="text-sm text-gray-400">
                       Zombies break down doors, spiders spawn with effects, and mobs deal maximum damage. Every encounter is a real threat!
                     </p>
-                  </div>
+                  </motion.div>
 
-                  <div className="glass p-5 rounded-xl border border-[#ff4757]/20 hover:border-[#ff4757]/50 transition-all">
+                  <motion.div variants={containerReveal} custom={1} className="glass p-5 rounded-xl border border-[#ff4757]/20 hover:border-[#ff4757]/50 transition-all">
                     <div className="flex items-center gap-3 mb-3">
                       <svg className="w-8 h-8 animate-[pulse-glow-filter_2s_ease-in-out_infinite] animation-will-change" viewBox="0 0 100 100" fill="none">
                         <ellipse cx="50" cy="35" rx="20" ry="25" fill="currentColor" className="text-gray-200" />
@@ -386,9 +496,9 @@ export default function Home() {
                     <p className="text-sm text-gray-400">
                       Starvation will kill you, food heals less, and hostile mobs spawn more frequently. Stock up or perish!
                     </p>
-                  </div>
+                  </motion.div>
 
-                  <div className="glass p-5 rounded-xl border border-[#ff4757]/20 hover:border-[#ff4757]/50 transition-all">
+                  <motion.div variants={containerReveal} custom={2} className="glass p-5 rounded-xl border border-[#ff4757]/20 hover:border-[#ff4757]/50 transition-all">
                     <div className="flex items-center gap-3 mb-3">
                       <svg className="w-8 h-8 animate-[burn_1.5s_ease-in-out_infinite]" viewBox="0 0 100 100" fill="none">
                         <path d="M50 10 Q60 30 50 40 Q40 30 50 10 Z" fill="currentColor" className="text-[#ffa502]" />
@@ -403,9 +513,9 @@ export default function Home() {
                     <p className="text-sm text-gray-400">
                       Creepers explode bigger, skeletons have perfect aim, and the Wither is a nightmare. Gear up or get wrecked!
                     </p>
-                  </div>
+                  </motion.div>
 
-                  <div className="glass p-5 rounded-xl border border-[#ff4757]/20 hover:border-[#ff4757]/50 transition-all">
+                  <motion.div variants={containerReveal} custom={3} className="glass p-5 rounded-xl border border-[#ff4757]/20 hover:border-[#ff4757]/50 transition-all">
                     <div className="flex items-center gap-3 mb-3">
                       <svg className="w-8 h-8 animate-[zap_1s_ease-in-out_infinite]" viewBox="0 0 100 100" fill="none">
                         <path d="M55 10 L30 50 L45 50 L40 90 L75 40 L58 40 L70 10 Z" fill="currentColor" className="text-[#ffa502]" />
@@ -416,19 +526,19 @@ export default function Home() {
                     <p className="text-sm text-gray-400">
                       Every night is intense, every cave is dangerous. The satisfaction when you survive? Absolutely worth it!
                     </p>
-                  </div>
-                </div>
+                  </motion.div>
+                </ContainerRevealGroup>
 
-                <div className="glass p-6 rounded-xl bg-[#ff4757]/10 border border-[#ff4757]/30">
+                <ContainerReveal index={1} className="glass p-6 rounded-xl bg-[#ff4757]/10 border border-[#ff4757]/30">
                   <p className="text-center text-white font-medium mb-2">
                     💪 Hard mode means <span className="text-[#ff4757]">real challenges</span> and <span className="text-[#2ed573]">epic victories</span>
                   </p>
                   <p className="text-center text-sm text-gray-400">
                     Not for the faint of heart, but perfect for true survivors who love the thrill!
                   </p>
-                </div>
+                </ContainerReveal>
               </div>
-            </div>
+            </ContainerReveal>
           </div>
         </SectionReveal>
 
@@ -447,10 +557,12 @@ export default function Home() {
               Everything you need for an amazing Minecraft experience
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6">
+            <ContainerRevealGroup className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6">
               {features.map((feature, index) => (
-                <div
+                <motion.div
                   key={feature.title}
+                  variants={containerReveal}
+                  custom={index}
                   className="glass p-6 rounded-2xl text-center hover:border-[#ff4757]/50 transition-all group"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
@@ -468,9 +580,9 @@ export default function Home() {
                     {feature.title}
                   </h3>
                   <p className="text-gray-400 text-sm">{feature.description}</p>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </ContainerRevealGroup>
           </div>
         </SectionReveal>
 
@@ -480,6 +592,7 @@ export default function Home() {
             <p className="text-center text-gray-400 mb-4 text-sm">
               📱 Wanna play on mobile?
             </p>
+            <ContainerReveal>
             <Link
               href="/minecraft"
               className="glass rounded-xl p-4 sm:p-5 border border-[#2ed573]/20 hover:border-[#2ed573]/50 flex items-center justify-between gap-4 transition-all group cursor-pointer"
@@ -501,6 +614,7 @@ export default function Home() {
                 <span className="text-[#2ed573] group-hover:text-white transition-colors">➔</span>
               </div>
             </Link>
+            </ContainerReveal>
           </div>
         </SectionReveal>
 
